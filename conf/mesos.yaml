@@ -1,0 +1,8 @@
+mesos.executor.uri: '/tmp/cassandra-mesos-2.0.3.tgz'
+
+mesos.master.url: 'zk://localhost:2181/mesos'
+
+java.library.path: '/usr/local/bin'
+
+cpus: 0.1
+mem: 2048

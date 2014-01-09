@@ -8,7 +8,7 @@ import scala.io.Source
 import scala.collection.mutable
 import java.net.URI
 
-class ConfigServer(port: Int, cassConfigDir: String, seedNodes: mutable.Set[String]) {
+class ConfigServer(port: Int, cassConfigDir: String, seedNodes: mutable.Set[String]) extends Logger {
 
   val server = new Server(port)
   server.setHandler(new ServeCassConfigHandler)
@@ -22,7 +22,7 @@ class ConfigServer(port: Int, cassConfigDir: String, seedNodes: mutable.Set[Stri
 
     def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse) = {
 
-      println(s"target: ${target}" )
+      info(s"Serving config resource: ${target}")
 
       val plainFilename = new File(new URI(target).getPath).getName // don't ask...
       val confFile = new File(s"${cassConfigDir}/${plainFilename}")

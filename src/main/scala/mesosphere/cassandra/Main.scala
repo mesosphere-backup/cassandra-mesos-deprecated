@@ -9,19 +9,11 @@ import org.apache.commons.cli.MissingArgumentException
 import java.net.InetAddress
 import org.apache.log4j.{Level, BasicConfigurator}
 
-// -Djava.library.path=/usr/local/lib
-
-/*
-
-mesos.executor.uri:
-            Once you fill in the configs and repack the distribution, you need to place the distribution somewhere where Mesos executors can find it.
-
-mesos.master.url:
-            URL for the Mesos master. Like zk://localhost:2181/mesos
-
-java.library.path:
-            Where the mesos lib is installed like /usr/local/lib
-
+/**
+ * Mesos on Cassandra
+ * Takes care of most of the "annoying things" like distributing binaries and configuration out to the nodes.
+ *
+ * @author erich<IDonLikeSpam>nachbar.biz
  */
 object Main extends App with Logger {
 
@@ -38,6 +30,8 @@ object Main extends App with Logger {
 
   val javaLibPath = mesosConf.getOrElse("java.library.path",
     "/usr/local/lib").toString
+
+  val numberOfHwNodes = mesosConf.getOrElse("cassandra.noOfHwNodes", 1).toString.toInt
 
   val confServerPort = mesosConf.getOrElse("cassandra.confServer.port", 8282).toString.toInt
 
@@ -59,7 +53,12 @@ object Main extends App with Logger {
 
   // Instanciate framework and scheduler
   val framework = FrameworkInfo("CassandraMesos")
-  val scheduler = new CassandraScheduler(masterUrl, execUri, confServerHostName, confServerPort, resources)
+  val scheduler = new CassandraScheduler(masterUrl,
+    execUri,
+    confServerHostName,
+    confServerPort,
+    resources,
+    numberOfHwNodes)
 
   new Thread(scheduler).start()
   scheduler.waitUnitInit

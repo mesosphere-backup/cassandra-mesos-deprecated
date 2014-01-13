@@ -9,27 +9,42 @@ import scala.collection.mutable
 import java.util.concurrent.CountDownLatch
 
 /**
- * TODO write header
+ * Mesos scheduler for Cassandra
+ * Takes care of most of the "annoying things" like distributing binaries and configuration out to the nodes.
  *
+ * @author erich<IDonLikeSpam>nachbar.biz
  */
-
-//TODO erich - how to prevent multiple cassandras running on the same host? ports need to be the same across all machines
-//TODO erich - use resourceStrings from config
-class CassandraScheduler(masterUrl: String, execUri: String, confServerHostName: String, confServerPort: Int, resources: mutable.Map[String, Float]) extends Scheduler with Runnable with Logger{
+class CassandraScheduler(masterUrl: String,
+                         execUri: String,
+                         confServerHostName: String,
+                         confServerPort: Int,
+                         resources: mutable.Map[String, Float],
+                         numberOfHwNodes: Int)
+  extends Scheduler with Runnable with Logger {
 
   var initialized = new CountDownLatch(1)
 
   var nodeSet = mutable.Set[String]()
 
-  def error(driver: SchedulerDriver, message: String) {}
+  def error(driver: SchedulerDriver, message: String) {
+    //TODO erich implement
+  }
 
-  def executorLost(driver: SchedulerDriver, executorId: ExecutorID, slaveId: SlaveID, status: Int) {}
+  def executorLost(driver: SchedulerDriver, executorId: ExecutorID, slaveId: SlaveID, status: Int) {
+    //TODO erich implement
+  }
 
-  def slaveLost(driver: SchedulerDriver, slaveId: SlaveID) {}
+  def slaveLost(driver: SchedulerDriver, slaveId: SlaveID) {
+    //TODO erich implement
+  }
 
-  def disconnected(driver: SchedulerDriver) {}
+  def disconnected(driver: SchedulerDriver) {
+    //TODO erich implement
+  }
 
-  def frameworkMessage(driver: SchedulerDriver, executorId: ExecutorID, slaveId: SlaveID, data: Array[Byte]) {}
+  def frameworkMessage(driver: SchedulerDriver, executorId: ExecutorID, slaveId: SlaveID, data: Array[Byte]) {
+    //TODO erich implement
+  }
 
   def statusUpdate(driver: SchedulerDriver, status: TaskStatus) {
     debug(s"received status update $status")
@@ -37,8 +52,8 @@ class CassandraScheduler(masterUrl: String, execUri: String, confServerHostName:
 
   def offerRescinded(driver: SchedulerDriver, offerId: OfferID) {}
 
+  // Blocks with CountDown latch until we have enough seed nodes.
   def waitUnitInit {
-    //TODO erich probably should wait a few seconds instead of using only the first node as seed
     initialized.await()
   }
 
@@ -56,7 +71,7 @@ class CassandraScheduler(masterUrl: String, execUri: String, confServerHostName:
 
     // Let's make sure we don't start multiple Cassandras from the same cluster on the same box.
     // We can't hand out the same port multiple times.
-    for (offer <- offers.asScala if isOfferGood(offer)) {
+    for (offer <- offers.asScala if isOfferGood(offer) && !haveEnoughNodes()) {
       debug(s"offer $offer")
 
       info("Accepted offer: " + offer.getHostname)
@@ -76,8 +91,13 @@ class CassandraScheduler(masterUrl: String, execUri: String, confServerHostName:
     }
 
     // If we have at least one node the assumption is that we are good to go.
-    if(nodeSet.size > 0) initialized.countDown()
+    if (nodeSet.size == numberOfHwNodes) initialized.countDown()
 
+  }
+
+
+  def haveEnoughNodes() = {
+    nodeSet.size == numberOfHwNodes
   }
 
   // Check if offer is reasonable
@@ -105,7 +125,7 @@ class CassandraScheduler(masterUrl: String, execUri: String, confServerHostName:
     val offersTooSmall = resCompList.filter {
       _._2.size > 1
     }.map {
-      case (name, values: List[AnyVal]) => 
+      case (name, values: List[AnyVal]) =>
         values(0).toString.toFloat >= values(1).toString.toFloat
     }.filter {
       !_
@@ -116,15 +136,15 @@ class CassandraScheduler(masterUrl: String, execUri: String, confServerHostName:
     !nodeSet.contains(offer.getHostname) && offersTooSmall == 0
   }
 
-  def reregistered(driver: SchedulerDriver, masterInfo: MasterInfo) {}
+  def reregistered(driver: SchedulerDriver, masterInfo: MasterInfo) {
+    //TODO erich implement
+  }
 
   def registered(driver: SchedulerDriver, frameworkId: FrameworkID, masterInfo: MasterInfo) {
-
     info(s"Framework registered as ${frameworkId.getValue}")
 
     val request = Request.newBuilder()
       .addResources(ScalarResource("cpus", 1.0).toProto)
-      //      .addResources(portResource)
       .build()
 
     val r = new util.ArrayList[Protos.Request]
@@ -134,10 +154,9 @@ class CassandraScheduler(masterUrl: String, execUri: String, confServerHostName:
   }
 
   def run() {
-    //  log.info("Starting up...")
+    info("Starting up...")
     val driver = new MesosSchedulerDriver(this, FrameworkInfo("CassandraMesos").toProto, masterUrl)
-    val status = driver.run().getValueDescriptor.getFullName
-    //    log.info(s"Final status: $status")
+    driver.run().getValueDescriptor.getFullName
   }
 
   //TODO not used yet - we only do Scalar resources as of yet

@@ -1,9 +1,17 @@
 mesos.executor.uri: '/tmp/cassandra-mesos-2.0.3.tgz'
 
+# Where the Mesos master is located
 mesos.master.url: 'zk://localhost:2181/mesos'
 
+# Where we can find the Mesos library
 java.library.path: '/usr/local/bin'
 
+# No of HW nodes we want it to run on
+# Driver will block until we have enough nodes
+# (We can't start multiple Cassandra nodes of the same cluster on the same HW node due to port conflicts)
+cassandra.noOfHwNodes: 1
+
+# Mesos resource requests
 resource.cpus: 0.1
 resource.mem: 2048
 resource.disk: 1000

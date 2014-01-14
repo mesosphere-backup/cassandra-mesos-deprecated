@@ -9,12 +9,6 @@
             <outputDirectory>/</outputDirectory>
             <unpack>true</unpack>
             <scope>runtime</scope>
-            <unpackOptions>
-                <excludes>
-                    <exclude>org.apache.cassandra:cassandra-all</exclude>
-                    <!--<exclude>apache-cassandra*.jar</exclude>-->
-                </excludes>
-            </unpackOptions>
             <useStrictFiltering>true</useStrictFiltering>
             <useProjectArtifact>true</useProjectArtifact>
         </dependencySet>

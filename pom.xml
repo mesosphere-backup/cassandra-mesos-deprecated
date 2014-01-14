@@ -36,6 +36,7 @@
             <groupId>org.apache.cassandra</groupId>
             <artifactId>cassandra-all</artifactId>
             <version>${cassandra.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>

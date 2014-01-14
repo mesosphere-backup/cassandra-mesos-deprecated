@@ -1,0 +1,11 @@
+#!/bin/bash -x
+set -o errexit -o pipefail
+
+FRAMEWORK_HOME=`dirname $0`/..
+
+for jar in "$FRAMEWORK_HOME"/lib/*.jar; do
+    CLASSPATH="$CLASSPATH:$jar"
+done
+
+# Start Cassandra on Mesos
+java -classpath $CLASSPATH mesosphere.cassandra.Main "$@"

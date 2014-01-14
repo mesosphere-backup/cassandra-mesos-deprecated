@@ -66,5 +66,4 @@ object Main extends App with Logger {
   val configServer = new ConfigServer(confServerPort, "conf", scheduler.nodeSet)
 
   info("Cassandra nodes starting on: " + scheduler.nodeSet.mkString(","))
-
 }

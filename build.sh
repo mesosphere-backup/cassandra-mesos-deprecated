@@ -1,26 +1,28 @@
 #!/bin/bash -v
 
 # Our cassandra-mesos project version follows the Cassandra version number
-VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -v '\[')
+PROJVERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -v '\[')
+CASSVERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=cassandra.version | grep -v '\[')
 
-echo Building Cassandra $VERSION for Mesos
+echo Building Cassandra $CASSVERSION for Mesos
 
 # Create our jar so we can package it up as well. Do this first, so we can fail fast
 mvn clean package
 
 rm -r cassandra-mesos-*
-wget http://www.webhostingjams.com/mirror/apache/cassandra/${VERSION}/apache-cassandra-${VERSION}-bin.tar.gz
+wget http://www.webhostingjams.com/mirror/apache/cassandra/${CASSVERSION}/apache-cassandra-${CASSVERSION}-bin.tar.gz
 
 tar xvzf apache-cassandra*.tar.gz
 rm apache-cassandra*tar.gz
 
-mv apache-cassandra* cassandra-mesos-${VERSION}
+mv apache-cassandra* cassandra-mesos-${PROJVERSION}
 
-cp conf/* cassandra-mesos-${VERSION}/conf/
-cp target/cassandra-mesos-${VERSION}.jar cassandra-mesos*/lib
+cp bin/cassandra-mesos cassandra-mesos-${PROJVERSION}/bin
+chmod u+x cassandra-mesos-${PROJVERSION}/bin/cassandra-mesos
 
-tar czf cassandra-mesos-${VERSION}.tgz cassandra-mesos-${VERSION}
+cp conf/* cassandra-mesos-${PROJVERSION}/conf
+cp target/*.jar cassandra-mesos*/lib
 
-
+tar czf cassandra-mesos-${PROJVERSION}.tgz cassandra-mesos-${PROJVERSION}
 
 

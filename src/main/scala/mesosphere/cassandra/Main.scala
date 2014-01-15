@@ -29,7 +29,8 @@ object Main extends App with Logger {
     throw new MissingArgumentException("Please specify the mesos.master.url")).toString
 
   val javaLibPath = mesosConf.getOrElse("java.library.path",
-    "/usr/local/lib").toString
+    "/usr/local/lib/libmesos.so").toString
+  System.setProperty("java.library.path", javaLibPath)
 
   val numberOfHwNodes = mesosConf.getOrElse("cassandra.noOfHwNodes", 1).toString.toInt
 
@@ -60,10 +61,14 @@ object Main extends App with Logger {
     resources,
     numberOfHwNodes)
 
-  new Thread(scheduler).start()
+  val schedThred = new Thread(scheduler)
+  schedThred.start()
   scheduler.waitUnitInit
 
+  // Start serving the Cassandra config
   val configServer = new ConfigServer(confServerPort, "conf", scheduler.nodeSet)
 
   info("Cassandra nodes starting on: " + scheduler.nodeSet.mkString(","))
+
 }
+

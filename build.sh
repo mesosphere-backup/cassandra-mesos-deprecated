@@ -12,7 +12,7 @@ mvn clean package
 rm -r cassandra-mesos-*
 wget http://www.webhostingjams.com/mirror/apache/cassandra/${CASSVERSION}/apache-cassandra-${CASSVERSION}-bin.tar.gz
 
-tar xvzf apache-cassandra*.tar.gz
+tar xzf apache-cassandra*.tar.gz
 rm apache-cassandra*tar.gz
 
 mv apache-cassandra* cassandra-mesos-${PROJVERSION}

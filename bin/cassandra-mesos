@@ -1,7 +1,10 @@
-#!/bin/bash -x
+#!/bin/bash -xv
 set -o errexit -o pipefail
 
 FRAMEWORK_HOME=`dirname $0`/..
+
+# Set the MESOS_NATIVE_LIBRARY based on mesos.yaml
+export MESOS_NATIVE_LIBRARY=$(sed -e 's/:[^:\/\/]/="/g;s/$/"/g;s/ *=/=/g' "$FRAMEWORK_HOME"/conf/mesos.yaml | tr -d $'\'' | grep -v \# | grep java.library.path | sed 's/java.library.path=//g;s/"//g')
 
 for jar in "$FRAMEWORK_HOME"/lib/*.jar; do
     CLASSPATH="$CLASSPATH:$jar"

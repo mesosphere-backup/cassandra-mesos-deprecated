@@ -71,23 +71,29 @@ class CassandraScheduler(masterUrl: String,
 
     // Let's make sure we don't start multiple Cassandras from the same cluster on the same box.
     // We can't hand out the same port multiple times.
-    for (offer <- offers.asScala if isOfferGood(offer) && !haveEnoughNodes()) {
-      debug(s"offer $offer")
+    for (offer <- offers.asScala) {
+      if (isOfferGood(offer) && !haveEnoughNodes()) {
+        // Accepting offer
+        debug(s"offer $offer")
 
-      info("Accepted offer: " + offer.getHostname)
+        info("Accepted offer: " + offer.getHostname)
 
-      val id = "task" + System.currentTimeMillis()
+        val id = "task" + System.currentTimeMillis()
 
-      val task = TaskInfo.newBuilder
-        .setCommand(cmd)
-        .setName(id)
-        .setTaskId(TaskID.newBuilder.setValue(id))
-        .addAllResources(res.asJava)
-        .setSlaveId(offer.getSlaveId)
-        .build
+        val task = TaskInfo.newBuilder
+          .setCommand(cmd)
+          .setName(id)
+          .setTaskId(TaskID.newBuilder.setValue(id))
+          .addAllResources(res.asJava)
+          .setSlaveId(offer.getSlaveId)
+          .build
 
-      driver.launchTasks(offer.getId, List(task).asJava)
-      nodeSet += offer.getHostname
+        driver.launchTasks(offer.getId, List(task).asJava)
+        nodeSet += offer.getHostname
+      } else {
+        // Declining offer
+        driver.declineOffer(offer.getId)
+      }
     }
 
     // If we have at least one node the assumption is that we are good to go.

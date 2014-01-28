@@ -8,6 +8,7 @@ import scala.collection.JavaConverters._
 import org.apache.commons.cli.MissingArgumentException
 import java.net.InetAddress
 import org.apache.log4j.{Level, BasicConfigurator}
+import scala.concurrent.duration._
 
 /**
  * Mesos on Cassandra
@@ -53,7 +54,7 @@ object Main extends App with Logger {
   info("Starting Cassandra on Mesos.")
 
   // Instanciate framework and scheduler
-  val framework = FrameworkInfo("CassandraMesos")
+  val framework = FrameworkInfo(name = "CassandraMesos", failoverTimeout = 7.days.toSeconds)
   val scheduler = new CassandraScheduler(masterUrl,
     execUri,
     confServerHostName,

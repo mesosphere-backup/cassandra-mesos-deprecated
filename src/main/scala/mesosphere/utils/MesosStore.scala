@@ -1,18 +1,22 @@
 package mesosphere.utils
 
-import com.google.protobuf.InvalidProtocolBufferException
 import org.apache.mesos.state.State
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration.Duration
-import mesosphere.utils.{MarathonState, StorageException}
+import com.sun.xml.internal.messaging.saaj.util.{ByteInputStream, ByteOutputStream}
+import java.io.{ObjectInputStream, ObjectOutputStream}
+import scala.pickling._
+import mesosphere.cassandra.Logger
+import json._
 
 /**
  * @author Tobi Knaup
+ * @author Erich Nachbar
  */
 
-class MarathonStore[S <: MarathonState[_]](state: State,
-                       newState: () => S) extends PersistenceStore[S] {
+//class MesosStore[S](state: State) extends PersistenceStore[S] {
+class MesosStore[S](state: State) extends Logger {
 
   val defaultWait = Duration(3, "seconds")
   val prefix = "app:"
@@ -20,22 +24,21 @@ class MarathonStore[S <: MarathonState[_]](state: State,
   import ExecutionContext.Implicits.global
   import mesosphere.util.BackToTheFuture.FutureToFutureOption
 
-  def fetch(key: String): Future[Option[S]] = {
-    state.fetch(prefix + key) map {
-      case Some(variable) => stateFromBytes(variable.value)
-      case None => throw new StorageException(s"Failed to read $key")
-    }
+  def fetch(key: String): Option[String] = {
+    val variable = state.fetch(prefix + key).get()
+    Option(new String(variable.value).unpickle[String])
   }
 
-  def store(key: String, value: S): Future[Option[S]] = {
-    state.fetch(prefix + key) flatMap {
-      case Some(variable) =>
-        state.store(variable.mutate(value.toProtoByteArray)) map {
-          case Some(newVar) => stateFromBytes(newVar.value)
-          case None => throw new StorageException(s"Failed to store $key")
-        }
-      case None => throw new StorageException(s"Failed to read $key")
-    }
+  def store(key: String, value: String): Option[String] = {
+    val empty = state.fetch(prefix + key).get()
+    val newVar = empty.mutate(value.pickle.value.getBytes())
+    val stored = state.store(newVar)
+//    map {
+//      //TODO should we do this deserialization or just give back the one we got in? Looks like we could save some effort...
+//      case Some(newVar) => Some(value)
+//      case None => throw new StorageException(s"Failed to store $key")
+//    }
+    Option(value)
   }
 
   def expunge(key: String): Future[Boolean] = {
@@ -63,13 +66,4 @@ class MarathonStore[S <: MarathonState[_]](state: State,
     }
   }
 
-  private def stateFromBytes(bytes: Array[Byte]): Option[S] = {
-    try {
-      val state = newState()
-      state.mergeFromProto(bytes)
-      Some(state)
-    } catch {
-      case e: InvalidProtocolBufferException => None
-    }
-  }
 }

@@ -1,14 +1,15 @@
 package mesosphere.cassandra
 
-import mesosphere.mesos.util.FrameworkInfo
 import org.yaml.snakeyaml.Yaml
 import java.io.FileReader
 import java.util
 import scala.collection.JavaConverters._
 import org.apache.commons.cli.MissingArgumentException
-import java.net.InetAddress
+import java.net.{URI, InetAddress}
 import org.apache.log4j.{Level, BasicConfigurator}
-import scala.concurrent.duration._
+import mesosphere.utils.{StateStore, Slug}
+import org.apache.mesos.state.ZooKeeperState
+import java.util.concurrent.TimeUnit
 
 /**
  * Mesos on Cassandra
@@ -53,23 +54,42 @@ object Main extends App with Logger {
 
   info("Starting Cassandra on Mesos.")
 
+  // Get the cluster name out of the cassandra.yaml
+  val clusterName = mesosConf.get("cluster_name").get.toString
+
+  // Extracting ZK hostname & port
+  val zkServer = new URI(masterUrl).getHost()
+  val zkPort = new URI(masterUrl).getPort() match {
+    case -1 => 2181
+    case _ => new URI(masterUrl).getPort()
+  }
+
+  val state = new ZooKeeperState(
+    zkServer + ":" + zkPort,
+    20000,
+    TimeUnit.MILLISECONDS,
+    "/CassandraMesos/" + Slug(clusterName)
+  )
+
+  val store = new StateStore(state)
+
   // Instanciate framework and scheduler
-  val framework = FrameworkInfo(name = "CassandraMesos", failoverTimeout = 7.days.toSeconds)
   val scheduler = new CassandraScheduler(masterUrl,
     execUri,
     confServerHostName,
     confServerPort,
-    resources,
-    numberOfHwNodes)
+    resources.toMap,
+    numberOfHwNodes,
+    clusterName)(store)
 
   val schedThred = new Thread(scheduler)
   schedThred.start()
   scheduler.waitUnitInit
 
   // Start serving the Cassandra config
-  val configServer = new ConfigServer(confServerPort, "conf", scheduler.nodeSet)
+  val configServer = new ConfigServer(confServerPort, "conf", scheduler.fetchNodeSet(), Slug(clusterName))
 
-  info("Cassandra nodes starting on: " + scheduler.nodeSet.mkString(","))
+  info("Cassandra nodes starting on: " + scheduler.fetchNodeSet().mkString(","))
 
 }
 

@@ -1,12 +1,13 @@
 package mesosphere.cassandra
 
 import java.util
-import mesosphere.mesos.util.{FrameworkInfo, ScalarResource}
+import mesosphere.mesos.util.ScalarResource
 import org.apache.mesos.Protos._
-import org.apache.mesos.{Protos, MesosSchedulerDriver, SchedulerDriver, Scheduler}
+import org.apache.mesos.{MesosSchedulerDriver, SchedulerDriver, Scheduler}
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import java.util.concurrent.CountDownLatch
+import scala.concurrent.duration._
+import mesosphere.utils.StateStore
 
 /**
  * Mesos scheduler for Cassandra
@@ -18,13 +19,15 @@ class CassandraScheduler(masterUrl: String,
                          execUri: String,
                          confServerHostName: String,
                          confServerPort: Int,
-                         resources: mutable.Map[String, Float],
-                         numberOfHwNodes: Int)
+                         resources: Map[String, Float],
+                         numberOfHwNodes: Int,
+                         clusterName: String)
+                        (implicit val store: StateStore)
   extends Scheduler with Runnable with Logger {
 
-  var initialized = new CountDownLatch(1)
+  val FRMWIDKEY = "frameworkId"
 
-  var nodeSet = mutable.Set[String]()
+  var initialized = new CountDownLatch(1)
 
   def error(driver: SchedulerDriver, message: String) {
     //TODO erich implement
@@ -57,7 +60,13 @@ class CassandraScheduler(masterUrl: String,
     initialized.await()
   }
 
+  def fetchNodeSet() = { store.fetch[Set[String]]("nodeSet").getOrElse(Set[String]())}
+  def saveNodeSet(nodeSet : Set[String]) = {store.store("nodeSet",nodeSet)}
+
   def resourceOffers(driver: SchedulerDriver, offers: util.List[Offer]) {
+
+    // Pull back in previous nodes so we can prefer them and reuse the data files on disk
+    var nodeSet = fetchNodeSet()
 
     // Construct command to run
     val cmd = CommandInfo.newBuilder
@@ -71,8 +80,13 @@ class CassandraScheduler(masterUrl: String,
 
     // Let's make sure we don't start multiple Cassandras from the same cluster on the same box.
     // We can't hand out the same port multiple times.
-    for (offer <- offers.asScala) {
-      if (isOfferGood(offer) && !haveEnoughNodes()) {
+    for (offer <- offers.asScala.sortBy(
+      // Prefer existing Cassandra servers over new ones so we can reuse the data on disk
+      // if the node doesn't meet the set criteria e.g. lack of diskspace, cpu, ... it will get kicked out later
+      o => !nodeSet.contains(o.getHostname)
+    )) {
+
+      if (isOfferGood(offer,nodeSet) && !haveEnoughNodes(nodeSet.size)) {
         // Accepting offer
         debug(s"offer $offer")
 
@@ -90,6 +104,8 @@ class CassandraScheduler(masterUrl: String,
 
         driver.launchTasks(offer.getId, List(task).asJava)
         nodeSet += offer.getHostname
+        saveNodeSet(nodeSet)
+
       } else {
         // Declining offer
         driver.declineOffer(offer.getId)
@@ -102,12 +118,12 @@ class CassandraScheduler(masterUrl: String,
   }
 
 
-  def haveEnoughNodes() = {
-    nodeSet.size == numberOfHwNodes
+  def haveEnoughNodes(noOfNodes :Int) = {
+    noOfNodes == numberOfHwNodes
   }
 
   // Check if offer is reasonable
-  def isOfferGood(offer: Offer) = {
+  def isOfferGood(offer: Offer, nodeSet :Set[String]) = {
 
     // Make a list of offered resources
     val offeredRes = offer.getResourcesList.asScala.toList.map {
@@ -142,26 +158,41 @@ class CassandraScheduler(masterUrl: String,
     !nodeSet.contains(offer.getHostname) && offersTooSmall == 0
   }
 
-  def reregistered(driver: SchedulerDriver, masterInfo: MasterInfo) {
-    //TODO erich implement
+  def reregistered(driver: SchedulerDriver, master: MasterInfo) {
+    info("Re-registered to %s".format(master))
   }
 
   def registered(driver: SchedulerDriver, frameworkId: FrameworkID, masterInfo: MasterInfo) {
     info(s"Framework registered as ${frameworkId.getValue}")
 
-    val request = Request.newBuilder()
-      .addResources(ScalarResource("cpus", 1.0).toProto)
-      .build()
+//    val request = Request.newBuilder()
+//      .addResources(ScalarResource("cpus", 1.0).toProto)
+//      .build()
+//
+//    val r = new util.ArrayList[Protos.Request]
+//    r.add(request)
+//    driver.requestResources(r)
 
-    val r = new util.ArrayList[Protos.Request]
-    r.add(request)
-    driver.requestResources(r)
-
+    store.store(FRMWIDKEY,frameworkId.getValue)
   }
 
   def run() {
     info("Starting up...")
-    val driver = new MesosSchedulerDriver(this, FrameworkInfo("CassandraMesos").toProto, masterUrl)
+
+    val frameworkInfo = FrameworkInfo.newBuilder()
+      .setName("Cassandra " + clusterName)
+      .setFailoverTimeout(7.days.toSeconds)
+      .setUser("") // Let Mesos assign the user
+    //      .setCheckpoint(config.checkpoint()) //TODO erich should we use this?
+
+    // Pull an existing framework Id if we have one stored
+    store.fetch(FRMWIDKEY) match {
+      case Some(id) =>
+        val existingId = FrameworkID.parseFrom(new String(store.fetch[String](FRMWIDKEY).get).getBytes)
+        frameworkInfo.setId(existingId)
+    }
+
+    val driver = new MesosSchedulerDriver(this, frameworkInfo.build(), masterUrl)
     driver.run().getValueDescriptor.getFullName
   }
 

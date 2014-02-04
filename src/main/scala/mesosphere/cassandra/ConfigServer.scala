@@ -8,7 +8,7 @@ import scala.io.Source
 import scala.collection.mutable
 import java.net.URI
 
-class ConfigServer(port: Int, cassConfigDir: String, seedNodes: mutable.Set[String]) extends Logger {
+class ConfigServer(port: Int, cassConfigDir: String, seedNodes: Set[String],clusterNameSlugged :String) extends Logger {
 
   val server = new Server(port)
   server.setHandler(new ServeCassConfigHandler)
@@ -27,15 +27,18 @@ class ConfigServer(port: Int, cassConfigDir: String, seedNodes: mutable.Set[Stri
       val plainFilename = new File(new URI(target).getPath).getName // don't ask...
       val confFile = new File(s"${cassConfigDir}/${plainFilename}")
 
-      if (!confFile.exists()){
+      if (!confFile.exists()) {
         throw new FileNotFoundException(s"Couldn't file config file: ${cassConfigDir}/${plainFilename}. Please make sure it exists.")
       }
 
       val fileContent = Source.fromFile(confFile).getLines()
 
       val substitutedContent = fileContent.map {
-        _.replaceAllLiterally("${seedNodes}", seedNodes
-          .mkString(","))
+        line =>
+          line.replaceAllLiterally("${seedNodes}", seedNodes
+            .mkString(","))
+            .replaceAllLiterally("${clusterName}", clusterNameSlugged
+            .mkString(","))
       }.mkString("\n")
 
       response.setContentType("application/octet-stream;charset=utf-8")

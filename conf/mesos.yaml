@@ -1,7 +1,8 @@
 mesos.executor.uri: 'http://velum.io/pub/cassandra-mesos-2.0.3-1.tgz'
+#mesos.executor.uri: '/tmp/cassandra-mesos-2.0.3-1.tgz'
 
 # Where the Mesos master is located
-mesos.master.url: 'zk://54.205.107.66:2181/mesos'
+mesos.master.url: 'zk://localhost:2181/mesos'
 
 # Where we can find the Mesos library
 # Typical Linux/Unix Mesos lib path

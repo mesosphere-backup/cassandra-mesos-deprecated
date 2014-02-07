@@ -1,5 +1,7 @@
 package mesosphere.utils
 
+import org.apache.mesos.Protos.TaskID
+
 object Slug {
   def apply(input:String) = slugify(input)
 
@@ -11,5 +13,19 @@ object Slug {
       .trim                         // Trim leading/trailing whitespace (including what used to be leading/trailing dashes)
       .replaceAll("\\s+", "-")      // Replace whitespace (including newlines and repetitions) with single dashes
       .toLowerCase                  // Lowercase the final results
+  }
+}
+
+object TaskIDUtil {
+
+  val taskDelimiter = "_"
+
+  def taskId(appName: String, sequence: Int) = {
+    "%s%s%d-%d".format(appName, taskDelimiter, sequence, System.currentTimeMillis())
+  }
+
+  def appID(taskId: TaskID) = {
+    val taskIdString = taskId.getValue
+    taskIdString.substring(0, taskIdString.lastIndexOf(taskDelimiter))
   }
 }

@@ -8,7 +8,7 @@ import scala.io.Source
 import scala.collection.mutable
 import java.net.URI
 
-class ConfigServer(port: Int, cassConfigDir: String, seedNodes: Set[String],clusterNameSlugged :String) extends Logger {
+class ConfigServer(port: Int, cassConfigDir: String, seedNodes: mutable.Set[String],clusterNameSlugged :String) extends Logger {
 
   val server = new Server(port)
   server.setHandler(new ServeCassConfigHandler)

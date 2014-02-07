@@ -7,7 +7,8 @@ import org.apache.mesos.{MesosSchedulerDriver, SchedulerDriver, Scheduler}
 import scala.collection.JavaConverters._
 import java.util.concurrent.CountDownLatch
 import scala.concurrent.duration._
-import mesosphere.utils.StateStore
+import mesosphere.utils.{TaskIDUtil, StateStore}
+import scala.collection.mutable._
 
 /**
  * Mesos scheduler for Cassandra
@@ -15,6 +16,9 @@ import mesosphere.utils.StateStore
  *
  * @author erich<IDonLikeSpam>nachbar.biz
  */
+
+case class TaskInfoContainer(taskId: String, hostname: String)
+
 class CassandraScheduler(masterUrl: String,
                          execUri: String,
                          confServerHostName: String,
@@ -50,7 +54,27 @@ class CassandraScheduler(masterUrl: String,
   }
 
   def statusUpdate(driver: SchedulerDriver, status: TaskStatus) {
-    debug(s"received status update $status")
+    info("Received status update for task %s: %s (%s)"
+      .format(status.getTaskId.getValue, status.getState, status.getMessage))
+
+    if (status.getState.eq(TaskState.TASK_FAILED)
+      || status.getState.eq(TaskState.TASK_FINISHED)
+      || status.getState.eq(TaskState.TASK_KILLED)
+      || status.getState.eq(TaskState.TASK_LOST)) {
+
+      // Remove from our internal list
+      removeNode(status.getTaskId)
+      info(s"Removing task ${status.getTaskId} from internal task list.")
+
+    } else if (status.getState.eq(TaskState.TASK_RUNNING)) {
+      info(s"Got update that task ${status.getTaskId} is running.")
+
+    } else if (status.getState.eq(TaskState.TASK_STAGING)) {
+      info(s"Task ${status.getTaskId} is being staged.")
+
+    } else {
+       //TODO erich Do I need anything else here?
+     }
   }
 
   def offerRescinded(driver: SchedulerDriver, offerId: OfferID) {}
@@ -60,13 +84,49 @@ class CassandraScheduler(masterUrl: String,
     initialized.await()
   }
 
-  def fetchNodeSet() = { store.fetch[Set[String]]("nodeSet").getOrElse(Set[String]())}
-  def saveNodeSet(nodeSet : Set[String]) = {store.store("nodeSet",nodeSet)}
+  def fetchNodeSet() : Set[TaskInfoContainer] = {
+    store.fetch[Set[TaskInfoContainer]]("nodeSet").getOrElse(Set[TaskInfoContainer]())
+  }
+
+  def saveNodeSet(nodeSet: Set[TaskInfoContainer]) : Set[TaskInfoContainer]= {
+    store.store("nodeSet", nodeSet)
+    nodeSet
+  }
+
+  def isHostRunning(hostname: String): Boolean = {
+    fetchNodeSet().filter {
+      _.hostname == hostname
+    }.size > 0
+  }
+
+  def removeNode(hostname: String) : Set[TaskInfoContainer] = {
+    val updated = fetchNodeSet().filter {
+      _.hostname != hostname
+    }
+    saveNodeSet(updated)
+    updated
+  }
+
+  def removeNode(taskId: TaskID) : Set[TaskInfoContainer]= {
+    val updated = fetchNodeSet().filter {
+      _.taskId != taskId.getValue
+    };
+    saveNodeSet(updated)
+    updated
+  }
+
+  def getHosts(): Set[String] = {
+    fetchNodeSet().map {
+      _.hostname
+    }
+  }
 
   def resourceOffers(driver: SchedulerDriver, offers: util.List[Offer]) {
 
+    val offeredHosts = offers.asScala.map{_.getHostname}
+    info(s"Got new resource offers ${offeredHosts}")
     // Pull back in previous nodes so we can prefer them and reuse the data files on disk
-    var nodeSet = fetchNodeSet()
+    var nodes = fetchNodeSet()
 
     // Construct command to run
     val cmd = CommandInfo.newBuilder
@@ -83,10 +143,10 @@ class CassandraScheduler(masterUrl: String,
     for (offer <- offers.asScala.sortBy(
       // Prefer existing Cassandra servers over new ones so we can reuse the data on disk
       // if the node doesn't meet the set criteria e.g. lack of diskspace, cpu, ... it will get kicked out later
-      o => !nodeSet.contains(o.getHostname)
+      o => !isHostRunning(o.getHostname)
     )) {
 
-      if (isOfferGood(offer,nodeSet) && !haveEnoughNodes(nodeSet.size)) {
+      if (isOfferGood(offer, nodes) && !haveEnoughNodes(nodes.size)) {
         // Accepting offer
         debug(s"offer $offer")
 
@@ -103,8 +163,8 @@ class CassandraScheduler(masterUrl: String,
           .build
 
         driver.launchTasks(offer.getId, List(task).asJava)
-        nodeSet += offer.getHostname
-        saveNodeSet(nodeSet)
+        nodes += TaskInfoContainer(task.getTaskId.getValue, offer.getHostname)
+        saveNodeSet(nodes)
 
       } else {
         // Declining offer
@@ -112,18 +172,18 @@ class CassandraScheduler(masterUrl: String,
       }
     }
 
-    // If we have at least one node the assumption is that we are good to go.
-    if (nodeSet.size == numberOfHwNodes) initialized.countDown()
+    // If we have enough nodes we are good to go
+    if (nodes.size == numberOfHwNodes) initialized.countDown()
 
   }
 
 
-  def haveEnoughNodes(noOfNodes :Int) = {
+  def haveEnoughNodes(noOfNodes: Int) = {
     noOfNodes == numberOfHwNodes
   }
 
   // Check if offer is reasonable
-  def isOfferGood(offer: Offer, nodeSet :Set[String]) = {
+  def isOfferGood(offer: Offer, nodeSet: Set[TaskInfoContainer]) = {
 
     // Make a list of offered resources
     val offeredRes = offer.getResourcesList.asScala.toList.map {
@@ -155,7 +215,7 @@ class CassandraScheduler(masterUrl: String,
 
     // don't start the same framework multiple times on the same host and
     // make sure we got all resources we asked for
-    !nodeSet.contains(offer.getHostname) && offersTooSmall == 0
+    !isHostRunning(offer.getHostname) && offersTooSmall == 0
   }
 
   def reregistered(driver: SchedulerDriver, master: MasterInfo) {
@@ -165,15 +225,7 @@ class CassandraScheduler(masterUrl: String,
   def registered(driver: SchedulerDriver, frameworkId: FrameworkID, masterInfo: MasterInfo) {
     info(s"Framework registered as ${frameworkId.getValue}")
 
-//    val request = Request.newBuilder()
-//      .addResources(ScalarResource("cpus", 1.0).toProto)
-//      .build()
-//
-//    val r = new util.ArrayList[Protos.Request]
-//    r.add(request)
-//    driver.requestResources(r)
-
-    store.store(FRMWIDKEY,frameworkId.getValue)
+    store.store(FRMWIDKEY, frameworkId.toByteArray)
   }
 
   def run() {
@@ -188,8 +240,10 @@ class CassandraScheduler(masterUrl: String,
     // Pull an existing framework Id if we have one stored
     store.fetch(FRMWIDKEY) match {
       case Some(id) =>
-        val existingId = FrameworkID.parseFrom(new String(store.fetch[String](FRMWIDKEY).get).getBytes)
+        val existingId = FrameworkID.parseFrom(store.fetch[Array[Byte]](FRMWIDKEY).get)
         frameworkInfo.setId(existingId)
+      case None =>
+        info("Starting Cassandra cluster ${clusterName} for the first time. Allocating new ID for it.")
     }
 
     val driver = new MesosSchedulerDriver(this, frameworkInfo.build(), masterUrl)

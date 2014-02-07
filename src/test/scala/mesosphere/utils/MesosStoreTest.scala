@@ -9,6 +9,8 @@ import org.scalatest.junit.JUnitRunner
 
 import org.scalatest._
 import java.util.concurrent.TimeUnit
+import mesosphere.cassandra.TaskInfoContainer
+import org.apache.mesos.Protos.{SlaveID, TaskID, TaskInfo}
 
 
 @RunWith(classOf[JUnitRunner])
@@ -74,6 +76,18 @@ class MesosStoreTest extends FunSuite {
       assert(true == fetched.contains(i.toString))
     }
 
+  }
+
+  test("Working with a complex case class") {
+
+    val v = TaskInfoContainer("myTaskId","hostname")
+
+    assert(None == store.fetch[Set[TaskInfoContainer]]("testKey3" + time))
+    store.store("testKey3" + time, Set[TaskInfoContainer](v))
+    assert(v == store.fetch[Set[TaskInfoContainer]]("testKey3" + time).get.head)
+    assert("myTaskId" == store.fetch[Set[TaskInfoContainer]]("testKey3" + time).get.head.taskId)
+    assert(true == store.expunge("testKey3" + time))
+    assert(None == store.fetch[Long]("testKey3" + time))
   }
 
 }

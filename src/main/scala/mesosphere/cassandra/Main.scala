@@ -23,6 +23,9 @@ object Main extends App with Logger {
   val mesosConf = yaml.load(new FileReader("conf/mesos.yaml"))
     .asInstanceOf[util.LinkedHashMap[String, Any]].asScala
 
+  val cassConf = yaml.load(new FileReader("conf/cassandra.yaml"))
+    .asInstanceOf[util.LinkedHashMap[String, Any]].asScala
+
   // Get configs out of the mesos.yaml file
   val execUri = mesosConf.getOrElse("mesos.executor.uri",
     throw new MissingArgumentException("Please specify the mesos.executor.uri")).toString
@@ -54,8 +57,6 @@ object Main extends App with Logger {
 
   info("Starting Cassandra on Mesos.")
 
-  // Get the cluster name out of the cassandra.yaml
-  val clusterName = mesosConf.get("cluster_name").get.toString
 
   // Extracting ZK hostname & port
   val zkServer = new URI(masterUrl).getHost()
@@ -64,11 +65,13 @@ object Main extends App with Logger {
     case _ => new URI(masterUrl).getPort()
   }
 
+  // Get the cluster name out of the cassandra.yaml
+  val clusterName = cassConf.get("cluster_name").get.toString
   val state = new ZooKeeperState(
     zkServer + ":" + zkPort,
     20000,
     TimeUnit.MILLISECONDS,
-    "/CassandraMesos/" + Slug(clusterName)
+    "/cassandraMesos/" + Slug(clusterName)
   )
 
   val store = new StateStore(state)
@@ -78,7 +81,7 @@ object Main extends App with Logger {
     execUri,
     confServerHostName,
     confServerPort,
-    resources.toMap,
+    resources,
     numberOfHwNodes,
     clusterName)(store)
 
@@ -87,7 +90,7 @@ object Main extends App with Logger {
   scheduler.waitUnitInit
 
   // Start serving the Cassandra config
-  val configServer = new ConfigServer(confServerPort, "conf", scheduler.fetchNodeSet(), Slug(clusterName))
+  val configServer = new ConfigServer(confServerPort, "conf", scheduler.getHosts(), Slug(clusterName))
 
   info("Cassandra nodes starting on: " + scheduler.fetchNodeSet().mkString(","))
 

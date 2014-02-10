@@ -23,7 +23,7 @@ If you are running a local Mesos install on your machine the default settings wi
 
 **Steps:**    
 
-1. Download the distribution from the Mesosphere [download server](http://downloads.mesosphere.io/cassandra/cassandra-mesos-2.0.5.tgz).
+1. Download the distribution from the Mesosphere [download server](http://downloads.mesosphere.io/cassandra/cassandra-mesos-2.0.5-1.tgz).
 
 1. Untar it onto the scheduler machine   
    ```tar xzf cassandra-mesos-*.tgz```

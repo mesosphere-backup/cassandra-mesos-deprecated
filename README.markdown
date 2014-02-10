@@ -47,6 +47,12 @@ Change this setting to point to your Mesos Master. The default works for a local
 
 Default: ```zk://localhost:2181/mesos```
 
+#### state.zk
+Which Zookeeper servers to use to store our state (e.g.'zkHost0:port,zkHost1:port'). The system will store all its state under ```/cassandraMesos/[cassandra cluster name]``` node. 
+
+Default: ```localhost:2181```
+
+
 #### java.library.path
 Change this to the directory where the mesos libraries are installed.
 

@@ -4,6 +4,9 @@ mesos.executor.uri: 'http://downloads.mesosphere.io/cassandra/cassandra-mesos-2.
 # Where the Mesos master is located
 mesos.master.url: 'zk://localhost:2181/mesos'
 
+# Which Zookeeper to use to store our state e.g. 'zkHost:port,zkHost:port'
+state.zk: 'localhost:2181'
+
 # Where we can find the Mesos library
 # Typical Linux/Unix Mesos lib path
 java.library.path: '/usr/local/lib/libmesos.so'

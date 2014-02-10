@@ -39,6 +39,8 @@ object Main extends App with Logger {
 
   val numberOfHwNodes = mesosConf.getOrElse("cassandra.noOfHwNodes", 1).toString.toInt
 
+  val zkStateServers = mesosConf.getOrElse("state.zk", "localhost:2181/cassandra-mesos").toString
+
   val confServerPort = mesosConf.getOrElse("cassandra.confServer.port", 8282).toString.toInt
 
   val confServerHostName = mesosConf.getOrElse("cassandra.confServer.hostname",
@@ -57,22 +59,15 @@ object Main extends App with Logger {
 
   info("Starting Cassandra on Mesos.")
 
-
-  // Extracting ZK hostname & port
-  val zkServer = new URI(masterUrl).getHost()
-  val zkPort = new URI(masterUrl).getPort() match {
-    case -1 => 2181
-    case _ => new URI(masterUrl).getPort()
-  }
-
   // Get the cluster name out of the cassandra.yaml
   val clusterName = cassConf.get("cluster_name").get.toString
   val state = new ZooKeeperState(
-    zkServer + ":" + zkPort,
+    zkStateServers,
     20000,
     TimeUnit.MILLISECONDS,
     "/cassandraMesos/" + Slug(clusterName)
   )
+
 
   val store = new StateStore(state)
 

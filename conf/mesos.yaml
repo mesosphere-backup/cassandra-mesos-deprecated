@@ -1,5 +1,4 @@
-mesos.executor.uri: 'http://velum.io/pub/cassandra-mesos-2.0.3-1.tgz'
-#mesos.executor.uri: '/tmp/cassandra-mesos-2.0.3-1.tgz'
+mesos.executor.uri: 'http://downloads.mesosphere.io/cassandra/cassandra-mesos-2.0.5-1.tgz'
 
 # Where the Mesos master is located
 mesos.master.url: 'zk://localhost:2181/mesos'

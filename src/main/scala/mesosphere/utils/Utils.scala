@@ -3,7 +3,7 @@ package mesosphere.utils
 import org.apache.mesos.Protos.TaskID
 
 object Slug {
-  def apply(input:String) = slugify(input)
+  def apply(input: String) = slugify(input)
 
   def slugify(input: String): String = {
     import java.text.Normalizer

@@ -12,13 +12,13 @@
         <mesos-utils.version>0.0.6</mesos-utils.version>
 
         <!-- Cassandra Mesos version. Looks like a build number from Maven's perspective-->
-        <cassandra-mesos.version>1</cassandra-mesos.version>
+        <cassandra-mesos.version>2</cassandra-mesos.version>
 
         <!-- language & dependency versions -->
         <java.abi>1.6</java.abi>
         <scala.version>2.10.3</scala.version>
         <cassandra.version>2.0.5</cassandra.version>
-        <mesos.version>0.14.2</mesos.version>
+        <mesos.version>0.17.0</mesos.version>
         <mesos.native.library>/usr/local/lib/libmesos.dylib</mesos.native.library>
 
     </properties>

@@ -1,3 +1,7 @@
+# InteliJ IDEA
+atlassian-ide-plugin.xml
+.idea/
+
 # Eclipse
 .classpath
 .project

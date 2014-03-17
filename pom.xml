@@ -9,7 +9,7 @@
     <version>${cassandra.version}-${cassandra-mesos.version}</version>
 
     <properties>
-        <mesos-utils.version>0.0.6</mesos-utils.version>
+        <mesos-utils.version>0.0.7</mesos-utils.version>
 
         <!-- Cassandra Mesos version. Looks like a build number from Maven's perspective-->
         <cassandra-mesos.version>2</cassandra-mesos.version>

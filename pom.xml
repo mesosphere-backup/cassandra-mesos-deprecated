@@ -9,7 +9,7 @@
     <version>${cassandra.version}-${cassandra-mesos.version}</version>
 
     <properties>
-        <mesos-utils.version>0.0.6</mesos-utils.version>
+        <mesos-utils.version>0.0.7</mesos-utils.version>
 
         <!-- Cassandra Mesos version. Looks like a build number from Maven's perspective-->
         <cassandra-mesos.version>2</cassandra-mesos.version>
@@ -19,7 +19,7 @@
         <scala.version>2.10.3</scala.version>
         <cassandra.version>2.0.5</cassandra.version>
         <mesos.version>0.17.0</mesos.version>
-        <mesos.native.library>/usr/local/lib/libmesos.dylib</mesos.native.library>
+        <mesos.native.library>/usr/local/lib/libmesos.so</mesos.native.library>
 
     </properties>
 
@@ -68,6 +68,13 @@
             <artifactId>scalatest_2.10</artifactId>
             <version>2.0</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <!-- make sure wrong scala version is not pulled in -->
+                    <groupId>org.scala-lang</groupId>
+                    <artifactId>scala-library</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>

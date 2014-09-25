@@ -9,16 +9,16 @@
     <version>${cassandra.version}-${cassandra-mesos.version}</version>
 
     <properties>
-        <mesos-utils.version>0.0.7</mesos-utils.version>
+        <mesos-utils.version>0.20.0-2</mesos-utils.version>
 
         <!-- Cassandra Mesos version. Looks like a build number from Maven's perspective-->
         <cassandra-mesos.version>2</cassandra-mesos.version>
 
         <!-- language & dependency versions -->
         <java.abi>1.6</java.abi>
-        <scala.version>2.10.3</scala.version>
-        <cassandra.version>2.0.5</cassandra.version>
-        <mesos.version>0.17.0</mesos.version>
+        <scala.version>2.10.4</scala.version>
+        <cassandra.version>2.1.0</cassandra.version>
+        <mesos.version>0.20.0</mesos.version>
         <mesos.native.library>/usr/local/lib/libmesos.so</mesos.native.library>
 
     </properties>
@@ -53,7 +53,7 @@
 
         <dependency>
             <groupId>mesosphere</groupId>
-            <artifactId>mesos-utils</artifactId>
+            <artifactId>mesos-utils_2.10</artifactId>
             <version>${mesos-utils.version}</version>
         </dependency>
 

@@ -25,6 +25,7 @@ class CassandraScheduler(masterUrl: String,
                          confServerPort: Int,
                          resources: Map[String, Float],
                          numberOfHwNodes: Int,
+                         numberOfSeedNodes: Int,
                          clusterName: String)
                         (implicit val store: StateStore)
   extends Scheduler with Runnable with Logger {
@@ -152,7 +153,7 @@ class CassandraScheduler(masterUrl: String,
 
         info("Accepted offer: " + offer.getHostname)
 
-        val id = "task" + System.currentTimeMillis()
+        val id = s"cassandra_${System.currentTimeMillis()}"
 
         val task = TaskInfo.newBuilder
           .setCommand(cmd)
@@ -173,13 +174,17 @@ class CassandraScheduler(masterUrl: String,
     }
 
     // If we have enough nodes we are good to go
-    if (nodes.size == numberOfHwNodes) initialized.countDown()
+    if (haveEnoughSeedNodes(nodes.size)) initialized.countDown()
 
   }
 
 
   def haveEnoughNodes(noOfNodes: Int) = {
     noOfNodes == numberOfHwNodes
+  }
+  
+  def haveEnoughSeedNodes(noOfNodes: Int) = {
+    noOfNodes == numberOfSeedNodes
   }
 
   // Check if offer is reasonable

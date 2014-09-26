@@ -166,7 +166,7 @@ class CassandraScheduler(masterUrl: String,
           .setSlaveId(offer.getSlaveId)
           .build
 
-        driver.launchTasks(offer.getId, List(task).asJava)
+        driver.launchTasks(List(offer.getId).asJava, List(task).asJava)
         nodes += TaskInfoContainer(task.getTaskId.getValue, offer.getHostname)
         saveNodeSet(nodes)
 

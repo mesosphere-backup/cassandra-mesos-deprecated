@@ -156,7 +156,7 @@ class CassandraScheduler(masterUrl: String,
 
         info("Accepted offer: " + offer.getHostname)
 
-        val id = s"cassandra_${System.currentTimeMillis()}"
+        val id = s"cassandra.${UUID.randomUUID().toString()}"
 
         val task = TaskInfo.newBuilder
           .setCommand(cmd)
@@ -187,7 +187,7 @@ class CassandraScheduler(masterUrl: String,
   }
   
   def haveEnoughSeedNodes(noOfNodes: Int) = {
-    noOfNodes == numberOfSeedNodes
+    noOfNodes >= numberOfSeedNodes
   }
 
   // Check if offer is reasonable

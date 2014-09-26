@@ -63,8 +63,8 @@ How many hardware nodes we want to run this Cassandra cluster on. Cassandra requ
 
 Default: ```1```
 
-#### cassandra.noOfSeedNodes
-How many seed nodes we want to configure when running Cassandra cluster. Make sure it is less or equal cassandra.noOfHwNodes
+#### cassandra.minNoOfSeedNodes
+How many minimum no of seed nodes we want to configure when running Cassandra cluster. Make sure it is less or equal cassandra.noOfHwNodes
 
 Default: ```1```
 

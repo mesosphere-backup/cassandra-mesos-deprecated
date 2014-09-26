@@ -40,7 +40,7 @@ object Main extends App with Logger {
 
   val numberOfHwNodes = mesosConf.getOrElse("cassandra.noOfHwNodes", 1).toString.toInt
   
-  val numberOfSeedNodes = mesosConf.getOrElse("cassandra.noOfSeedNodes", 1).toString.toInt
+  val numberOfSeedNodes = mesosConf.getOrElse("cassandra.minNoOfSeedNodes", 1).toString.toInt
 
   val zkStateServers = mesosConf.getOrElse("state.zk", "localhost:2181/cassandra-mesos").toString
 

@@ -1,7 +1,6 @@
 package mesosphere.cassandra
 
 import java.util
-import mesosphere.mesos.util.ScalarResource
 import org.apache.mesos.Protos._
 import org.apache.mesos.{MesosSchedulerDriver, SchedulerDriver, Scheduler}
 import scala.collection.JavaConverters._
@@ -136,7 +135,11 @@ class CassandraScheduler(masterUrl: String,
 
     // Create all my resources
     val res = resources.map {
-      case (k, v) => ScalarResource(k, v).toProto
+      case (k, v) => Resource.newBuilder()
+        .setName(k)
+        .setType(Value.Type.SCALAR)
+        .setScalar(Value.Scalar.newBuilder().setValue(v).build())
+        .build()
     }
 
     // Let's make sure we don't start multiple Cassandras from the same cluster on the same box.

@@ -6,10 +6,11 @@ import java.util
 import scala.collection.JavaConverters._
 import org.apache.commons.cli.MissingArgumentException
 import java.net.{URI, InetAddress}
-import org.apache.log4j.{Level, BasicConfigurator}
 import mesosphere.utils.{StateStore, Slug}
 import org.apache.mesos.state.ZooKeeperState
 import java.util.concurrent.TimeUnit
+import org.apache.log4j.BasicConfigurator
+import org.apache.log4j.Level
 
 /**
  * Mesos on Cassandra

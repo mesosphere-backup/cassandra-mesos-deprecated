@@ -6,7 +6,6 @@ import scala.concurrent._
 import scala.concurrent.duration.Duration
 import mesosphere.cassandra.Logger
 import com.twitter.chill.KryoInjection
-import mesosphere.mesos.util.FrameworkID
 
 /**
  * @author Tobi Knaup

@@ -11,4 +11,4 @@ for jar in "$FRAMEWORK_HOME"/lib/*.jar; do
 done
 
 # Start Cassandra on Mesos
-java -classpath $CLASSPATH mesosphere.cassandra.Main "$@"
+java -classpath $CLASSPATH -Dorg.eclipse.jetty.LEVEL=INFO mesosphere.cassandra.Main "$@"

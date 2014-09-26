@@ -8,6 +8,7 @@ import java.util.concurrent.CountDownLatch
 import scala.concurrent.duration._
 import mesosphere.utils.{TaskIDUtil, StateStore}
 import scala.collection.mutable._
+import java.util.UUID
 
 /**
  * Mesos scheduler for Cassandra

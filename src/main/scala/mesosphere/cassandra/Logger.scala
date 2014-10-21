@@ -1,6 +1,6 @@
 package mesosphere.cassandra
 
-import org.apache.log4j.{Priority, Level, Logger}
+import org.apache.log4j.{Priority, Level, Logger => Log4jLogger}
 
 /**
  * A thin wrapper around log4j.
@@ -9,9 +9,9 @@ import org.apache.log4j.{Priority, Level, Logger}
 
 trait Logger {
 
-  lazy val logger = Logger.getLogger(getClass)
+  lazy val logger = Log4jLogger.getLogger(getClass)
 
-  def getRootLogger = Logger.getRootLogger()
+  def getRootLogger = Log4jLogger.getRootLogger()
 
   def isTraceEnabled = logger.isTraceEnabled
 

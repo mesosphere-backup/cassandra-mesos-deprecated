@@ -1,7 +1,6 @@
 package mesosphere.cassandra
 
 import java.util
-import mesosphere.mesos.util.ScalarResource
 import org.apache.mesos.Protos._
 import org.apache.mesos.{MesosSchedulerDriver, SchedulerDriver, Scheduler}
 import scala.collection.JavaConverters._
@@ -9,6 +8,7 @@ import java.util.concurrent.CountDownLatch
 import scala.concurrent.duration._
 import mesosphere.utils.{TaskIDUtil, StateStore}
 import scala.collection.mutable._
+import java.util.UUID
 
 /**
  * Mesos scheduler for Cassandra
@@ -25,6 +25,7 @@ class CassandraScheduler(masterUrl: String,
                          confServerPort: Int,
                          resources: Map[String, Float],
                          numberOfHwNodes: Int,
+                         numberOfSeedNodes: Int,
                          clusterName: String)
                         (implicit val store: StateStore)
   extends Scheduler with Runnable with Logger {
@@ -135,7 +136,11 @@ class CassandraScheduler(masterUrl: String,
 
     // Create all my resources
     val res = resources.map {
-      case (k, v) => ScalarResource(k, v).toProto
+      case (k, v) => Resource.newBuilder()
+        .setName(k)
+        .setType(Value.Type.SCALAR)
+        .setScalar(Value.Scalar.newBuilder().setValue(v).build())
+        .build()
     }
 
     // Let's make sure we don't start multiple Cassandras from the same cluster on the same box.
@@ -152,7 +157,7 @@ class CassandraScheduler(masterUrl: String,
 
         info("Accepted offer: " + offer.getHostname)
 
-        val id = "task" + System.currentTimeMillis()
+        val id = s"cassandra.${UUID.randomUUID().toString()}"
 
         val task = TaskInfo.newBuilder
           .setCommand(cmd)
@@ -162,7 +167,7 @@ class CassandraScheduler(masterUrl: String,
           .setSlaveId(offer.getSlaveId)
           .build
 
-        driver.launchTasks(offer.getId, List(task).asJava)
+        driver.launchTasks(List(offer.getId).asJava, List(task).asJava)
         nodes += TaskInfoContainer(task.getTaskId.getValue, offer.getHostname)
         saveNodeSet(nodes)
 
@@ -173,13 +178,17 @@ class CassandraScheduler(masterUrl: String,
     }
 
     // If we have enough nodes we are good to go
-    if (nodes.size == numberOfHwNodes) initialized.countDown()
+    if (haveEnoughSeedNodes(nodes.size)) initialized.countDown()
 
   }
 
 
   def haveEnoughNodes(noOfNodes: Int) = {
     noOfNodes == numberOfHwNodes
+  }
+  
+  def haveEnoughSeedNodes(noOfNodes: Int) = {
+    noOfNodes >= numberOfSeedNodes
   }
 
   // Check if offer is reasonable

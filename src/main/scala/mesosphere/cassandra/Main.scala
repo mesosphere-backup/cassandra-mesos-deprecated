@@ -6,10 +6,11 @@ import java.util
 import scala.collection.JavaConverters._
 import org.apache.commons.cli.MissingArgumentException
 import java.net.{URI, InetAddress}
-import org.apache.log4j.{Level, BasicConfigurator}
 import mesosphere.utils.{StateStore, Slug}
 import org.apache.mesos.state.ZooKeeperState
 import java.util.concurrent.TimeUnit
+import org.apache.log4j.BasicConfigurator
+import org.apache.log4j.Level
 
 /**
  * Mesos on Cassandra
@@ -38,6 +39,8 @@ object Main extends App with Logger {
   System.setProperty("java.library.path", javaLibPath)
 
   val numberOfHwNodes = mesosConf.getOrElse("cassandra.noOfHwNodes", 1).toString.toInt
+  
+  val numberOfSeedNodes = mesosConf.getOrElse("cassandra.minNoOfSeedNodes", 1).toString.toInt
 
   val zkStateServers = mesosConf.getOrElse("state.zk", "localhost:2181/cassandra-mesos").toString
 
@@ -78,6 +81,7 @@ object Main extends App with Logger {
     confServerPort,
     resources,
     numberOfHwNodes,
+    numberOfSeedNodes,
     clusterName)(store)
 
   val schedThred = new Thread(scheduler)

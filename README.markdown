@@ -63,6 +63,11 @@ How many hardware nodes we want to run this Cassandra cluster on. Cassandra requ
 
 Default: ```1```
 
+#### cassandra.minNoOfSeedNodes
+How many minimum no of seed nodes we want to configure when running Cassandra cluster. Make sure it is less or equal cassandra.noOfHwNodes
+
+Default: ```1```
+
 #### resource.*
 The specified resources will be relayed to Mesos to find suitable machines. The configuration file lists ```cpu```, ```mem``` and ```disk```, but really anything you specify will be relayed to Mesos as a scalar value when requesting resources.
 

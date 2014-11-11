@@ -132,7 +132,8 @@ class CassandraScheduler(masterUrl: String,
     // Construct command to run
     val cmd = CommandInfo.newBuilder
       .addUris(CommandInfo.URI.newBuilder.setValue(execUri))
-      .setValue(s"cd cassandra-mesos* && cd conf && rm cassandra.yaml && wget http://${confServerHostName}:${confServerPort}/cassandra.yaml && cd .. && bin/cassandra -f")
+      .addUris(CommandInfo.URI.newBuilder.setValue(s"http://${confServerHostName}:${confServerPort}/cassandra.yaml"))
+      .setValue(s"cd cassandra-mesos* && mv ../cassandra.yaml conf && bin/cassandra -f")
 
     // Create all my resources
     val res = resources.map {

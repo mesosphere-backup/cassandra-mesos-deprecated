@@ -1,5 +1,5 @@
 # Cassandra on Mesos download location. Typically not required to be changed.
-mesos.executor.uri: 'http://downloads.mesosphere.io/cassandra/cassandra-mesos-2.0.5-1.tgz'
+mesos.executor.uri: 'http://downloads.mesosphere.io/cassandra/cassandra-mesos-2.1.2-1.tgz'
 
 # Where the Mesos master is located
 mesos.master.url: 'zk://localhost:2181/mesos'

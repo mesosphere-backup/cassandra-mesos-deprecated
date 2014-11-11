@@ -10,7 +10,7 @@ echo Building Cassandra $CASSVERSION for Mesos
 mvn clean package
 
 rm -r cassandra-mesos-*
-wget http://apache.osuosl.org/cassandra/${CASSVERSION}/apache-cassandra-${CASSVERSION}-bin.tar.gz
+curl -LO http://apache.osuosl.org/cassandra/${CASSVERSION}/apache-cassandra-${CASSVERSION}-bin.tar.gz
 
 tar xzf apache-cassandra*.tar.gz
 rm apache-cassandra*tar.gz

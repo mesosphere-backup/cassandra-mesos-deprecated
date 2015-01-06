@@ -1,3 +1,7 @@
+# Proof of Concept
+
+Please note that this is a proof of concept and should not be used in production.
+
 ## Overview
 This project allows you to utilize your Mesos cluster to run Cassandra. 
 The scheduler (aka the bin/cassandra-mesos process) will do all the heavy lifting like downloading Cassandra to the worker nodes, distributing the configuration and monitoring the instances. It will automatically modify the cassandra.yaml file to include the selected nodes running Cassandra as seed nodes through a template variable. 

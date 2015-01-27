@@ -1,0 +1,25 @@
+# InteliJ IDEA
+atlassian-ide-plugin.xml
+.idea/
+
+# Eclipse
+.classpath
+.project
+.settings/
+.cache
+
+# Intellij
+.idea/
+*.iml
+*.iws
+
+# Mac
+.DS_Store
+
+# Maven
+log/
+target/
+**/target/*
+
+# backup files
+*~

@@ -16,6 +16,10 @@
             <groupId>org.apache.mesos</groupId>
             <artifactId>mesos</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.mesosphere.mesos.frameworks</groupId>
+            <artifactId>cassandra-scheduler</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

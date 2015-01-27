@@ -25,10 +25,29 @@
         <version.lombok>1.16.0</version.lombok>
         <version.mesos>0.21.1</version.mesos>
         <version.slf4j>1.7.10</version.slf4j>
+        <version.joda>2.7</version.joda>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+
+            <!-- project libraries -->
+            <dependency>
+                <groupId>io.mesosphere.mesos.frameworks</groupId>
+                <artifactId>cassandra-scheduler</artifactId>
+                <version>0.1.0-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.mesosphere.mesos.frameworks</groupId>
+                <artifactId>cassandra-mesos-model</artifactId>
+                <version>0.1.0-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.mesosphere.mesos.frameworks</groupId>
+                <artifactId>cassandra-executor</artifactId>
+                <version>0.1.0-SNAPSHOT</version>
+            </dependency>
+
             <!-- Mesos dependencies -->
             <dependency>
                 <groupId>org.apache.mesos</groupId>
@@ -53,6 +72,11 @@
                 <artifactId>lombok</artifactId>
                 <version>${version.lombok}</version>
                 <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>joda-time</groupId>
+                <artifactId>joda-time</artifactId>
+                <version>${version.joda}</version>
             </dependency>
 
             <!-- Logging -->
@@ -114,6 +138,11 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+        </dependency>
+
 
         <!-- Logging -->
         <dependency>

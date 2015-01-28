@@ -13,8 +13,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.apache.mesos</groupId>
-            <artifactId>mesos</artifactId>
+            <groupId>io.mesosphere.mesos.frameworks</groupId>
+            <artifactId>cassandra-mesos-model</artifactId>
         </dependency>
     </dependencies>
 

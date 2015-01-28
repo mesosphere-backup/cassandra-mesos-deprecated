@@ -1,15 +1,14 @@
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Optional;
-import com.google.protobuf.ByteString;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
+import io.mesosphere.mesos.util.ProtoUtils;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos.Credential;
 import org.apache.mesos.Protos.FrameworkInfo;
 import org.apache.mesos.Scheduler;
-import org.jetbrains.annotations.NotNull;
 import org.joda.time.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,14 +18,15 @@ public final class Main {
 
     public static void main(final String[] args) {
 
+        final String frameworkName = frameworkName(Env.option("CASSANDRA_CLUSTER_NAME"));
         final FrameworkInfo.Builder frameworkBuilder =
                 FrameworkInfo.newBuilder()
                         .setFailoverTimeout(Period.days(7).getSeconds())
                         .setUser("") // Have Mesos fill in the current user.
-                        .setName(frameworkName(Env.option("CASSANDRA_CLUSTER_NAME")))
+                        .setName(frameworkName)
                         .setCheckpoint(true);
 
-        final Scheduler scheduler = new CassandraScheduler();
+        final Scheduler scheduler = new CassandraScheduler(frameworkName);
 
         final String mesosMasterZkUrl = Env.getOrElse("MESOS_ZK", "zk://localhost:2181/mesos");
         final MesosSchedulerDriver driver;
@@ -81,23 +81,9 @@ public final class Main {
                 throw new SystemExitException(1);
             }
 
-            return Optional.of(getCredential(principal, secret));
+            return Optional.of(ProtoUtils.getCredential(principal, secret));
         } else {
             return Optional.absent();
-        }
-    }
-
-    @NotNull
-    static Credential getCredential(@NotNull final String principal, @NotNull final Optional<String> secret) {
-        if (secret.isPresent()) {
-            return Credential.newBuilder()
-                    .setPrincipal(principal)
-                    .setSecret(ByteString.copyFrom(secret.get().getBytes()))
-                    .build();
-        } else {
-            return Credential.newBuilder()
-                    .setPrincipal(principal)
-                    .build();
         }
     }
 

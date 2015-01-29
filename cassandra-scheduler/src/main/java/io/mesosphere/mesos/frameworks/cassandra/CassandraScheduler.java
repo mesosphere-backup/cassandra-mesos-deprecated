@@ -2,6 +2,7 @@ package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
+import io.mesosphere.mesos.frameworks.cassandra.http.HttpServer;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -9,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,14 +37,26 @@ public final class CassandraScheduler implements Scheduler {
     private final AtomicInteger taskCounter;
     @NotNull
     private final String frameworkName;
+    @NotNull
+    private final HttpServer httpServer;
+    private final int numberOfNodes;
+    private final int numberOfTasks;
 
-    public CassandraScheduler(@NotNull final String frameworkName) {
+    @NotNull
+    private final Map<String, String> env;
+
+    public CassandraScheduler(@NotNull final String frameworkName, @NotNull final HttpServer httpServer, final int numberOfNodes, final int numberOfTasks) {
         this.frameworkName = frameworkName;
+        this.httpServer = httpServer;
+        this.numberOfNodes = numberOfNodes;
+        this.numberOfTasks = numberOfTasks;
+
         taskCounter = new AtomicInteger(0);
         execCounter = new AtomicInteger(0);
         tasksByExecutor = Maps.newConcurrentMap();
         executors = Maps.newConcurrentMap();
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        env = Collections.unmodifiableMap(newHashMap("JAVA_OPTS", "-Xms256m -Xmx256m"));
     }
 
     @Override
@@ -63,14 +77,18 @@ public final class CassandraScheduler implements Scheduler {
             boolean offerUsed = false;
             final int ec = executors.size();
 
-            if (ec < 4) {
+            if (ec < numberOfNodes) {
                 final ExecutorID executorId = executorId(frameworkName + ".node." + execCounter.getAndIncrement() + ".executor");
                 final ExecutorInfo info = executorInfo(
                         executorId,
                         executorId.getValue(),
                         commandInfo(
-                                "java -classpath cassandra-executor-*-jar-with-dependencies.jar io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor",
-                                "http://localhost:8998/cassandra-executor/target/cassandra-executor-0.1.0-SNAPSHOT-jar-with-dependencies.jar"
+                                "$(pwd)/jdk*/bin/java $JAVA_OPTS -classpath cassandra-executor.jar io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor",
+                                environmentFromMap(env),
+                                commandUri(httpServer.getUrlForResource("/jdk.tar.gz"), true),
+                                commandUri(httpServer.getUrlForResource("/cassandra.tar.gz"), true),
+                                commandUri(httpServer.getUrlForResource("/cassandra-executor.jar")),
+                                commandUri(httpServer.getUrlForResource("/cassandra.yaml"))
                         ),
                         cpu(0.1),
                         mem(256),
@@ -103,7 +121,7 @@ public final class CassandraScheduler implements Scheduler {
 
             for (final ExecutorID executorID : offer.getExecutorIdsList()) {
                 final Map<TaskID, TaskInfo> tasks = getOrElse(tasksByExecutor, executorID, Maps.<TaskID, TaskInfo>newConcurrentMap());
-                if (tasks.size() < 4) {
+                if (tasks.size() < numberOfTasks) {
                     final ExecutorInfo info = executors.get(executorID);
                     if (info != null) {
                         final TaskID taskId = taskId(executorID.getValue() + ".task." + taskCounter.getAndIncrement());

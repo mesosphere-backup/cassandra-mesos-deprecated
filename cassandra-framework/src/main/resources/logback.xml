@@ -7,6 +7,9 @@
         </encoder>
     </appender>
 
+    <logger name="org.jboss.logging" level="warn"/>
+    <logger name="org.xnio" level="info"/>
+
     <root level="debug">
         <appender-ref ref="STDOUT"/>
     </root>

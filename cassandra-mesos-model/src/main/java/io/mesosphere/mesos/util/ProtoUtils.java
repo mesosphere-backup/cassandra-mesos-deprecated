@@ -6,11 +6,15 @@ import com.google.protobuf.ByteString;
 import org.apache.mesos.Protos.*;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
+import java.util.Map;
+
 import static com.google.common.collect.Lists.newArrayList;
 
 public final class ProtoUtils {
 
-    private ProtoUtils() {}
+    private ProtoUtils() {
+    }
 
     @NotNull
     public static String protoToString(@NotNull final Object any) {
@@ -73,12 +77,58 @@ public final class ProtoUtils {
         return ExecutorID.newBuilder().setValue(executorId).build();
     }
 
+    /**
+     * @param cmd  the command string
+     * @param uris the URI's to be downloaded by the fetcher
+     * @return a command info using the specified {@code cmd} and {@code uris}. Each uri in {@code uris} will
+     * be converted to a {@link org.apache.mesos.Protos.CommandInfo.URI} with extract set to {@code false}
+     */
     @NotNull
     public static CommandInfo commandInfo(@NotNull final String cmd, @NotNull final String... uris) {
+        return commandInfo(cmd, newArrayList(FluentIterable.from(newArrayList(uris)).transform(Functions.doNotExtract())));
+    }
+
+    @NotNull
+    public static CommandInfo commandInfo(@NotNull final String cmd, @NotNull final CommandInfo.URI... uris) {
+        return commandInfo(cmd, newArrayList(uris));
+    }
+
+    @NotNull
+    public static CommandInfo commandInfo(@NotNull final String cmd, @NotNull final List<CommandInfo.URI> uris) {
+        return commandInfo(cmd, emptyEnvironment(), uris);
+    }
+
+    @NotNull
+    public static CommandInfo commandInfo(@NotNull final String cmd, @NotNull final Environment environment, @NotNull final CommandInfo.URI... uris) {
+        return commandInfo(cmd, environment, newArrayList(uris));
+    }
+
+    @NotNull
+    public static CommandInfo commandInfo(@NotNull final String cmd, @NotNull final Environment environment, @NotNull final List<CommandInfo.URI> uris) {
         return CommandInfo.newBuilder()
                 .setValue(cmd)
-                .addAllUris(FluentIterable.from(newArrayList(uris)).transform(Functions.doNotExtract()))
+                .setEnvironment(environment)
+                .addAllUris(newArrayList(uris))
                 .build();
+    }
+    
+    @NotNull
+    public static Environment environmentFromMap(@NotNull final Map<String, String> map) {
+        final Environment.Builder builder = Environment.newBuilder();
+        for (final Map.Entry<String, String> entry : map.entrySet()) {
+            builder.addVariables(
+                    Environment.Variable.newBuilder()
+                            .setName(entry.getKey())
+                            .setValue(entry.getValue())
+                            .build()
+            );
+        }
+        return builder.build();
+    }
+    
+    @NotNull
+    public static Environment emptyEnvironment() {
+        return Environment.newBuilder().build();
     }
 
     @NotNull
@@ -103,6 +153,15 @@ public final class ProtoUtils {
                     .setPrincipal(principal)
                     .build();
         }
+    }
+
+    /**
+     * @param input    the resource
+     * @return A {@link org.apache.mesos.Protos.CommandInfo.URI} with the {@code input} with extract set to {@code false}
+     */
+    @NotNull
+    public static CommandInfo.URI commandUri(@NotNull final String input) {
+        return commandUri(input, false);
     }
 
     @NotNull

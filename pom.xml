@@ -20,6 +20,8 @@
         <version.mesos>0.21.1</version.mesos>
         <version.slf4j>1.7.10</version.slf4j>
         <version.joda>2.7</version.joda>
+        <version.undertow>1.1.2.Final</version.undertow>
+        <version.snakeyaml>1.14</version.snakeyaml>
     </properties>
 
     <modules>
@@ -47,6 +49,24 @@
                 <groupId>io.mesosphere.mesos.frameworks</groupId>
                 <artifactId>cassandra-executor</artifactId>
                 <version>0.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- undertow -->
+            <dependency>
+                <groupId>io.undertow</groupId>
+                <artifactId>undertow-core</artifactId>
+                <version>${version.undertow}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.undertow</groupId>
+                <artifactId>undertow-servlet</artifactId>
+                <version>${version.undertow}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>${version.snakeyaml}</version>
             </dependency>
 
             <!-- Mesos dependencies -->

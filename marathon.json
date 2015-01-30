@@ -1,0 +1,16 @@
+{
+  "id": "/cassandra-mesos",
+  "instances": 1,
+  "cpus": 0.5,
+  "mem": 512,
+  "ports": [0],
+  "uris": [
+    "$url"
+  ],
+  "env": {
+    "MESOS_ZK": "zk://localhost:2181/mesos",
+    "JAVA_OPTS": "-Xms256m -Xmx256m",
+    "CASSANDRA_CLUSTER_NAME": "ben"
+  },
+  "cmd": "java $JAVA_OPTS -classpath cassandra-framework.jar io.mesosphere.mesos.frameworks.cassandra.Main"
+}

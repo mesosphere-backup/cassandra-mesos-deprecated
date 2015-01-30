@@ -33,6 +33,9 @@ public final class Main {
         final String jdkTarPath = Env.getOrElse("JDK_FILE_PATH", workingDir("/jdk.tar.gz"));
         final String cassandraTarPath = Env.getOrElse("CASSANDRA_FILE_PATH", workingDir("/cassandra.tar.gz"));
 
+        final int executorCount = Integer.parseInt(Env.getOrElse("CASS_EXEC_COUNT", "3"));
+        final int executorTaskCount = Integer.parseInt(Env.getOrElse("CASS_EXEC_TASK_COUNT", "4"));
+
         final String frameworkName = frameworkName(Env.option("CASSANDRA_CLUSTER_NAME"));
         final FrameworkInfo.Builder frameworkBuilder =
                 FrameworkInfo.newBuilder()
@@ -75,7 +78,7 @@ public final class Main {
                 .build();
         httpServer.start();
         LOGGER.info("Started http server on {}", httpServer.getBoundAddress());
-        final Scheduler scheduler = new CassandraScheduler(frameworkName, httpServer, 3, 4);
+        final Scheduler scheduler = new CassandraScheduler(frameworkName, httpServer, executorCount, executorTaskCount);
 
         final String mesosMasterZkUrl = Env.getOrElse("MESOS_ZK", "zk://localhost:2181/mesos");
         final MesosSchedulerDriver driver;

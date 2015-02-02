@@ -11,5 +11,54 @@
 
     <artifactId>cassandra-mesos-model</artifactId>
 
+    <dependencies>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-toolchains-plugin</artifactId>
+                <version>1.1</version>
+                <executions>
+                    <execution>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>toolchain</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <toolchains>
+                        <protobuf>
+                            <version>[2.5,2.6)</version>
+                        </protobuf>
+                    </toolchains>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.google.protobuf.tools</groupId>
+                <artifactId>maven-protoc-plugin</artifactId>
+                <version>0.3.2</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <checkStaleness>true</checkStaleness>
+                    <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

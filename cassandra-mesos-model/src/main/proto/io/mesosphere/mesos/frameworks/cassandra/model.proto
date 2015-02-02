@@ -1,0 +1,4 @@
+package io.mesosphere.mesos.frameworks.cassandra;
+
+option java_outer_classname = "CassandraTaskProtos";
+

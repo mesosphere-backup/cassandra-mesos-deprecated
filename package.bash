@@ -24,12 +24,18 @@ function clean {(
 
 )}
 
-function preparePackage {(
+function download {(
 
     mkdir -p ${TARGET_DIR}
     cd ${TARGET_DIR}
     _download ${DOWNLOAD_URL_JDK} "jdk.tar.gz"
     _download ${DOWNLOAD_URL_CASS} "cassandra.tar.gz"
+
+)}
+
+function preparePackage {(
+
+    download
 
     cp ${PROJECT_DIR}/cassandra-framework/target/cassandra-framework-*-jar-with-dependencies.jar cassandra-framework.jar
     cp ${PROJECT_DIR}/cassandra-executor/target/cassandra-executor-*-jar-with-dependencies.jar cassandra-executor.jar

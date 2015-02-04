@@ -23,3 +23,7 @@ target/
 
 # backup files
 *~
+
+**/cassandra-mesos.log
+**/cassandra-executor.log
+**/executor.log

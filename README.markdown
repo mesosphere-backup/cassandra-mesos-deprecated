@@ -1,6 +1,8 @@
 # Proof of Concept
 
-Please note that this is a proof of concept and should not be used in production.
+This Proof of concept has been End-of-lifed and is in the process of being re-written to be more robust and to leverage the planned improvements being made to Mesos to facilitate running stateful services.
+
+The rewrite code can be found on the branch [rewrite](https://github.com/mesosphere/cassandra-mesos/tree/rewrite)
 
 ## Overview
 This project allows you to utilize your Mesos cluster to run Cassandra. 

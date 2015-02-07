@@ -1,12 +1,25 @@
 package io.mesosphere.mesos.util;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Iterator;
 
 public final class Functions {
 
     private Functions() {}
+
+    @NotNull
+    public static <A> Optional<A> headOption(@NotNull final Iterable<A> iterable) {
+        final Iterator<A> iter = iterable.iterator();
+        if (iter.hasNext()) {
+            return Optional.fromNullable(iter.next());
+        } else {
+            return Optional.absent();
+        }
+    }
 
     @NotNull
     public static Function<String, Protos.CommandInfo.URI> extract() {

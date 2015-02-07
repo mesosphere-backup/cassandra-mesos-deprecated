@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos.TaskEnv;
 
 public final class ProtoUtils {
 
@@ -18,7 +19,7 @@ public final class ProtoUtils {
 
     @NotNull
     public static String protoToString(@NotNull final Object any) {
-        return any.toString().replaceAll("\\n", " ");
+        return any.toString().replaceAll(" *\\n *", " ");
     }
 
     @NotNull
@@ -125,20 +126,24 @@ public final class ProtoUtils {
         }
         return builder.build();
     }
-    
+
     @NotNull
-    public static Environment emptyEnvironment() {
-        return Environment.newBuilder().build();
+    public static TaskEnv taskEnvFromMap(@NotNull final Map<String, String> map) {
+        final TaskEnv.Builder builder = TaskEnv.newBuilder();
+        for (final Map.Entry<String, String> entry : map.entrySet()) {
+            builder.addVariables(
+                    TaskEnv.Entry.newBuilder()
+                            .setName(entry.getKey())
+                            .setValue(entry.getValue())
+                            .build()
+            );
+        }
+        return builder.build();
     }
 
     @NotNull
-    public static TaskStatus taskStatus(@NotNull final ExecutorID executorId, @NotNull final TaskID taskId, @NotNull final TaskState stats) {
-        return TaskStatus.newBuilder()
-                .setExecutorId(executorId)
-                .setTaskId(taskId)
-                .setState(stats)
-                .setSource(TaskStatus.Source.SOURCE_EXECUTOR)
-                .build();
+    public static Environment emptyEnvironment() {
+        return Environment.newBuilder().build();
     }
 
     @NotNull

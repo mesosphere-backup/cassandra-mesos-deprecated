@@ -1,7 +1,6 @@
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Optional;
-import io.mesosphere.mesos.frameworks.cassandra.http.CassandraYamlHttpHandler;
 import io.mesosphere.mesos.frameworks.cassandra.http.FileResourceHttpHandler;
 import io.mesosphere.mesos.frameworks.cassandra.http.HttpServer;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
@@ -34,7 +33,6 @@ public final class Main {
         final String cassandraTarPath = Env.getOrElse("CASSANDRA_FILE_PATH", workingDir("/cassandra.tar.gz"));
 
         final int executorCount = Integer.parseInt(Env.getOrElse("CASS_EXEC_COUNT", "3"));
-        final int executorTaskCount = Integer.parseInt(Env.getOrElse("CASS_EXEC_TASK_COUNT", "4"));
 
         final String frameworkName = frameworkName(Env.option("CASSANDRA_CLUSTER_NAME"));
         final FrameworkInfo.Builder frameworkBuilder =
@@ -45,12 +43,10 @@ public final class Main {
                         .setCheckpoint(true);
 
 
-        final Config config = new Config();
         final String bindInterface = Env.getOrElse("BIND_INTERFACE", "0.0.0.0");
         final HttpServer httpServer = HttpServer.newBuilder()
                 .withBindPort(port0)
                 .withBindInterface(bindInterface)
-                .withPathHandler("/cassandra.yaml", new CassandraYamlHttpHandler(config))
                 .withPathHandler(
                         "/cassandra-executor.jar",
                         new FileResourceHttpHandler(
@@ -78,7 +74,7 @@ public final class Main {
                 .build();
         httpServer.start();
         LOGGER.info("Started http server on {}", httpServer.getBoundAddress());
-        final Scheduler scheduler = new CassandraScheduler(frameworkName, httpServer, executorCount, executorTaskCount);
+        final Scheduler scheduler = new CassandraScheduler(frameworkName, httpServer, executorCount);
 
         final String mesosMasterZkUrl = Env.getOrElse("MESOS_ZK", "zk://localhost:2181/mesos");
         final MesosSchedulerDriver driver;

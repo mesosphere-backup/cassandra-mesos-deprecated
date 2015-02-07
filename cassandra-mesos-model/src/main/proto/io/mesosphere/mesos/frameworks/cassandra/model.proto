@@ -2,3 +2,69 @@ package io.mesosphere.mesos.frameworks.cassandra;
 
 option java_outer_classname = "CassandraTaskProtos";
 
+message TaskDetails {
+    required TaskType taskType = 1;
+    optional SlaveMetadataTask slaveMetadataTask = 2;
+    optional CassandraNodeRunTask cassandraNodeRunTask = 3;
+    optional CassandraNodeShutdownTask cassandraNodeShutdownTask = 4;
+
+    enum TaskType {
+        SLAVE_METADATA = 1;
+        CASSANDRA_NODE_RUN = 2;
+        CASSANDRA_NODE_SHUTDOWN = 3;
+    }
+}
+
+message SlaveMetadataTask {
+}
+
+message CassandraNodeRunTask {
+    repeated string command = 1;
+    optional TaskEnv taskEnv = 2;
+    repeated TaskFile taskFiles = 3;
+}
+
+message CassandraNodeShutdownTask {
+}
+
+/**
+ * Describes a File that needs to be created/overwritten at the specified outputPath
+ * with provided data
+ */
+message TaskFile {
+    required string outputPath = 1;
+    required bytes data = 2;
+}
+
+/**
+ * Describes a collection of environment variables.
+ */
+message TaskEnv {
+    message Entry {
+        required string name = 1;
+        required string value = 2;
+    }
+
+    repeated Entry variables = 1;
+}
+
+message SlaveStatusDetails {
+    required StatusDetailsType statusDetailsType = 1;
+    optional SlaveMetadata slaveMetadata = 2;
+    optional SlaveErrorDetails slaveErrorDetails = 3;
+
+    enum StatusDetailsType {
+        NULL_DETAILS = 1;
+        SLAVE_METADATA = 2;
+        ERROR_DETAILS = 3;
+    }
+}
+
+message SlaveMetadata {
+    optional string ip = 1;
+}
+
+message SlaveErrorDetails {
+    optional string msg = 1;
+    optional string details = 2;
+}

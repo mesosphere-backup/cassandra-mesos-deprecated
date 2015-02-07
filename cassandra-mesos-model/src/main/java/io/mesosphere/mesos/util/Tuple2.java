@@ -1,9 +1,9 @@
 package io.mesosphere.mesos.util;
 
-import lombok.Data;
+import lombok.Value;
 import org.jetbrains.annotations.NotNull;
 
-@Data
+@Value
 public final class Tuple2<T1, T2> {
 
     @NotNull

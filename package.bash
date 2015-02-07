@@ -10,7 +10,7 @@ DOWNLOAD_URL_CASS="https://downloads.mesosphere.io/cassandra-mesos/cassandra/apa
 VERSION=${VERSION:-"dev"}
 PACKAGE_TAR="cassandra-mesos-${VERSION}.tar.gz"
 
-DEPLOY_BUCKET="downloads.mesosphere.io/cassandra-mesos"
+DEPLOY_BUCKET=${DEPLOY_BUCKET:-"downloads.mesosphere.io/cassandra-mesos"}
 S3_DEPLOY_BUCKET="s3://${DEPLOY_BUCKET}"
 HTTPS_DEPLOY_BUCKET="https://${DEPLOY_BUCKET}"
 

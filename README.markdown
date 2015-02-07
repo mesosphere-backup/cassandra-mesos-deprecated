@@ -10,13 +10,16 @@ The Cassandra Mesos Framework is a maven project with modules for the Framework,
 2. Install
   1. Linux (make sure g++ compiler is installed)
     1. Run the following commands to build protobuf
-       ```
-       tar xzf protobuf-2.5.0.tar.gz
-       cd protobuf-2.5.0
-       ./configure
-       make
-       ```
+
+         ```
+         tar xzf protobuf-2.5.0.tar.gz
+         cd protobuf-2.5.0
+         ./configure
+         make
+         ```
+
 3. Create `~/.m2/toolchains.xml` with the following contents, Update `PROTOBUF_HOME` to match the directory you ran make in
+  
   ```
   <?xml version="1.0" encoding="UTF-8"?>
   <toolchains>

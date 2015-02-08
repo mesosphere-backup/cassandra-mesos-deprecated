@@ -28,11 +28,11 @@ public final class Main {
         }
 
         final int port0 = Integer.parseInt(portOption.get());
-        final String executorFilePath = Env.getOrElse("EXECUTOR_FILE_PATH", workingDir("/cassandra-executor.jar"));
-        final String jdkTarPath = Env.getOrElse("JDK_FILE_PATH", workingDir("/jdk.tar.gz"));
-        final String cassandraTarPath = Env.getOrElse("CASSANDRA_FILE_PATH", workingDir("/cassandra.tar.gz"));
+        final String executorFilePath = Env.option("EXECUTOR_FILE_PATH").or(workingDir("/cassandra-executor.jar"));
+        final String jdkTarPath = Env.option("JDK_FILE_PATH").or(workingDir("/jdk.tar.gz"));
+        final String cassandraTarPath = Env.option("CASSANDRA_FILE_PATH").or(workingDir("/cassandra.tar.gz"));
 
-        final int executorCount = Integer.parseInt(Env.getOrElse("CASS_EXEC_COUNT", "3"));
+        final int executorCount = Integer.parseInt(Env.option("CASS_EXEC_COUNT").or("3"));
 
         final String frameworkName = frameworkName(Env.option("CASSANDRA_CLUSTER_NAME"));
         final FrameworkInfo.Builder frameworkBuilder =
@@ -43,7 +43,7 @@ public final class Main {
                         .setCheckpoint(true);
 
 
-        final String bindInterface = Env.getOrElse("BIND_INTERFACE", "0.0.0.0");
+        final String bindInterface = Env.option("BIND_INTERFACE").or("0.0.0.0");
         final HttpServer httpServer = HttpServer.newBuilder()
                 .withBindPort(port0)
                 .withBindInterface(bindInterface)
@@ -76,7 +76,7 @@ public final class Main {
         LOGGER.info("Started http server on {}", httpServer.getBoundAddress());
         final Scheduler scheduler = new CassandraScheduler(frameworkName, httpServer, executorCount);
 
-        final String mesosMasterZkUrl = Env.getOrElse("MESOS_ZK", "zk://localhost:2181/mesos");
+        final String mesosMasterZkUrl = Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");
         final MesosSchedulerDriver driver;
         final Optional<Credential> credentials = getCredential();
         if (credentials.isPresent()) {
@@ -125,16 +125,12 @@ public final class Main {
     }
 
     static Optional<Credential> getCredential() {
-        if (Env.get("MESOS_AUTHENTICATE") != null) {
+        final boolean auth = Boolean.valueOf(Env.option("MESOS_AUTHENTICATE").or("false"));
+        if (auth){
             LOGGER.info("Enabling authentication for the framework");
 
             final String principal = Env.get("DEFAULT_PRINCIPAL");
             final Optional<String> secret = Env.option("DEFAULT_SECRET");
-
-            if (principal == null) {
-                System.err.println("Expecting authentication principal in the environment");
-                throw new SystemExitException(5);
-            }
 
             return Optional.of(ProtoUtils.getCredential(principal, secret));
         } else {

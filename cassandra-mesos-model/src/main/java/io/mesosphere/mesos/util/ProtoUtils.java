@@ -59,14 +59,16 @@ public final class ProtoUtils {
 
     @NotNull
     public static ExecutorInfo executorInfo(
-            @NotNull final ExecutorID executorId,
-            @NotNull final String name,
-            @NotNull final CommandInfo cmd,
-            @NotNull final Resource... resources
+        @NotNull final ExecutorID executorId,
+        @NotNull final String name,
+        @NotNull final String source,
+        @NotNull final CommandInfo cmd,
+        @NotNull final Resource... resources
     ) {
         return ExecutorInfo.newBuilder()
                 .setExecutorId(executorId)
                 .setName(name)
+                .setSource(source)
                 .setSource("java")
                 .addAllResources(newArrayList(resources))
                 .setCommand(cmd)

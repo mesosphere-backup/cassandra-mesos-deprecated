@@ -93,6 +93,7 @@ public final class CassandraScheduler implements Scheduler {
                 final ExecutorInfo info = executorInfo(
                     executorId,
                     executorId.getValue(),
+                    frameworkName,
                     commandInfo(
                         "$(pwd)/jdk*/bin/java $JAVA_OPTS -classpath cassandra-executor.jar io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor",
                         environmentFromMap(executorEnv),

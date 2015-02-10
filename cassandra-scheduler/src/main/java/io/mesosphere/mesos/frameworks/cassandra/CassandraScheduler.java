@@ -1,6 +1,7 @@
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.protobuf.ByteString;
@@ -34,6 +35,8 @@ import static io.mesosphere.mesos.util.ProtoUtils.*;
 public final class CassandraScheduler implements Scheduler {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraScheduler.class);
 
+    private static final Joiner JOINER = Joiner.on("','");
+
     @NotNull
     private final ScheduledExecutorService scheduledExecutorService;
     @NotNull
@@ -47,6 +50,9 @@ public final class CassandraScheduler implements Scheduler {
     @NotNull
     private final HttpServer httpServer;
     private final int numberOfNodes;
+    private final double cpuCores;
+    private final long memMb;
+    private final long diskMb;
 
     // TODO(BenWhitehead): Fix thread safety for this state
     @NotNull
@@ -55,10 +61,20 @@ public final class CassandraScheduler implements Scheduler {
     @NotNull
     private final Map<String, String> executorEnv;
 
-    public CassandraScheduler(@NotNull final String frameworkName, @NotNull final HttpServer httpServer, final int numberOfNodes) {
+    public CassandraScheduler(
+        @NotNull final String frameworkName,
+        @NotNull final HttpServer httpServer,
+        final int numberOfNodes,
+        final double cpuCores,
+        final long memMb,
+        final long diskMb
+    ) {
         this.frameworkName = frameworkName;
         this.httpServer = httpServer;
         this.numberOfNodes = numberOfNodes;
+        this.cpuCores = cpuCores;
+        this.memMb = memMb;
+        this.diskMb = diskMb;
 
         taskCounter = new AtomicInteger(0);
         execCounter = new AtomicInteger(0);
@@ -82,7 +98,8 @@ public final class CassandraScheduler implements Scheduler {
     public void resourceOffers(final SchedulerDriver driver, final List<Offer> offers) {
         LOGGER.debug("> resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
         for (final Offer offer : offers) {
-            // TODO: Make this code smarter and able to launch multiple tasks for the same offer
+            final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue());
+            LOGGER.debug(marker, "> Evaluating offer");
             boolean offerUsed = false;
             final ImmutableListMultimap<ExecutorID, SuperTask> tasksByExecutor = from(superTasks).index(SuperTask.toExecutorId());
             final int ec = tasksByExecutor.size();
@@ -123,47 +140,26 @@ public final class CassandraScheduler implements Scheduler {
                     ))
                     .setExecutor(info)
                     .build();
-                LOGGER.debug("launching task = {}", protoToString(task));
+                LOGGER.debug(marker, "launching task = {}", protoToString(task));
                 driver.launchTasks(newArrayList(offer.getId()), newArrayList(task));
                 superTasks.add(new SuperTask(offer.getHostname(), task, info, taskDetails));
                 offerUsed = true;
             }
 
             if (offerUsed) {
+                LOGGER.trace(marker, "< Evaluating offer");
                 continue;
             }
 
             for (final ExecutorID executorID : offer.getExecutorIdsList()) {
                 final ImmutableList<SuperTask> tasks = tasksByExecutor.get(executorID);
-                if (tasks != null && !tasks.isEmpty() && from(tasks).filter(SuperTask.taskDetailsTypeEq(TaskDetails.TaskType.CASSANDRA_NODE_RUN)).isEmpty()) {
-
-                    final List<Resource> resourcesList = offer.getResourcesList();
-                    final Double cpus = headOption(
-                        from(resourcesList).filter(new Predicate<Resource>() {
-                            @Override
-                            public boolean apply(final Resource input) {
-                                return "cpus".equals(input.getName());
-                            }
-                        }).transform(new Function<Resource, Double>() {
-                            @Override
-                            public Double apply(final Resource input) {
-                                return input.getScalar().getValue();
-                            }
-                        })
-                    ).or(1.0);
-                    final Double mem = headOption(
-                        from(resourcesList).filter(new Predicate<Resource>() {
-                            @Override
-                            public boolean apply(final Resource input) {
-                                return "mem".equals(input.getName());
-                            }
-                        }).transform(new Function<Resource, Double>() {
-                            @Override
-                            public Double apply(final Resource input) {
-                                return input.getScalar().getValue();
-                            }
-                        })
-                    ).or(4d * 1024);
+                final boolean nodeNotAlreadyRunning = from(tasks).filter(SuperTask.taskDetailsTypeEq(TaskDetails.TaskType.CASSANDRA_NODE_RUN)).isEmpty();
+                if (!tasks.isEmpty() && nodeNotAlreadyRunning) {
+                    final List<String> errors = hasResources(offer, cpuCores, memMb, diskMb);
+                    if (!errors.isEmpty()) {
+                        LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
+                        continue;
+                    }
 
                     final SuperTask head = tasks.get(0);
                     final ExecutorInfo info = head.getExecutorInfo();
@@ -197,9 +193,9 @@ public final class CassandraScheduler implements Scheduler {
                             .setSlaveId(offer.getSlaveId())
                             .setData(ByteString.copyFrom(taskDetails.toByteArray()))
                             .addAllResources(newArrayList(
-                                cpu(cpus - 0.1),
-                                mem(mem - 256),
-                                disk(2 * 1024)  // 2GB
+                                cpu(cpuCores),
+                                mem(memMb),
+                                disk(diskMb)
                             ))
                             .setExecutor(info)
                             .build();
@@ -216,6 +212,7 @@ public final class CassandraScheduler implements Scheduler {
             if (!offerUsed) {
                 scheduledExecutorService.schedule(new DeclineOffer(driver, offer), 1, TimeUnit.SECONDS);
             }
+            LOGGER.trace(marker, "< Evaluating offer");
         }
         LOGGER.trace("< resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
     }
@@ -227,7 +224,7 @@ public final class CassandraScheduler implements Scheduler {
 
     @Override
     public void statusUpdate(final SchedulerDriver driver, final TaskStatus status) {
-        final Marker taskIdMarker = MarkerFactory.getMarker(status.getTaskId().getValue());
+        final Marker taskIdMarker = MarkerFactory.getMarker("taskId:" + status.getTaskId().getValue());
         LOGGER.debug(taskIdMarker, "> statusUpdate(driver : {}, status : {})", driver, protoToString(status));
         try {
             final ExecutorID executorId = status.getExecutorId();
@@ -308,16 +305,11 @@ public final class CassandraScheduler implements Scheduler {
 
     @Override
     public void executorLost(final SchedulerDriver driver, final ExecutorID executorId, final SlaveID slaveId, final int status) {
-        final Marker executorIdMarker = MarkerFactory.getMarker(executorId.getValue());
+        final Marker executorIdMarker = MarkerFactory.getMarker("executorId:" + executorId.getValue());
         // this method will never be called by mesos until MESOS-313 is fixed
         // https://issues.apache.org/jira/browse/MESOS-313
         LOGGER.debug(executorIdMarker, "executorLost(driver : {}, executorId : {}, slaveId : {}, status : {})", driver, protoToString(executorId), protoToString(slaveId), protoToString(status));
         superTasks = filterNot(superTasks, SuperTask.executorIdEq(executorId));
-    }
-
-    @NotNull
-    private <A> List<A> filterNot(@NotNull final List<A> list, @NotNull final Predicate<A> predicate) {
-        return Collections.synchronizedList(newArrayList(from(list).filter(not(predicate))));
     }
 
     @Override
@@ -326,10 +318,34 @@ public final class CassandraScheduler implements Scheduler {
     }
 
     @NotNull
-    public static <K, V> Map<K, V> newHashMap(@NotNull final K key, @NotNull final V value) {
+    private static <A> List<A> filterNot(@NotNull final List<A> list, @NotNull final Predicate<A> predicate) {
+        return Collections.synchronizedList(newArrayList(from(list).filter(not(predicate))));
+    }
+
+    @NotNull
+    private static <K, V> Map<K, V> newHashMap(@NotNull final K key, @NotNull final V value) {
         final HashMap<K, V> map = Maps.newHashMap();
         map.put(key, value);
         return map;
+    }
+
+    @NotNull
+    private static List<String> hasResources(@NotNull final Offer offer, final double cpu, final long mem, final long disk) {
+        final List<String> errors = newArrayList();
+        final ListMultimap<String, Resource> index = from(offer.getResourcesList()).index(resourceToName());
+        final Double availableCpus = resourceValueDouble(headOption(index.get("cpus"))).or(0.0);
+        final Long availableMem = resourceValueLong(headOption(index.get("mem"))).or(0L);
+        final Long availableDisk = resourceValueLong(headOption(index.get("disk"))).or(0L);
+        if (availableCpus <= cpu) {
+            errors.add(String.format("Not enough cpu resources. Required %f only %f available.", cpu, availableCpus));
+        }
+        if (availableMem <= mem) {
+            errors.add(String.format("Not enough mem resources. Required %d only %d available", mem, availableMem));
+        }
+        if (availableDisk <= disk) {
+            errors.add(String.format("Not enough disk resources. Required %d only %d available", disk, availableDisk));
+        }
+        return errors;
     }
 
 

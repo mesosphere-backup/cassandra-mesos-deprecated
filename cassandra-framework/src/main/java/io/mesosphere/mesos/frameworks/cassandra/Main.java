@@ -32,7 +32,10 @@ public final class Main {
         final String jdkTarPath = Env.option("JDK_FILE_PATH").or(workingDir("/jdk.tar.gz"));
         final String cassandraTarPath = Env.option("CASSANDRA_FILE_PATH").or(workingDir("/cassandra.tar.gz"));
 
-        final int executorCount = Integer.parseInt(Env.option("CASS_EXEC_COUNT").or("3"));
+        final int       executorCount           = Integer.parseInt(     Env.option("CASSANDRA_NODE_COUNT").or("3"));
+        final double    resourceCpuCores        = Double.parseDouble(   Env.option("CASSANDRA_RESOURCE_CPU_CORES").or("2.0"));
+        final long      resourceMemoryMegabytes = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_MEM_MB").or("2048"));
+        final long      resourceDiskMegabytes   = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_DISK_MB").or("2048"));
 
         final String frameworkName = frameworkName(Env.option("CASSANDRA_CLUSTER_NAME"));
         final FrameworkInfo.Builder frameworkBuilder =
@@ -74,7 +77,14 @@ public final class Main {
                 .build();
         httpServer.start();
         LOGGER.info("Started http server on {}", httpServer.getBoundAddress());
-        final Scheduler scheduler = new CassandraScheduler(frameworkName, httpServer, executorCount);
+        final Scheduler scheduler = new CassandraScheduler(
+            frameworkName,
+            httpServer,
+            executorCount,
+            resourceCpuCores,
+            resourceMemoryMegabytes,
+            resourceDiskMegabytes
+        );
 
         final String mesosMasterZkUrl = Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");
         final MesosSchedulerDriver driver;

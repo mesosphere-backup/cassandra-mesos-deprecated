@@ -1,6 +1,29 @@
 Cassandra Mesos Framework
 =========================
 
+# Configuration
+
+All configuration is handled through environment variables (this lends itself well to being easy to configure marathon to run the framework).
+
+## Runtime Configuration
+
+The following environment variables can be used to configure how the framework will operate.
+```bash
+# The number of nodes in the ring (default 3)
+CASSANDRA_NODE_COUNT=3
+
+# The number of CPU Cores for each Cassandra Node (default 2.0)
+CASSANDRA_RESOURCE_CPU_CORES=2.0
+
+# The number of Megabytes of RAM for each Cassandra Node (default 2048)
+CASSANDRA_RESOURCE_MEM_MB=2048
+
+# The number of Megabytes of Disk for each Cassandra Node (default 2048)
+CASSANDRA_RESOURCE_DISK_MB=2048
+
+```
+
+
 ## Build
 The Cassandra Mesos Framework is a maven project with modules for the Framework, Scheduler, Executor and Model. Standard maven convention applies. The Framework and Executor are both built as `jar-with-dependencies` in addition to their standalone jar, so that they are easy to run and distribute.
 

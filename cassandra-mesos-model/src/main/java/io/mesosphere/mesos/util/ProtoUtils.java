@@ -1,5 +1,6 @@
 package io.mesosphere.mesos.util;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
 import com.google.protobuf.ByteString;
@@ -25,8 +26,8 @@ public final class ProtoUtils {
     @NotNull
     public static TaskID taskId(@NotNull final String name) {
         return TaskID.newBuilder()
-                .setValue(name)
-                .build();
+            .setValue(name)
+            .build();
     }
 
     @NotNull
@@ -47,14 +48,14 @@ public final class ProtoUtils {
     @NotNull
     public static Resource resource(@NotNull final String name, final double value) {
         return Resource.newBuilder()
-                .setName(name)
-                .setType(Value.Type.SCALAR)
-                .setScalar(
-                        Value.Scalar.newBuilder()
-                                .setValue(value)
-                                .build()
-                )
-                .build();
+            .setName(name)
+            .setType(Value.Type.SCALAR)
+            .setScalar(
+                Value.Scalar.newBuilder()
+                    .setValue(value)
+                    .build()
+            )
+            .build();
     }
 
     @NotNull
@@ -66,13 +67,13 @@ public final class ProtoUtils {
         @NotNull final Resource... resources
     ) {
         return ExecutorInfo.newBuilder()
-                .setExecutorId(executorId)
-                .setName(name)
-                .setSource(source)
-                .setSource("java")
-                .addAllResources(newArrayList(resources))
-                .setCommand(cmd)
-                .build();
+            .setExecutorId(executorId)
+            .setName(name)
+            .setSource(source)
+            .setSource("java")
+            .addAllResources(newArrayList(resources))
+            .setCommand(cmd)
+            .build();
     }
 
     @NotNull
@@ -109,21 +110,21 @@ public final class ProtoUtils {
     @NotNull
     public static CommandInfo commandInfo(@NotNull final String cmd, @NotNull final Environment environment, @NotNull final List<CommandInfo.URI> uris) {
         return CommandInfo.newBuilder()
-                .setValue(cmd)
-                .setEnvironment(environment)
-                .addAllUris(newArrayList(uris))
-                .build();
+            .setValue(cmd)
+            .setEnvironment(environment)
+            .addAllUris(newArrayList(uris))
+            .build();
     }
-    
+
     @NotNull
     public static Environment environmentFromMap(@NotNull final Map<String, String> map) {
         final Environment.Builder builder = Environment.newBuilder();
         for (final Map.Entry<String, String> entry : map.entrySet()) {
             builder.addVariables(
-                    Environment.Variable.newBuilder()
-                            .setName(entry.getKey())
-                            .setValue(entry.getValue())
-                            .build()
+                Environment.Variable.newBuilder()
+                    .setName(entry.getKey())
+                    .setValue(entry.getValue())
+                    .build()
             );
         }
         return builder.build();
@@ -134,10 +135,10 @@ public final class ProtoUtils {
         final TaskEnv.Builder builder = TaskEnv.newBuilder();
         for (final Map.Entry<String, String> entry : map.entrySet()) {
             builder.addVariables(
-                    TaskEnv.Entry.newBuilder()
-                            .setName(entry.getKey())
-                            .setValue(entry.getValue())
-                            .build()
+                TaskEnv.Entry.newBuilder()
+                    .setName(entry.getKey())
+                    .setValue(entry.getValue())
+                    .build()
             );
         }
         return builder.build();
@@ -152,18 +153,18 @@ public final class ProtoUtils {
     public static Credential getCredential(@NotNull final String principal, @NotNull final Optional<String> secret) {
         if (secret.isPresent()) {
             return Credential.newBuilder()
-                    .setPrincipal(principal)
-                    .setSecret(ByteString.copyFrom(secret.get().getBytes()))
-                    .build();
+                .setPrincipal(principal)
+                .setSecret(ByteString.copyFrom(secret.get().getBytes()))
+                .build();
         } else {
             return Credential.newBuilder()
-                    .setPrincipal(principal)
-                    .build();
+                .setPrincipal(principal)
+                .build();
         }
     }
 
     /**
-     * @param input    the resource
+     * @param input the resource
      * @return A {@link org.apache.mesos.Protos.CommandInfo.URI} with the {@code input} with extract set to {@code false}
      */
     @NotNull
@@ -174,6 +175,40 @@ public final class ProtoUtils {
     @NotNull
     public static CommandInfo.URI commandUri(@NotNull final String input, final boolean shouldExtract) {
         return CommandInfo.URI.newBuilder().setValue(input).setExtract(shouldExtract).build();
+    }
+
+    @NotNull
+    public static Optional<Double> resourceValueDouble(@NotNull final Optional<Resource> resource) {
+        if (resource.isPresent()) {
+            return Optional.of(resource.get().getScalar().getValue());
+        } else {
+            return Optional.absent();
+        }
+    }
+
+    @NotNull
+    public static Optional<Long> resourceValueLong(@NotNull final Optional<Resource> resource) {
+        if (resource.isPresent()) {
+            final long value = (long) resource.get().getScalar().getValue();
+            return Optional.of(value);
+        } else {
+            return Optional.absent();
+        }
+    }
+
+    @NotNull
+    public static Function<Resource, String> resourceToName() {
+        return ResourceToName.INSTANCE;
+    }
+
+    @lombok.Value
+    private static final class ResourceToName implements Function<Resource, String> {
+        private static final ResourceToName INSTANCE = new ResourceToName();
+
+        @Override
+        public String apply(final Resource input) {
+            return input.getName();
+        }
     }
 
 }

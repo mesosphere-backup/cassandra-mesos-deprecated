@@ -106,7 +106,7 @@ public final class CassandraScheduler implements Scheduler {
     public void resourceOffers(final SchedulerDriver driver, final List<Offer> offers) {
         LOGGER.debug("> resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
         for (final Offer offer : offers) {
-            final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue());
+            final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname());
             LOGGER.debug(marker, "> Evaluating offer");
             boolean offerUsed = false;
             final ImmutableListMultimap<ExecutorID, SuperTask> tasksByExecutor = from(superTasks).index(SuperTask.toExecutorId());

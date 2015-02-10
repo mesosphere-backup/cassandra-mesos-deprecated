@@ -21,9 +21,6 @@ import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.base.Predicates.not;
@@ -49,8 +46,6 @@ public final class CassandraScheduler implements Scheduler {
         tuple2("rpc_port", 9160L)
     );
 
-    @NotNull
-    private final ScheduledExecutorService scheduledExecutorService;
     @NotNull
     private final Map<ExecutorID, SlaveMetadata> executorMetadata;
     @NotNull
@@ -101,7 +96,6 @@ public final class CassandraScheduler implements Scheduler {
         executorMetadata = Maps.newConcurrentMap();
         superTasks = Collections.synchronizedList(Lists.<SuperTask>newArrayList());
         healthCheckHistory = Maps.newConcurrentMap();
-        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
         executorEnv = Collections.unmodifiableMap(newHashMap("JAVA_OPTS", "-Xms256m -Xmx256m"));
     }
 
@@ -333,7 +327,8 @@ public final class CassandraScheduler implements Scheduler {
 
 
         if (!offerUsed) {
-            scheduledExecutorService.schedule(new DeclineOffer(driver, offer), 1, TimeUnit.SECONDS);
+            LOGGER.trace(marker, "Declining Offer: {}", offer.getId().getValue());
+            driver.declineOffer(offer.getId());
         }
         LOGGER.trace(marker, "< evaluateOffer(driver : {}, offer : {})", driver, protoToString(offer));
         return offerUsed;
@@ -440,23 +435,6 @@ public final class CassandraScheduler implements Scheduler {
             }
         }
         return errors;
-    }
-
-
-    private static final class DeclineOffer implements Runnable {
-        private final SchedulerDriver driver;
-        private final Offer offer;
-
-        public DeclineOffer(final SchedulerDriver driver, final Offer offer) {
-            this.driver = driver;
-            this.offer = offer;
-        }
-
-        @Override
-        public void run() {
-            LOGGER.debug("driver.declineOffer({})", protoToString(offer.getId()));
-            driver.declineOffer(offer.getId());
-        }
     }
 
     private static final Function<SlaveMetadata, String> toIp = new Function<SlaveMetadata, String>() {

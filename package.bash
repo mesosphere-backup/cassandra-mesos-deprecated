@@ -4,7 +4,6 @@ set -o errexit -o nounset -o pipefail
 PROJECT_DIR=$(pwd)
 TARGET_DIR="target/framework-package"
 
-DOWNLOAD_URL_JDK="https://downloads.mesosphere.io/cassandra-mesos/jdk/jdk-7u75-linux-x64.tar.gz"
 DOWNLOAD_URL_CASS="https://downloads.mesosphere.io/cassandra-mesos/cassandra/apache-cassandra-2.1.2-bin.tar.gz"
 
 VERSION=${VERSION:-"dev"}
@@ -36,8 +35,8 @@ function preparePackage {(
 
     download
 
-    cp ${PROJECT_DIR}/cassandra-framework/target/cassandra-framework-*-jar-with-dependencies.jar cassandra-framework.jar
-    cp ${PROJECT_DIR}/cassandra-executor/target/cassandra-executor-*-jar-with-dependencies.jar cassandra-executor.jar
+    cp ${PROJECT_DIR}/cassandra-framework/target/cassandra-framework-*-jar-with-dependencies.jar ${TARGET_DIR}/cassandra-framework.jar
+    cp ${PROJECT_DIR}/cassandra-executor/target/cassandra-executor-*-jar-with-dependencies.jar ${TARGET_DIR}/cassandra-executor.jar
 )}
 
 function package {(

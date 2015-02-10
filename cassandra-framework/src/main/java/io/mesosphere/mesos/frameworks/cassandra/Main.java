@@ -5,6 +5,7 @@ import io.mesosphere.mesos.frameworks.cassandra.http.FileResourceHttpHandler;
 import io.mesosphere.mesos.frameworks.cassandra.http.HttpServer;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.ProtoUtils;
+import io.mesosphere.mesos.util.SystemClock;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.apache.mesos.MesosSchedulerDriver;
@@ -36,6 +37,7 @@ public final class Main {
         final double    resourceCpuCores        = Double.parseDouble(   Env.option("CASSANDRA_RESOURCE_CPU_CORES").or("2.0"));
         final long      resourceMemoryMegabytes = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_MEM_MB").or("2048"));
         final long      resourceDiskMegabytes   = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_DISK_MB").or("2048"));
+        final long      healthCheckIntervalSec  = Long.parseLong(       Env.option("CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS").or("5"));
 
         final String frameworkName = frameworkName(Env.option("CASSANDRA_CLUSTER_NAME"));
         final FrameworkInfo.Builder frameworkBuilder =
@@ -78,12 +80,14 @@ public final class Main {
         httpServer.start();
         LOGGER.info("Started http server on {}", httpServer.getBoundAddress());
         final Scheduler scheduler = new CassandraScheduler(
+            new SystemClock(),
             frameworkName,
             httpServer,
             executorCount,
             resourceCpuCores,
             resourceMemoryMegabytes,
-            resourceDiskMegabytes
+            resourceDiskMegabytes,
+            healthCheckIntervalSec
         );
 
         final String mesosMasterZkUrl = Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");

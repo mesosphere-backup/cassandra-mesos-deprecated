@@ -57,7 +57,7 @@ public final class CassandraExecutor implements Executor {
             driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_STARTING));
             final ByteString data = task.getData();
             final TaskDetails taskDetails = TaskDetails.parseFrom(data);
-            LOGGER.debug("received taskDetails: {}", protoToString(taskDetails));
+            LOGGER.debug(taskIdMarker, "received taskDetails: {}", protoToString(taskDetails));
             switch (taskDetails.getTaskType()) {
                 case SLAVE_METADATA:
                     final SlaveMetadata slaveMetadata = collectSlaveMetadata();
@@ -78,6 +78,17 @@ public final class CassandraExecutor implements Executor {
                     process.get().destroy();
                     process.set(null);
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
+                    break;
+                case CASSANDRA_NODE_HEALTH_CHECK:
+                    final CassandraNodeHealthCheckTask healthCheckTask = taskDetails.getCassandraNodeHealthCheckTask();
+                    LOGGER.info(taskIdMarker, "Received healthCheckTask: {}", protoToString(healthCheckTask));
+                    final CassandraNodeHealthCheckDetails healthCheck = performHealthCheck(healthCheckTask);
+                    final SlaveStatusDetails healthCheckDetails = SlaveStatusDetails.newBuilder()
+                        .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.HEALTH_CHECK_DETAILS)
+                        .setCassandraNodeHealthCheckDetails(healthCheck)
+                        .build();
+                    final TaskState state = healthCheck.getHealthy() ? TaskState.TASK_FINISHED : TaskState.TASK_ERROR;
+                    driver.sendStatusUpdate(taskStatus(task, state, healthCheckDetails));
                     break;
             }
         } catch (InvalidProtocolBufferException e) {
@@ -136,6 +147,7 @@ public final class CassandraExecutor implements Executor {
             .build();
     }
 
+    @NotNull
     private Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraNodeRunTask cassandraNodeTask) throws IOException {
         for (final TaskFile taskFile : cassandraNodeTask.getTaskFilesList()) {
             final File file = new File(taskFile.getOutputPath());
@@ -153,6 +165,13 @@ public final class CassandraExecutor implements Executor {
         processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
         LOGGER.debug("Starting Process: {}", processBuilderToString(processBuilder));
         return processBuilder.start();
+    }
+
+    @NotNull
+    private CassandraNodeHealthCheckDetails performHealthCheck(@NotNull final CassandraNodeHealthCheckTask healthCheckTask) {
+        return CassandraNodeHealthCheckDetails.newBuilder()
+            .setHealthy(true)
+            .build();
     }
 
     public static void main(final String[] args) {

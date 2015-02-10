@@ -7,11 +7,13 @@ message TaskDetails {
     optional SlaveMetadataTask slaveMetadataTask = 2;
     optional CassandraNodeRunTask cassandraNodeRunTask = 3;
     optional CassandraNodeShutdownTask cassandraNodeShutdownTask = 4;
+    optional CassandraNodeHealthCheckTask cassandraNodeHealthCheckTask = 5;
 
     enum TaskType {
         SLAVE_METADATA = 1;
         CASSANDRA_NODE_RUN = 2;
         CASSANDRA_NODE_SHUTDOWN = 3;
+        CASSANDRA_NODE_HEALTH_CHECK = 4;
     }
 }
 
@@ -25,6 +27,12 @@ message CassandraNodeRunTask {
 }
 
 message CassandraNodeShutdownTask {
+}
+
+message CassandraNodeHealthCheckTask {
+    // this is an int64 so that it generates a long field which is the type mesos uses when expressing ranges
+    // port resources are expressed as ranges
+    required int64 jmxPort = 1;
 }
 
 /**
@@ -52,11 +60,13 @@ message SlaveStatusDetails {
     required StatusDetailsType statusDetailsType = 1;
     optional SlaveMetadata slaveMetadata = 2;
     optional SlaveErrorDetails slaveErrorDetails = 3;
+    optional CassandraNodeHealthCheckDetails cassandraNodeHealthCheckDetails = 4;
 
     enum StatusDetailsType {
         NULL_DETAILS = 1;
         SLAVE_METADATA = 2;
         ERROR_DETAILS = 3;
+        HEALTH_CHECK_DETAILS = 4;
     }
 }
 
@@ -67,4 +77,8 @@ message SlaveMetadata {
 message SlaveErrorDetails {
     optional string msg = 1;
     optional string details = 2;
+}
+
+message CassandraNodeHealthCheckDetails {
+    required bool healthy = 1;
 }

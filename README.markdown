@@ -21,6 +21,9 @@ CASSANDRA_RESOURCE_MEM_MB=2048
 # The number of Megabytes of Disk for each Cassandra Node (default 2048)
 CASSANDRA_RESOURCE_DISK_MB=2048
 
+# The number of seconds between each health check of the cassandra node
+CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS=5
+
 ```
 
 ## Mesos Node Configuration

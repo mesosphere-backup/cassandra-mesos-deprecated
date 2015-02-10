@@ -14,7 +14,8 @@
     "CASSANDRA_NODE_COUNT": "3",
     "CASSANDRA_RESOURCE_CPU_CORES": "2.0",
     "CASSANDRA_RESOURCE_MEM_MB": "2048",
-    "CASSANDRA_RESOURCE_DISK_MB": "2048"
+    "CASSANDRA_RESOURCE_DISK_MB": "2048",
+    "CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS": "5"
   },
   "cmd": "java $JAVA_OPTS -classpath cassandra-framework.jar io.mesosphere.mesos.frameworks.cassandra.Main"
 }

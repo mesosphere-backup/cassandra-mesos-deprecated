@@ -30,7 +30,7 @@ public final class Main {
 
         final int port0 = Integer.parseInt(portOption.get());
         final String executorFilePath = Env.option("EXECUTOR_FILE_PATH").or(workingDir("/cassandra-executor.jar"));
-        final String jdkTarPath = Env.option("JDK_FILE_PATH").or(workingDir("/jdk.tar.gz"));
+        final String jdkTarPath = Env.option("JDK_FILE_PATH").or(workingDir("/jdk-7u75-linux-x64.tar.gz"));
         final String cassandraTarPath = Env.option("CASSANDRA_FILE_PATH").or(workingDir("/cassandra.tar.gz"));
 
         final int       executorCount           = Integer.parseInt(     Env.option("CASSANDRA_NODE_COUNT").or("3"));

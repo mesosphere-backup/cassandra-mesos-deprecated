@@ -28,7 +28,6 @@ function download {(
 
     mkdir -p ${TARGET_DIR}
     cd ${TARGET_DIR}
-    _download ${DOWNLOAD_URL_JDK} "jdk.tar.gz"
     _download ${DOWNLOAD_URL_CASS} "cassandra.tar.gz"
 
 )}
@@ -60,7 +59,7 @@ function deploy {(
     aws s3 cp ${PROJECT_DIR}/${TARGET_DIR}/${PACKAGE_TAR} ${S3_DEPLOY_BUCKET}/${PACKAGE_TAR}
 
     info "Generating marathon.json"
-    cat ${PROJECT_DIR}/marathon.json | jq ".uris |= [\"${HTTPS_DEPLOY_BUCKET}/${PACKAGE_TAR}\"]" > ${TARGET_DIR}/marathon.json
+    cat ${PROJECT_DIR}/marathon.json | jq ".uris[0] |= \"${HTTPS_DEPLOY_BUCKET}/${PACKAGE_TAR}\"" > ${TARGET_DIR}/marathon.json
     info "marathon.json written ${PROJECT_DIR}/${TARGET_DIR}/marathon.json"
 
 )}

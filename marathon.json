@@ -5,7 +5,8 @@
   "mem": 512,
   "ports": [0],
   "uris": [
-    "$url"
+    "$url",
+    "https://downloads.mesosphere.io/cassandra-mesos/jdk/jdk-7u75-linux-x64.tar.gz"
   ],
   "env": {
     "MESOS_ZK": "zk://localhost:2181/mesos",
@@ -17,5 +18,5 @@
     "CASSANDRA_RESOURCE_DISK_MB": "2048",
     "CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS": "60"
   },
-  "cmd": "java $JAVA_OPTS -classpath cassandra-framework.jar io.mesosphere.mesos.frameworks.cassandra.Main"
+  "cmd": "$(pwd)/jdk*/bin/java $JAVA_OPTS -classpath cassandra-framework.jar io.mesosphere.mesos.frameworks.cassandra.Main"
 }

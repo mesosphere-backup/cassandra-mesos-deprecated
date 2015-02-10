@@ -5,7 +5,7 @@ Cassandra Mesos Framework
 
 All configuration is handled through environment variables (this lends itself well to being easy to configure marathon to run the framework).
 
-## Runtime Configuration
+## Framework Runtime Configuration
 
 The following environment variables can be used to configure how the framework will operate.
 ```bash
@@ -21,6 +21,15 @@ CASSANDRA_RESOURCE_MEM_MB=2048
 # The number of Megabytes of Disk for each Cassandra Node (default 2048)
 CASSANDRA_RESOURCE_DISK_MB=2048
 
+```
+
+## Mesos Node Configuration
+
+You will need to expand the port range managed by Mesos on each node so that it includes the standard cassandra ports.
+
+This can be done by passing the following flag to the mesos-slave process:
+```
+--resources='ports:[31000-32000,7000-7001,7199-7199,9042-9042,9160-9160]'
 ```
 
 

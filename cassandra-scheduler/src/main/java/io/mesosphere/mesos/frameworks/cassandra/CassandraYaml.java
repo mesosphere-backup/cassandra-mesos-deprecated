@@ -57,6 +57,30 @@ public final class CassandraYaml {
     }
 
     @NotNull
+    public CassandraYaml setStoragePort(final Long port) {
+        yamlMap.put("storage_port", port);
+        return this;
+    }
+
+    @NotNull
+    public CassandraYaml setStoragePortSsl(final Long port) {
+        yamlMap.put("ssl_storage_port", port);
+        return this;
+    }
+
+    @NotNull
+    public CassandraYaml setNativeTransportPort(final Long port) {
+        yamlMap.put("native_transport_port", port);
+        return this;
+    }
+
+    @NotNull
+    public CassandraYaml setRpcPort(final Long port) {
+        yamlMap.put("rpc_port", port);
+        return this;
+    }
+
+    @NotNull
     @SuppressWarnings("unchecked")
     public CassandraYaml setSeeds(@NotNull final List<String> seeds) {
         final ArrayList<LinkedHashMap<String, Object>> seedProvider = (ArrayList<LinkedHashMap<String, Object>>) yamlMap.get("seed_provider");

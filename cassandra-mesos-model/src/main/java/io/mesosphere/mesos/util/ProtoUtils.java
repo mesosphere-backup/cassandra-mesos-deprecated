@@ -2,15 +2,17 @@ package io.mesosphere.mesos.util;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.collect.FluentIterable;
 import com.google.protobuf.ByteString;
 import org.apache.mesos.Protos.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
+import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
+import static com.google.common.collect.Sets.newTreeSet;
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos.TaskEnv;
 
 public final class ProtoUtils {
@@ -32,21 +34,35 @@ public final class ProtoUtils {
 
     @NotNull
     public static Resource cpu(final double value) {
-        return resource("cpus", value);
+        return scalarResource("cpus", value);
     }
 
     @NotNull
     public static Resource mem(final double value) {
-        return resource("mem", value);
+        return scalarResource("mem", value);
     }
 
     @NotNull
     public static Resource disk(final double value) {
-        return resource("disk", value);
+        return scalarResource("disk", value);
     }
 
     @NotNull
-    public static Resource resource(@NotNull final String name, final double value) {
+    public static Resource ports(@NotNull final Iterable<Long> ports) {
+        return Resource.newBuilder()
+            .setName("ports")
+            .setType(Value.Type.RANGES)
+            .setRanges(
+                Value.Ranges.newBuilder().addAllRange(
+                    from(ports).transform(LongToRange())
+                )
+                .build()
+            )
+            .build();
+    }
+
+    @NotNull
+    public static Resource scalarResource(@NotNull final String name, final double value) {
         return Resource.newBuilder()
             .setName(name)
             .setType(Value.Type.SCALAR)
@@ -89,7 +105,7 @@ public final class ProtoUtils {
      */
     @NotNull
     public static CommandInfo commandInfo(@NotNull final String cmd, @NotNull final String... uris) {
-        return commandInfo(cmd, newArrayList(FluentIterable.from(newArrayList(uris)).transform(Functions.doNotExtract())));
+        return commandInfo(cmd, newArrayList(from(newArrayList(uris)).transform(Functions.doNotExtract())));
     }
 
     @NotNull
@@ -180,6 +196,9 @@ public final class ProtoUtils {
     @NotNull
     public static Optional<Double> resourceValueDouble(@NotNull final Optional<Resource> resource) {
         if (resource.isPresent()) {
+            if (resource.get().getType() != Value.Type.SCALAR) {
+                throw new IllegalArgumentException("Resource must be of type SCALAR");
+            }
             return Optional.of(resource.get().getScalar().getValue());
         } else {
             return Optional.absent();
@@ -189,6 +208,9 @@ public final class ProtoUtils {
     @NotNull
     public static Optional<Long> resourceValueLong(@NotNull final Optional<Resource> resource) {
         if (resource.isPresent()) {
+            if (resource.get().getType() != Value.Type.SCALAR) {
+                throw new IllegalArgumentException("Resource must be of type SCALAR");
+            }
             final long value = (long) resource.get().getScalar().getValue();
             return Optional.of(value);
         } else {
@@ -197,8 +219,41 @@ public final class ProtoUtils {
     }
 
     @NotNull
+    public static TreeSet<Long> resourceValueRange(@NotNull final Optional<Resource> resource) {
+        if (resource.isPresent()) {
+            return resourceValueRange(resource.get());
+        } else {
+            return newTreeSet();
+        }
+    }
+
+    @NotNull
+    public static TreeSet<Long> resourceValueRange(@NotNull final Resource resource) {
+        if (resource.getType() != Value.Type.RANGES) {
+            throw new IllegalArgumentException("Resource must be of type RANGES");
+        }
+
+        final TreeSet<Long> set = newTreeSet();
+        for (final Value.Range range : resource.getRanges().getRangeList()) {
+            final long begin = range.getBegin();
+            final long end = range.getEnd();
+            for (long l = begin; l <= end; l++) {
+                set.add(l);
+            }
+        }
+        return set;
+    }
+
+
+
+    @NotNull
     public static Function<Resource, String> resourceToName() {
         return ResourceToName.INSTANCE;
+    }
+
+    @NotNull
+    public static Function<Long, Value.Range> LongToRange() {
+        return LongToRange.INSTANCE;
     }
 
     @lombok.Value
@@ -211,4 +266,13 @@ public final class ProtoUtils {
         }
     }
 
+    @lombok.Value
+    private static final class LongToRange implements Function<Long, Value.Range> {
+        private static final LongToRange INSTANCE = new LongToRange();
+
+        @Override
+        public Value.Range apply(final Long input) {
+            return Value.Range.newBuilder().setBegin(input).setEnd(input).build();
+        }
+    }
 }

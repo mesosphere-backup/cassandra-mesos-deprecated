@@ -2,10 +2,13 @@ package io.mesosphere.mesos.util;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.Map;
 
 public final class Functions {
 
@@ -19,6 +22,16 @@ public final class Functions {
         } else {
             return Optional.absent();
         }
+    }
+
+    @NotNull
+    @SafeVarargs
+    public static <K, V> Map<K, V> unmodifiableHashMap(@NotNull final Tuple2<K, V>... tuples) {
+        final Map<K, V> map = Maps.newHashMap();
+        for (final Tuple2<K, V> tuple : tuples) {
+            map.put(tuple._1, tuple._2);
+        }
+        return Collections.unmodifiableMap(map);
     }
 
     @NotNull

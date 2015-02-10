@@ -16,10 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -30,12 +27,23 @@ import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos.*;
 import static io.mesosphere.mesos.util.Functions.headOption;
+import static io.mesosphere.mesos.util.Functions.unmodifiableHashMap;
 import static io.mesosphere.mesos.util.ProtoUtils.*;
+import static io.mesosphere.mesos.util.Tuple2.tuple2;
 
 public final class CassandraScheduler implements Scheduler {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraScheduler.class);
 
     private static final Joiner JOINER = Joiner.on("','");
+
+    // see: http://www.datastax.com/documentation/cassandra/2.1/cassandra/security/secureFireWall_r.html
+    private static final Map<String, Long> defaultCassandraPortMappings = unmodifiableHashMap(
+        tuple2("storage_port", 7000L),
+        tuple2("storage_port_ssl", 7001L),
+        tuple2("jmx", 7199L),
+        tuple2("native_transport_port", 9042L),
+        tuple2("rpc_port", 9160L)
+    );
 
     @NotNull
     private final ScheduledExecutorService scheduledExecutorService;
@@ -155,7 +163,7 @@ public final class CassandraScheduler implements Scheduler {
                 final ImmutableList<SuperTask> tasks = tasksByExecutor.get(executorID);
                 final boolean nodeNotAlreadyRunning = from(tasks).filter(SuperTask.taskDetailsTypeEq(TaskDetails.TaskType.CASSANDRA_NODE_RUN)).isEmpty();
                 if (!tasks.isEmpty() && nodeNotAlreadyRunning) {
-                    final List<String> errors = hasResources(offer, cpuCores, memMb, diskMb);
+                    final List<String> errors = hasResources(offer, cpuCores, memMb, diskMb, defaultCassandraPortMappings);
                     if (!errors.isEmpty()) {
                         LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
                         continue;
@@ -179,6 +187,11 @@ public final class CassandraScheduler implements Scheduler {
                                                         .setClusterName(frameworkName)
                                                         .setRpcAddress(metadata.getIp())
                                                         .setListenAddress(metadata.getIp())
+                                                        .setStoragePort(defaultCassandraPortMappings.get("storage_port"))
+                                                        .setStoragePortSsl(defaultCassandraPortMappings.get("storage_port_ssl"))
+                                                        .setNativeTransportPort(defaultCassandraPortMappings.get("native_transport_port"))
+                                                        .setRpcPort(defaultCassandraPortMappings.get("rpc_port"))
+                                                        // TODO(BenWhitehead): Figure out how to set the JMX port
                                                         .setSeeds(newArrayList(from(executorMetadata.values()).transform(toIp)))
                                                         .dump()
                                                 )
@@ -195,7 +208,8 @@ public final class CassandraScheduler implements Scheduler {
                             .addAllResources(newArrayList(
                                 cpu(cpuCores),
                                 mem(memMb),
-                                disk(diskMb)
+                                disk(diskMb),
+                                ports(defaultCassandraPortMappings.values())
                             ))
                             .setExecutor(info)
                             .build();
@@ -330,7 +344,13 @@ public final class CassandraScheduler implements Scheduler {
     }
 
     @NotNull
-    private static List<String> hasResources(@NotNull final Offer offer, final double cpu, final long mem, final long disk) {
+    private static List<String> hasResources(
+        @NotNull final Offer offer,
+        final double cpu,
+        final long mem,
+        final long disk,
+        @NotNull final Map<String, Long> portMapping
+    ) {
         final List<String> errors = newArrayList();
         final ListMultimap<String, Resource> index = from(offer.getResourcesList()).index(resourceToName());
         final Double availableCpus = resourceValueDouble(headOption(index.get("cpus"))).or(0.0);
@@ -344,6 +364,15 @@ public final class CassandraScheduler implements Scheduler {
         }
         if (availableDisk <= disk) {
             errors.add(String.format("Not enough disk resources. Required %d only %d available", disk, availableDisk));
+        }
+
+        final TreeSet<Long> ports = resourceValueRange(headOption(index.get("ports")));
+        for (final Map.Entry<String, Long> entry : portMapping.entrySet()) {
+            final String key = entry.getKey();
+            final Long value = entry.getValue();
+            if (!ports.contains(value)) {
+                errors.add(String.format("Unavailable port %d(%s). %d other ports available.", value, key, ports.size()));
+            }
         }
         return errors;
     }

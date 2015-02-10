@@ -16,11 +16,13 @@
             <maxFileSize>10MB</maxFileSize>
         </triggeringPolicy>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] {%marker} %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <root level="debug">
+    <logger name="io.mesosphere" level="trace"/>
+
+    <root level="info">
         <appender-ref ref="FILE"/>
     </root>
 </configuration>

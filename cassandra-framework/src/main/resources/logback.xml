@@ -6,7 +6,7 @@
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <!--<pattern>%date %-5.5level [%-20.20thread] %-20.20logger{20} - %message%n%xException{5}</pattern>-->
-            <pattern>%date %-5.5level [%-20.20thread] %-36.36logger{36} - %message%n</pattern>
+            <pattern>%date %-5.5level [%-20.20thread] %-36.36logger{36} - {%marker} %message%n</pattern>
         </encoder>
     </appender>
 
@@ -23,14 +23,16 @@
             <maxFileSize>10MB</maxFileSize>
         </triggeringPolicy>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - {%marker} %msg%n</pattern>
         </encoder>
     </appender>
 
     <logger name="org.jboss.logging" level="warn"/>
     <logger name="org.xnio" level="info"/>
 
-    <root level="debug">
+    <logger name="io.mesosphere" level="trace"/>
+
+    <root level="info">
         <!--<appender-ref ref="STDOUT"/>-->
         <appender-ref ref="FILE"/>
     </root>

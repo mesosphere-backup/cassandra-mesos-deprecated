@@ -7,9 +7,10 @@ TARGET_DIR="target/framework-package"
 DOWNLOAD_URL_CASS="https://downloads.mesosphere.io/cassandra-mesos/cassandra/apache-cassandra-2.1.2-bin.tar.gz"
 
 VERSION=${VERSION:-"dev"}
-PACKAGE_TAR="cassandra-mesos-${VERSION}.tar.gz"
+CLEAN_VERSION=${VERSION//\//_}
+PACKAGE_TAR="cassandra-mesos-${CLEAN_VERSION}.tar.gz"
 
-DEPLOY_BUCKET=${DEPLOY_BUCKET:-"downloads.mesosphere.io/cassandra-mesos/artifacts"}/${VERSION}
+DEPLOY_BUCKET=${DEPLOY_BUCKET:-"downloads.mesosphere.io/cassandra-mesos/artifacts"}/${CLEAN_VERSION}
 S3_DEPLOY_BUCKET="s3://${DEPLOY_BUCKET}"
 HTTPS_DEPLOY_BUCKET="https://${DEPLOY_BUCKET}"
 

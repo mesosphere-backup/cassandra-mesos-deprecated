@@ -256,7 +256,6 @@ public final class ProtoUtils {
         return LongToRange.INSTANCE;
     }
 
-    @lombok.Value
     private static final class ResourceToName implements Function<Resource, String> {
         private static final ResourceToName INSTANCE = new ResourceToName();
 
@@ -266,7 +265,6 @@ public final class ProtoUtils {
         }
     }
 
-    @lombok.Value
     private static final class LongToRange implements Function<Long, Value.Range> {
         private static final LongToRange INSTANCE = new LongToRange();
 

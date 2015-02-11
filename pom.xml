@@ -16,7 +16,6 @@
         <version.jetbrains.javac2>7.0.3</version.jetbrains.javac2>
         <version.junit>4.12</version.junit>
         <version.logback-classic>1.1.2</version.logback-classic>
-        <version.lombok>1.16.0</version.lombok>
         <version.mesos>0.21.1</version.mesos>
         <version.slf4j>1.7.10</version.slf4j>
         <version.joda>2.7</version.joda>
@@ -94,12 +93,6 @@
                 <version>${version.jetbrains.annotations}</version>
             </dependency>
             <dependency>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok</artifactId>
-                <version>${version.lombok}</version>
-                <scope>provided</scope>
-            </dependency>
-            <dependency>
                 <groupId>joda-time</groupId>
                 <artifactId>joda-time</artifactId>
                 <version>${version.joda}</version>
@@ -164,10 +157,6 @@
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
         </dependency>
         <dependency>
             <groupId>joda-time</groupId>

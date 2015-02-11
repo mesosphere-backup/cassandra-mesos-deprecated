@@ -4,7 +4,6 @@ import com.google.common.base.Joiner;
 import com.google.common.io.Files;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import lombok.Value;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
@@ -238,7 +237,6 @@ public final class CassandraExecutor implements Executor {
         return sb.toString();
     }
 
-    @Value
     private static class TaskStateChange implements Runnable {
         @NotNull
         private final ExecutorDriver driver;
@@ -247,10 +245,38 @@ public final class CassandraExecutor implements Executor {
         @NotNull
         private final TaskState state;
 
+        public TaskStateChange(@NotNull final ExecutorDriver driver, @NotNull final TaskInfo task, @NotNull final TaskState state) {
+            this.driver = driver;
+            this.task = task;
+            this.state = state;
+        }
+
         @Override
         public void run() {
             LOGGER.debug("Sending {} for {}", state, protoToString(task.getTaskId()));
             driver.sendStatusUpdate(taskStatus(task, state));
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            final TaskStateChange that = (TaskStateChange) o;
+
+            if (!driver.equals(that.driver)) return false;
+            if (state != that.state) return false;
+            if (!task.equals(that.task)) return false;
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = driver.hashCode();
+            result = 31 * result + task.hashCode();
+            result = 31 * result + state.hashCode();
+            return result;
         }
     }
 

@@ -6,8 +6,6 @@ import io.mesosphere.mesos.frameworks.cassandra.http.HttpServer;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.ProtoUtils;
 import io.mesosphere.mesos.util.SystemClock;
-import lombok.EqualsAndHashCode;
-import lombok.Value;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos.Credential;
 import org.apache.mesos.Protos.FrameworkInfo;
@@ -22,10 +20,21 @@ public final class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
     public static void main(final String[] args) {
+        int status;
+        try {
+            status = _main();
+        } catch (SystemExitException e) {
+            LOGGER.error(e.getMessage());
+            status = e.status;
+        }
+
+        System.exit(status);
+    }
+
+    private static int _main() {
         final Optional<String> portOption = Env.option("PORT0");
         if (!portOption.isPresent()) {
-            LOGGER.error("PORT0 must be defined");
-            throw new SystemExitException(5);
+            throw new SystemExitException("Environment variable PORT0 must be defined", 5);
         }
 
         final int port0 = Integer.parseInt(portOption.get());
@@ -122,8 +131,7 @@ public final class Main {
         try {
             httpServer.close();
         } catch (final IOException ignored) {}
-
-        System.exit(status);
+        return status;
     }
 
     private static String workingDir(final String defaultFileName) {
@@ -152,9 +160,12 @@ public final class Main {
         }
     }
 
-    @Value
-    @EqualsAndHashCode(callSuper = false)
     private static class SystemExitException extends RuntimeException {
         private final int status;
+
+        public SystemExitException(final String message, final int status) {
+            super(message);
+            this.status = status;
+        }
     }
 }

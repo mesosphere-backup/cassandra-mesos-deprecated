@@ -20,4 +20,9 @@ public final class Env {
         return Optional.fromNullable(System.getenv(key));
     }
 
+    @NotNull
+    public static String workingDir(final String defaultFileName) {
+        return System.getProperty("user.dir") + defaultFileName;
+    }
+
 }

@@ -7,7 +7,6 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.mesosphere.mesos.frameworks.cassandra.http.HttpServer;
 import io.mesosphere.mesos.util.Clock;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
@@ -55,7 +54,7 @@ public final class CassandraScheduler implements Scheduler {
     @NotNull
     private final String frameworkName;
     @NotNull
-    private final HttpServer httpServer;
+    private String httpServerBaseUrl;
     private final int numberOfNodes;
     private final double cpuCores;
     private final long memMb;
@@ -76,7 +75,7 @@ public final class CassandraScheduler implements Scheduler {
     public CassandraScheduler(
         @NotNull final Clock clock,
         @NotNull final String frameworkName,
-        @NotNull final HttpServer httpServer,
+        @NotNull final String httpServerBaseUrl,
         final int numberOfNodes,
         final double cpuCores,
         final long memMb,
@@ -85,7 +84,7 @@ public final class CassandraScheduler implements Scheduler {
     ) {
         this.clock = clock;
         this.frameworkName = frameworkName;
-        this.httpServer = httpServer;
+        this.httpServerBaseUrl = httpServerBaseUrl;
         this.numberOfNodes = numberOfNodes;
         this.cpuCores = cpuCores;
         this.memMb = memMb;
@@ -346,9 +345,9 @@ public final class CassandraScheduler implements Scheduler {
                 commandInfo(
                     "$(pwd)/jdk*/bin/java $JAVA_OPTS -classpath cassandra-executor.jar io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor",
                     environmentFromMap(executorEnv),
-                    commandUri(httpServer.getUrlForResource("/jdk.tar.gz"), true),
-                    commandUri(httpServer.getUrlForResource("/cassandra.tar.gz"), true),
-                    commandUri(httpServer.getUrlForResource("/cassandra-executor.jar"))
+                    commandUri(getUrlForResource("/jdk.tar.gz"), true),
+                    commandUri(getUrlForResource("/cassandra.tar.gz"), true),
+                    commandUri(getUrlForResource("/cassandra-executor.jar"))
                 ),
                 cpu(0.1),
                 mem(256),
@@ -389,6 +388,11 @@ public final class CassandraScheduler implements Scheduler {
         } else {
             return true;
         }
+    }
+
+    @NotNull
+    private String getUrlForResource(@NotNull final String resourceName) {
+        return (httpServerBaseUrl + "/" + resourceName).replaceAll("(?<!:)/+", "/");
     }
 
     @NotNull

@@ -1,8 +1,6 @@
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Optional;
-import io.mesosphere.mesos.frameworks.cassandra.http.FileResourceHttpHandler;
-import io.mesosphere.mesos.frameworks.cassandra.http.HttpServer;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.ProtoUtils;
 import io.mesosphere.mesos.util.SystemClock;
@@ -10,11 +8,15 @@ import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos.Credential;
 import org.apache.mesos.Protos.FrameworkInfo;
 import org.apache.mesos.Scheduler;
+import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.jetbrains.annotations.NotNull;
 import org.joda.time.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.net.*;
 
 public final class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
@@ -26,21 +28,21 @@ public final class Main {
         } catch (SystemExitException e) {
             LOGGER.error(e.getMessage());
             status = e.status;
+        } catch (UnknownHostException e) {
+            LOGGER.error("Unable to resolve local interface for http server");
+            status = 6;
         }
 
         System.exit(status);
     }
 
-    private static int _main() {
+    private static int _main() throws UnknownHostException {
         final Optional<String> portOption = Env.option("PORT0");
         if (!portOption.isPresent()) {
             throw new SystemExitException("Environment variable PORT0 must be defined", 5);
         }
 
         final int port0 = Integer.parseInt(portOption.get());
-        final String executorFilePath = Env.option("EXECUTOR_FILE_PATH").or(workingDir("/cassandra-executor.jar"));
-        final String jdkTarPath = Env.option("JDK_FILE_PATH").or(workingDir("/jdk-7u75-linux-x64.tar.gz"));
-        final String cassandraTarPath = Env.option("CASSANDRA_FILE_PATH").or(workingDir("/cassandra.tar.gz"));
 
         final int       executorCount           = Integer.parseInt(     Env.option("CASSANDRA_NODE_COUNT").or("3"));
         final double    resourceCpuCores        = Double.parseDouble(   Env.option("CASSANDRA_RESOURCE_CPU_CORES").or("2.0"));
@@ -57,41 +59,15 @@ public final class Main {
                         .setCheckpoint(true);
 
 
-        final String bindInterface = Env.option("BIND_INTERFACE").or("0.0.0.0");
-        final HttpServer httpServer = HttpServer.newBuilder()
-                .withBindPort(port0)
-                .withBindInterface(bindInterface)
-                .withPathHandler(
-                        "/cassandra-executor.jar",
-                        new FileResourceHttpHandler(
-                                "cassandra-executor.jar",
-                                "application/java-archive",
-                                executorFilePath
-                        )
-                )
-                .withPathHandler(
-                        "/jdk.tar.gz",
-                        new FileResourceHttpHandler(
-                                "jdk.tar.gz",
-                                "application/x-gzip",
-                                jdkTarPath
-                        )
-                )
-                .withPathHandler(
-                        "/cassandra.tar.gz",
-                        new FileResourceHttpHandler(
-                                "cassandra.tar.gz",
-                                "application/x-gzip",
-                                cassandraTarPath
-                        )
-                )
-                .build();
-        httpServer.start();
-        LOGGER.info("Started http server on {}", httpServer.getBoundAddress());
+        final ResourceConfig rc = new ResourceConfig().packages("io.mesosphere.mesos.frameworks.cassandra");
+
+        final URI httpServerBaseUri = URI.create(String.format("http://%s:%d/", formatInetAddress(InetAddress.getLocalHost()), port0));
+        final HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
+
         final Scheduler scheduler = new CassandraScheduler(
             new SystemClock(),
             frameworkName,
-            httpServer,
+            httpServerBaseUri.toString(),
             executorCount,
             resourceCpuCores,
             resourceMemoryMegabytes,
@@ -128,14 +104,7 @@ public final class Main {
 
         // Ensure that the driver process terminates.
         driver.stop();
-        try {
-            httpServer.close();
-        } catch (final IOException ignored) {}
         return status;
-    }
-
-    private static String workingDir(final String defaultFileName) {
-        return System.getProperty("user.dir") + defaultFileName;
     }
 
     static String frameworkName(final Optional<String> clusterName) {
@@ -143,6 +112,19 @@ public final class Main {
             return "cassandra." + clusterName.get();
         } else {
             return "cassandra";
+        }
+    }
+
+    @NotNull
+    private static String formatInetAddress(@NotNull final InetAddress inetAddress) {
+        if (inetAddress instanceof Inet4Address) {
+            final Inet4Address address = (Inet4Address) inetAddress;
+            return address.getHostAddress();
+        } else if (inetAddress instanceof Inet6Address) {
+            final Inet6Address address = (Inet6Address) inetAddress;
+            return String.format("[%s]", address.getHostAddress());
+        } else {
+            throw new IllegalArgumentException("InetAddress type: " + inetAddress.getClass().getName() + " is not supported");
         }
     }
 

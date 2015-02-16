@@ -1,3 +1,16 @@
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Function;
@@ -259,6 +272,7 @@ public final class CassandraScheduler implements Scheduler {
                             .setNativeTransportPort(defaultCassandraPortMappings.get("native_transport_port"))
                             .setRpcPort(defaultCassandraPortMappings.get("rpc_port"))
                             // TODO(BenWhitehead): Figure out how to set the JMX port
+                            // --> configured in conf/cassandra-env.sh (JMX_PORT)
                             .setSeeds(newArrayList(from(executorMetadata.values()).transform(toIp)))
                             .dump();
                         final TaskDetails taskDetails = TaskDetails.newBuilder()

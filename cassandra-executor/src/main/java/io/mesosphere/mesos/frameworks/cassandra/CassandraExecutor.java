@@ -1,9 +1,24 @@
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Joiner;
 import com.google.common.io.Files;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.mesosphere.mesos.frameworks.cassandra.jmx.JmxConnect;
+import io.mesosphere.mesos.frameworks.cassandra.jmx.Nodetool;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
@@ -29,7 +44,7 @@ import static io.mesosphere.mesos.util.ProtoUtils.protoToString;
 public final class CassandraExecutor implements Executor {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraExecutor.class);
 
-    private AtomicReference<Process> process = new AtomicReference<>(null);
+    private final AtomicReference<Process> process = new AtomicReference<>(null);
 
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
@@ -102,7 +117,7 @@ public final class CassandraExecutor implements Executor {
                 .build();
             final TaskStatus taskStatus = taskStatus(task, TaskState.TASK_ERROR, details);
             driver.sendStatusUpdate(taskStatus);
-        } catch (IOException e) {
+        } catch (Exception e) {
             final String msg = "Error starting task due to exception.";
             LOGGER.error(taskIdMarker, msg, e);
             final SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
@@ -142,8 +157,13 @@ public final class CassandraExecutor implements Executor {
     @NotNull
     private SlaveMetadata collectSlaveMetadata() throws UnknownHostException {
         return SlaveMetadata.newBuilder()
-            .setIp(InetAddress.getLocalHost().getHostAddress()) //TODO(BenWhitehead): This resolution may have to be more sophisticated
+            .setIp(getHostAddress())
             .build();
+    }
+
+    private String getHostAddress() throws UnknownHostException {
+        // TODO: what to do on multihomed hosts?
+        return InetAddress.getLocalHost().getHostAddress(); //TODO(BenWhitehead): This resolution may have to be more sophisticated
     }
 
     @NotNull
@@ -168,9 +188,59 @@ public final class CassandraExecutor implements Executor {
 
     @NotNull
     private CassandraNodeHealthCheckDetails performHealthCheck(@NotNull final CassandraNodeHealthCheckTask healthCheckTask) {
-        return CassandraNodeHealthCheckDetails.newBuilder()
-            .setHealthy(true)
-            .build();
+        CassandraNodeHealthCheckDetails.Builder builder = CassandraNodeHealthCheckDetails.newBuilder();
+        try (JmxConnect jmx = new JmxConnect(getHostAddress(), (int) healthCheckTask.getJmxPort() & 0xffff)) {
+
+            // TODO Robert : we should add some "timeout" that allows C* to start and join
+            // I.e. track status/operation-mode changes
+
+            CassandraNodeInfo info = buildInfo(jmx);
+            builder.setHealthy(true)
+                    .setInfo(info);
+            LOGGER.info("Healthcheck succeeded: operationMode:{} joined:{} gossip:{} native:{} rpc:{} uptime:{}s endpoint:{}, dc:{}, rack:{}, hostId:{}, version:{}",
+                    info.getOperationMode(),
+                    info.getJoined(),
+                    info.getGossipRunning(),
+                    info.getNativeTransportRunning(),
+                    info.getRpcServerRunning(),
+                    info.getUptimeSeconds(),
+                    info.getEndpoint(),
+                    info.getDataCenter(),
+                    info.getRack(),
+                    info.getHostId(),
+                    info.getVersion());
+        } catch (Exception e) {
+            LOGGER.warn("Healthcheck failed.", e);
+            builder.setMsg(e.toString());
+        }
+        return builder.build();
+    }
+
+    private CassandraNodeInfo buildInfo(JmxConnect jmx) throws UnknownHostException {
+        Nodetool nodetool = new Nodetool(jmx);
+
+        String endpoint = nodetool.getEndpoint();
+
+        // TODO HC response might be a bit over-engineered
+
+        // C* should be considered healthy, if the information can be collected.
+        // All flags can be manually set by any administrator and represent a valid state.
+        return CassandraNodeInfo.newBuilder()
+                .setOperationMode(nodetool.getOperationMode())
+                .setJoined(nodetool.isJoined())
+                .setGoosipInitialized(nodetool.isGossipInitialized())
+                .setGossipRunning(nodetool.isGossipRunning())
+                .setNativeTransportRunning(nodetool.isNativeTransportRunning())
+                .setRpcServerRunning(nodetool.isRPCServerRunning())
+                .setUptimeSeconds(nodetool.getUptimeInMillis() / 1000L)
+                .setVersion(nodetool.getVersion())
+                .setHostId(nodetool.getHostID())
+                .setEndpoint(endpoint)
+                .setTokenCount(nodetool.getTokenCount())
+                .setDataCenter(nodetool.getDataCenter(endpoint))
+                .setRack(nodetool.getRack(endpoint))
+                .setClusterName(nodetool.getClusterName())
+                .build();
     }
 
     public static void main(final String[] args) {

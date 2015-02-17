@@ -35,10 +35,8 @@ class ConfigServer(port: Int, cassConfigDir: String, seedNodes: mutable.Set[Stri
 
       val substitutedContent = fileContent.map {
         line =>
-          line.replaceAllLiterally("${seedNodes}", seedNodes
-            .mkString(","))
-            .replaceAllLiterally("${clusterName}", clusterNameSlugged
-            .mkString(","))
+          line.replaceAllLiterally("${seedNodes}", seedNodes.mkString(","))
+            .replaceAllLiterally("${clusterName}", clusterNameSlugged)
       }.mkString("\n")
 
       response.setContentType("application/octet-stream;charset=utf-8")

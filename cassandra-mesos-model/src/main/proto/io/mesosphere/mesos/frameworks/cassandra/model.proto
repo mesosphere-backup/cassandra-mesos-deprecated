@@ -34,9 +34,10 @@ message SlaveMetadataTask {
 }
 
 message CassandraNodeRunTask {
-    repeated string command = 1;
-    optional TaskEnv taskEnv = 2;
-    repeated TaskFile taskFiles = 3;
+    required string version = 1;
+    required TaskConfig taskConfig = 2;
+    repeated string command = 3;
+    optional TaskEnv taskEnv = 4;
 }
 
 message CassandraNodeShutdownTask {
@@ -46,15 +47,17 @@ message CassandraNodeHealthCheckTask {
     // this is an int64 so that it generates a long field which is the type mesos uses when expressing ranges
     // port resources are expressed as ranges
     required int64 jmxPort = 1;
+    required string ip = 2;
 }
 
-/**
- * Describes a File that needs to be created/overwritten at the specified outputPath
- * with provided data
- */
-message TaskFile {
-    required string outputPath = 1;
-    required bytes data = 2;
+message TaskConfig {
+    message Entry {
+        required string name = 1;
+        optional string stringValue = 2;
+        optional int64 longValue = 3;
+    }
+
+    repeated Entry variables = 1;
 }
 
 /**

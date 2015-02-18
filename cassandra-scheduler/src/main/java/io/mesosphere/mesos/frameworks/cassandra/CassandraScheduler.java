@@ -16,10 +16,11 @@ package io.mesosphere.mesos.frameworks.cassandra;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.mesosphere.mesos.frameworks.cassandra.bindown.JreLoader;
+import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.Clock;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
@@ -34,8 +35,10 @@ import org.slf4j.MarkerFactory;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Pattern;
 
-import static com.google.common.base.Predicates.not;
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos.*;
@@ -52,11 +55,12 @@ public final class CassandraScheduler implements Scheduler {
     // see: http://www.datastax.com/documentation/cassandra/2.1/cassandra/security/secureFireWall_r.html
     private static final Map<String, Long> defaultCassandraPortMappings = unmodifiableHashMap(
         tuple2("storage_port", 7000L),
-        tuple2("storage_port_ssl", 7001L),
+        tuple2("ssl_storage_port", 7001L),
         tuple2("jmx", 7199L),
         tuple2("native_transport_port", 9042L),
         tuple2("rpc_port", 9160L)
     );
+    private static final Pattern URL_FOR_RESOURCE_PATTERN = Pattern.compile("(?<!:)/+");
 
     @NotNull
     private final Map<ExecutorID, SlaveMetadata> executorMetadata;
@@ -73,10 +77,11 @@ public final class CassandraScheduler implements Scheduler {
     private final long memMb;
     private final long diskMb;
     private final Duration healthCheckInterval;
+    private final String cassandraVersion;
 
-    // TODO(BenWhitehead): Fix thread safety for this state
     @NotNull
-    private List<SuperTask> superTasks;
+    private final List<SuperTask> superTasksList;
+    private final Lock superTasksLock = new ReentrantLock();
 
     @NotNull
     private final Map<String, String> executorEnv;
@@ -93,7 +98,8 @@ public final class CassandraScheduler implements Scheduler {
         final double cpuCores,
         final long memMb,
         final long diskMb,
-        final long healthCheckIntervalSeconds
+        final long healthCheckIntervalSeconds,
+        final String cassandraVersion
     ) {
         this.clock = clock;
         this.frameworkName = frameworkName;
@@ -103,12 +109,57 @@ public final class CassandraScheduler implements Scheduler {
         this.memMb = memMb;
         this.diskMb = diskMb;
         healthCheckInterval = Duration.standardSeconds(healthCheckIntervalSeconds);
+        this.cassandraVersion = cassandraVersion;
 
         execCounter = new AtomicInteger(0);
         executorMetadata = Maps.newConcurrentMap();
-        superTasks = Collections.synchronizedList(Lists.<SuperTask>newArrayList());
+        superTasksList = Lists.newArrayList();
         healthCheckHistory = Maps.newConcurrentMap();
         executorEnv = Collections.unmodifiableMap(newHashMap("JAVA_OPTS", "-Xms256m -Xmx256m"));
+    }
+
+    private List<SuperTask> superTasks() {
+        superTasksLock.lock();
+        try {
+            return Lists.newArrayList(superTasksList);
+        } finally {
+            superTasksLock.unlock();
+        }
+    }
+
+    private void addSuperTask(SuperTask superTask) {
+        superTasksLock.lock();
+        try {
+            superTasksList.add(superTask);
+        } finally {
+            superTasksLock.unlock();
+        }
+    }
+
+    private void removeSuperTask(ExecutorID executorId) {
+        superTasksLock.lock();
+        try {
+            for (Iterator<SuperTask> i = superTasksList.iterator(); i.hasNext();) {
+                SuperTask superTask = i.next();
+                if (executorId.equals(superTask.getExecutorInfo().getExecutorId()))
+                    i.remove();
+            }
+        } finally {
+            superTasksLock.unlock();
+        }
+    }
+
+    private void removeSuperTask(TaskID taskId) {
+        superTasksLock.lock();
+        try {
+            for (Iterator<SuperTask> i = superTasksList.iterator(); i.hasNext();) {
+                SuperTask superTask = i.next();
+                if (taskId.equals(superTask.getTaskInfo().getTaskId()))
+                    i.remove();
+            }
+        } finally {
+            superTasksLock.unlock();
+        }
     }
 
     @Override
@@ -176,11 +227,11 @@ public final class CassandraScheduler implements Scheduler {
                         // so here we use the taskId to lookup the executorId based on the tasks we're tracking
                         // to try and have a more accurate value.
                         final ExecutorID executorIdForTask = headOption(
-                            from(superTasks).filter(SuperTask.taskIdEq(taskId)).transform(SuperTask.toExecutorId())
+                            from(superTasks()).filter(SuperTask.taskIdEq(taskId)).transform(SuperTask.toExecutorId())
                         ).or(executorId);
                         executorLost(driver, executorIdForTask, status.getSlaveId(), status.getState().ordinal());
                     } else {
-                        superTasks = filterNot(superTasks, SuperTask.taskIdEq(taskId));
+                        removeSuperTask(taskId);
                         executorMetadata.remove(executorId);
                         switch (statusDetails.getStatusDetailsType()) {
                             case NULL_DETAILS:
@@ -225,7 +276,7 @@ public final class CassandraScheduler implements Scheduler {
         // this method will never be called by mesos until MESOS-313 is fixed
         // https://issues.apache.org/jira/browse/MESOS-313
         LOGGER.debug(executorIdMarker, "executorLost(driver : {}, executorId : {}, slaveId : {}, status : {})", driver, protoToString(executorId), protoToString(slaveId), protoToString(status));
-        superTasks = filterNot(superTasks, SuperTask.executorIdEq(executorId));
+        removeSuperTask(executorId);
     }
 
     @Override
@@ -242,7 +293,7 @@ public final class CassandraScheduler implements Scheduler {
         final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname());
         LOGGER.debug(marker, "> evaluateOffer(driver : {}, offer : {})", driver, protoToString(offer));
         boolean offerUsed = false;
-        final ImmutableListMultimap<ExecutorID, SuperTask> tasksByExecutor = from(superTasks).index(SuperTask.toExecutorId());
+        final ImmutableListMultimap<ExecutorID, SuperTask> tasksByExecutor = from(superTasks()).index(SuperTask.toExecutorId());
         if (maybeLaunchExecutor(driver, offer, marker, tasksByExecutor)) {
             LOGGER.trace(marker, "< evaluateOffer(driver : {}, offer : {})", driver, protoToString(offer));
             return true;
@@ -263,32 +314,27 @@ public final class CassandraScheduler implements Scheduler {
 
                     final SlaveMetadata metadata = executorMetadata.get(executorID);
                     if (metadata != null) {
-                        final String cassandraYaml = CassandraYaml.defaultCassandraYaml()
-                            .setClusterName(frameworkName)
-                            .setRpcAddress(metadata.getIp())
-                            .setListenAddress(metadata.getIp())
-                            .setStoragePort(defaultCassandraPortMappings.get("storage_port"))
-                            .setStoragePortSsl(defaultCassandraPortMappings.get("storage_port_ssl"))
-                            .setNativeTransportPort(defaultCassandraPortMappings.get("native_transport_port"))
-                            .setRpcPort(defaultCassandraPortMappings.get("rpc_port"))
-                            // TODO(BenWhitehead): Figure out how to set the JMX port
-                            // --> configured in conf/cassandra-env.sh (JMX_PORT)
-                            .setSeeds(newArrayList(from(executorMetadata.values()).transform(toIp)))
-                            .dump();
+                        TaskConfig taskConfig = TaskConfig.newBuilder()
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("cluster_name").setStringValue(frameworkName))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("broadcast_address").setStringValue(metadata.getIp()))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("rpc_address").setStringValue(metadata.getIp()))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("listen_address").setStringValue(metadata.getIp()))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("storage_port").setLongValue(defaultCassandraPortMappings.get("storage_port")))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("ssl_storage_port").setLongValue(defaultCassandraPortMappings.get("ssl_storage_port")))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("native_transport_port").setLongValue(defaultCassandraPortMappings.get("native_transport_port")))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("rpc_port").setLongValue(defaultCassandraPortMappings.get("rpc_port")))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("seeds").setStringValue(
+                                        Joiner.on(',').join(newArrayList(from(executorMetadata.values()).transform(toIp)))))
+                                .build();
                         final TaskDetails taskDetails = TaskDetails.newBuilder()
                             .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_RUN)
                             .setCassandraNodeRunTask(
-                                CassandraNodeRunTask.newBuilder()
-                                    //TODO(BenWhitehead) Cleanup path handling to make more maintainable across different versions of cassandra
-                                    .addAllCommand(newArrayList("apache-cassandra-2.1.2/bin/cassandra", "-p", "cassandra.pid"))
-                                    .addTaskFiles(
-                                        TaskFile.newBuilder()
-                                            //TODO(BenWhitehead) Cleanup path handling to make more maintainable across different versions of cassandra
-                                            .setOutputPath("apache-cassandra-2.1.2/conf/cassandra.yaml")
-                                            .setData(ByteString.copyFromUtf8(cassandraYaml))
-                                    )
+                                    CassandraNodeRunTask.newBuilder()
+                                            .setVersion(cassandraVersion)
+                                            .addAllCommand(newArrayList("apache-cassandra-" + cassandraVersion + "/bin/cassandra", "-p", "cassandra.pid"))
+                                            .setTaskConfig(taskConfig)
                             )
-                            .build();
+                                .build();
                         final TaskID taskId = taskId(executorID.getValue() + ".server");
                         final TaskInfo task = TaskInfo.newBuilder()
                             .setName(taskId.getValue())
@@ -296,25 +342,27 @@ public final class CassandraScheduler implements Scheduler {
                             .setSlaveId(offer.getSlaveId())
                             .setData(ByteString.copyFrom(taskDetails.toByteArray()))
                             .addAllResources(newArrayList(
-                                cpu(cpuCores),
-                                mem(memMb),
-                                disk(diskMb),
-                                ports(defaultCassandraPortMappings.values())
+                                    cpu(cpuCores),
+                                    mem(memMb),
+                                    disk(diskMb),
+                                    ports(defaultCassandraPortMappings.values())
                             ))
                             .setExecutor(info)
                             .build();
                         LOGGER.debug(marker, "Launching CASSANDRA_NODE_RUN task = {}", protoToString(task));
                         driver.launchTasks(newArrayList(offer.getId()), newArrayList(task));
-                        superTasks.add(new SuperTask(offer.getHostname(), task, info, taskDetails));
+                        addSuperTask(new SuperTask(offer.getHostname(), task, info, taskDetails));
                         offerUsed = true;
                     }
                 } else if (shouldRunHealthCheck(executorID)) {
+                    final SlaveMetadata metadata = executorMetadata.get(executorID);
                     final TaskDetails taskDetails = TaskDetails.newBuilder()
                         .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_HEALTH_CHECK)
                         .setCassandraNodeHealthCheckTask(
-                            CassandraNodeHealthCheckTask.newBuilder()
-                                .setJmxPort(defaultCassandraPortMappings.get("jmx"))
-                                .build()
+                                CassandraNodeHealthCheckTask.newBuilder()
+                                        .setJmxPort(defaultCassandraPortMappings.get("jmx"))
+                                        .setIp(metadata.getIp())
+                                        .build()
                         )
                         .build();
                     final TaskID taskId = taskId(head.getTaskInfo().getTaskId().getValue() + ".healthcheck");
@@ -324,15 +372,15 @@ public final class CassandraScheduler implements Scheduler {
                         .setSlaveId(offer.getSlaveId())
                         .setData(ByteString.copyFrom(taskDetails.toByteArray()))
                         .addAllResources(newArrayList(
-                            cpu(0.1),
-                            mem(16),
-                            disk(16)
+                                cpu(0.1),
+                                mem(16),
+                                disk(16)
                         ))
                         .setExecutor(info)
                         .build();
                     LOGGER.debug(marker, "Launching CASSANDRA_NODE_HEALTH_CHECK task", protoToString(task));
                     driver.launchTasks(newArrayList(offer.getId()), newArrayList(task));
-                    superTasks.add(new SuperTask(offer.getHostname(), task, info, taskDetails));
+                    addSuperTask(new SuperTask(offer.getHostname(), task, info, taskDetails));
                     offerUsed = true;
                 }
             }
@@ -349,18 +397,24 @@ public final class CassandraScheduler implements Scheduler {
 
     private boolean maybeLaunchExecutor(final SchedulerDriver driver, final Offer offer, final Marker marker, final ListMultimap<ExecutorID, SuperTask> tasksByExecutor) {
         final int ec = tasksByExecutor.size();
-        final FluentIterable<SuperTask> tasksAlreadyOnHost = from(superTasks).filter(SuperTask.hostnameEq(offer.getHostname()));
+        final FluentIterable<SuperTask> tasksAlreadyOnHost = from(superTasks()).filter(SuperTask.hostnameEq(offer.getHostname()));
         if (ec < numberOfNodes && tasksAlreadyOnHost.isEmpty()) {
             final ExecutorID executorId = executorId(frameworkName + ".node." + execCounter.getAndIncrement() + ".executor");
+
+            String osName = Env.option("OS_NAME").or(JreLoader.osFromSystemProperty());
+            String javaExec = "macosx".equals(osName)
+                    ? "$(pwd)/jre*/Contents/Home/bin/java"
+                    : "$(pwd)/jre*/bin/java";
+
             final ExecutorInfo info = executorInfo(
                 executorId,
                 executorId.getValue(),
                 frameworkName,
                 commandInfo(
-                    "$(pwd)/jdk*/bin/java $JAVA_OPTS -classpath cassandra-executor.jar io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor",
+                    javaExec + " $JAVA_OPTS -classpath cassandra-executor.jar io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor",
                     environmentFromMap(executorEnv),
-                    commandUri(getUrlForResource("/jdk.tar.gz"), true),
-                    commandUri(getUrlForResource("/cassandra.tar.gz"), true),
+                    commandUri(getUrlForResource("/jre-" + osName + ".tar.gz"), true),
+                    commandUri(getUrlForResource("/apache-cassandra-" + cassandraVersion + "-bin.tar.gz"), true),
                     commandUri(getUrlForResource("/cassandra-executor.jar"))
                 ),
                 cpu(0.1),
@@ -379,16 +433,16 @@ public final class CassandraScheduler implements Scheduler {
                 .setSlaveId(offer.getSlaveId())
                 .setData(ByteString.copyFrom(taskDetails.toByteArray()))
                 .addAllResources(newArrayList(
-                    cpu(0.1),
-                    mem(16),
-                    disk(16)
+                        cpu(0.1),
+                        mem(16),
+                        disk(16)
                 ))
                 .setExecutor(info)
                 .build();
             LOGGER.debug(marker, "Launching executor = {}", protoToString(info));
             LOGGER.debug(marker, "Launching SLAVE_METADATA task = {}", protoToString(task));
             driver.launchTasks(newArrayList(offer.getId()), newArrayList(task));
-            superTasks.add(new SuperTask(offer.getHostname(), task, info, taskDetails));
+            addSuperTask(new SuperTask(offer.getHostname(), task, info, taskDetails));
             return true;
         }
         return false;
@@ -406,12 +460,7 @@ public final class CassandraScheduler implements Scheduler {
 
     @NotNull
     private String getUrlForResource(@NotNull final String resourceName) {
-        return (httpServerBaseUrl + "/" + resourceName).replaceAll("(?<!:)/+", "/");
-    }
-
-    @NotNull
-    private static <A> List<A> filterNot(@NotNull final List<A> list, @NotNull final Predicate<A> predicate) {
-        return Collections.synchronizedList(newArrayList(from(list).filter(not(predicate))));
+        return URL_FOR_RESOURCE_PATTERN.matcher((httpServerBaseUrl + '/' + resourceName)).replaceAll("/");
     }
 
     @NotNull

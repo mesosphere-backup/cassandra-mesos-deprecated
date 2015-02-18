@@ -58,10 +58,11 @@ public final class Main {
         final int port0 = Integer.parseInt(portOption.get());
 
         final int       executorCount           = Integer.parseInt(     Env.option("CASSANDRA_NODE_COUNT").or("3"));
-        final double    resourceCpuCores        = Double.parseDouble(   Env.option("CASSANDRA_RESOURCE_CPU_CORES").or("2.0"));
-        final long      resourceMemoryMegabytes = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_MEM_MB").or("2048"));
+        final double    resourceCpuCores        = Double.parseDouble(Env.option("CASSANDRA_RESOURCE_CPU_CORES").or("2.0"));
+        final long      resourceMemoryMegabytes = Long.parseLong(Env.option("CASSANDRA_RESOURCE_MEM_MB").or("2048"));
         final long      resourceDiskMegabytes   = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_DISK_MB").or("2048"));
         final long      healthCheckIntervalSec  = Long.parseLong(       Env.option("CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS").or("60"));
+        final String    cassandraVersion        = Env.option("CASSANDRA_VERSION").or("2.1.2");
 
         final String frameworkName = frameworkName(Env.option("CASSANDRA_CLUSTER_NAME"));
         final FrameworkInfo.Builder frameworkBuilder =
@@ -85,7 +86,8 @@ public final class Main {
             resourceCpuCores,
             resourceMemoryMegabytes,
             resourceDiskMegabytes,
-            healthCheckIntervalSec
+            healthCheckIntervalSec,
+            cassandraVersion
         );
 
         final String mesosMasterZkUrl = Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");

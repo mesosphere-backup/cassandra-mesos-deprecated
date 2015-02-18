@@ -99,18 +99,8 @@ public final class SuperTask {
     }
 
     @NotNull
-    public static Predicate<SuperTask> executorIdEq(@NotNull final Protos.ExecutorID executorID) {
-        return new ExecutorIDEq(executorID);
-    }
-
-    @NotNull
     public static Predicate<SuperTask> taskIdEq(@NotNull final Protos.TaskID taskID) {
         return new TaskIdEq(taskID);
-    }
-
-    @NotNull
-    public static Function<SuperTask, Protos.TaskID> toTaskId() {
-        return ToTaskId.INSTANCE;
     }
 
     @NotNull
@@ -146,20 +136,6 @@ public final class SuperTask {
         }
     }
 
-    private static final class ExecutorIDEq implements Predicate<SuperTask> {
-        @NotNull
-        private final Protos.ExecutorID executorID;
-
-        private ExecutorIDEq(@NotNull final Protos.ExecutorID executorID) {
-            this.executorID = executorID;
-        }
-
-        @Override
-        public boolean apply(final SuperTask item) {
-            return executorID.equals(item.getExecutorInfo().getExecutorId());
-        }
-    }
-
     private static final class TaskIdEq implements Predicate<SuperTask> {
         @NotNull
         private final Protos.TaskID taskID;
@@ -171,14 +147,6 @@ public final class SuperTask {
         @Override
         public boolean apply(final SuperTask item) {
             return taskID.equals(item.getTaskInfo().getTaskId());
-        }
-    }
-
-    private static final class ToTaskId implements Function<SuperTask, Protos.TaskID> {
-        private static final ToTaskId INSTANCE = new ToTaskId();
-        @Override
-        public Protos.TaskID apply(final SuperTask input) {
-            return input.getTaskInfo().getTaskId();
         }
     }
 

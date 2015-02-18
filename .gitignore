@@ -27,3 +27,6 @@ target/
 **/cassandra-mesos.log
 **/cassandra-executor.log
 **/executor.log
+
+# dev / IDE file-cache
+file-cache/

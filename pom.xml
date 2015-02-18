@@ -57,13 +57,16 @@
         <version.guava>18.0</version.guava>
         <version.jetbrains.annotations>13.0</version.jetbrains.annotations>
         <version.jetbrains.javac2>7.0.3</version.jetbrains.javac2>
-        <version.junit>4.12</version.junit>
+        <version.testng>6.8.8</version.testng>
         <version.logback-classic>1.1.2</version.logback-classic>
         <version.mesos>0.21.1</version.mesos>
         <version.slf4j>1.7.10</version.slf4j>
         <version.joda>2.7</version.joda>
         <version.snakeyaml>1.14</version.snakeyaml>
         <version.cassandra>2.1.2</version.cassandra>
+
+        <version.grizzly>2.16</version.grizzly>
+        <version.jackson>2.3.2</version.jackson> <!-- jackson is also transitively provided by grizzly! -->
     </properties>
 
     <modules>
@@ -96,17 +99,22 @@
             <dependency>
                 <groupId>org.glassfish.jersey.containers</groupId>
                 <artifactId>jersey-container-grizzly2-http</artifactId>
-                <version>2.16</version>
+                <version>${version.grizzly}</version>
             </dependency>
             <dependency>
                 <groupId>org.glassfish.jersey.media</groupId>
                 <artifactId>jersey-media-json-jackson</artifactId>
-                <version>2.16</version>
+                <version>${version.grizzly}</version>
             </dependency>
             <dependency>
-                <groupId>org.yaml</groupId>
-                <artifactId>snakeyaml</artifactId>
-                <version>${version.snakeyaml}</version>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${version.jackson}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-yaml</artifactId>
+                <version>${version.jackson}</version>
             </dependency>
 
             <!-- Mesos dependencies -->
@@ -182,9 +190,9 @@
 
             <!-- Test Libraries -->
             <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>${version.junit}</version>
+                <groupId>org.testng</groupId>
+                <artifactId>testng</artifactId>
+                <version>${version.testng}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -218,7 +226,6 @@
             <artifactId>joda-time</artifactId>
         </dependency>
 
-
         <!-- Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -243,8 +250,8 @@
 
         <!-- Test Libraries -->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>

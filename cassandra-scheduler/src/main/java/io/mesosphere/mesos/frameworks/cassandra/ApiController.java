@@ -13,18 +13,210 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
+import java.io.StringWriter;
 
 @Path("/")
 public final class ApiController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApiController.class);
 
     @GET
-    @Path("/hi")
-    @Produces("text/plain")
-    public String hi() {
-        return "Hello World";
+    @Path("/")
+    @Produces("text/html")
+    public String helloWorld() {
+        return "<a href=\"all-nodes\">All nodes</a> <br/>" +
+                "<a href=\"seed-nodes\">List of seed nodes</a> <br/>" +
+                "<a href=\"repair/start\">Start repair</a> <br/>" +
+                "<a href=\"repair/status\">Repair status</a> <br/>" +
+                "<a href=\"repair/abort\">Abort repair</a> <br/>";
     }
 
+    @GET
+    @Path("/seed-nodes")
+    @Produces("application/json")
+    public Response seedNodes() {
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+            json.writeArrayFieldStart("seeds");
+            for (String seed : CassandraCluster.instance().seedsIpList())
+                json.writeString(seed);
+            json.writeEndArray();
+            json.writeEndObject();
+            json.close();
+        } catch (IOException e) {
+            LOGGER.error("Failed to build seed list", e);
+            return Response.serverError().build();
+        }
+
+        return Response.ok(sw.toString(), "application/json").build();
+    }
+
+    @GET
+    @Path("/all-nodes")
+    @Produces("application/json")
+    public Response allNodes() {
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            json.writeStringField("cluster_name", CassandraCluster.instance().getName());
+            json.writeNumberField("native_port", CassandraCluster.instance().getNativePort());
+            json.writeNumberField("rpc_port", CassandraCluster.instance().getRpcPort());
+            json.writeNumberField("jmx_port", CassandraCluster.instance().getJmxPort());
+            json.writeNumberField("storage_port", CassandraCluster.instance().getStoragePort());
+            json.writeNumberField("ssl_storage_port", CassandraCluster.instance().getSslStoragePort());
+
+            json.writeArrayFieldStart("nodes");
+            for (ExecutorMetadata executorMetadata : CassandraCluster.instance().allNodes()) {
+                json.writeStartObject();
+
+                json.writeStringField("executor_id", executorMetadata.getExecutorId().getValue());
+                json.writeStringField("ip", executorMetadata.getIp());
+                json.writeStringField("hostname", executorMetadata.getHostname());
+
+                Instant lhc = executorMetadata.getLastHealthCheck();
+                if (lhc != null)
+                    json.writeNumberField("last_health_check", lhc.getMillis());
+                else
+                    json.writeNullField("last_health_check");
+
+                CassandraTaskProtos.CassandraNodeHealthCheckDetails hcd = executorMetadata.getLastHealthCheckDetails();
+                if (hcd != null) {
+                    json.writeObjectFieldStart("health_check_details");
+
+                    hcd.getHealthy();
+                    hcd.getMsg();
+
+                    json.writeStringField("cluster_name", hcd.getInfo().getClusterName());
+                    json.writeStringField("data_center", hcd.getInfo().getDataCenter());
+                    json.writeStringField("rack", hcd.getInfo().getRack());
+                    json.writeStringField("endoint", hcd.getInfo().getEndpoint());
+                    json.writeStringField("host_id", hcd.getInfo().getHostId());
+                    json.writeBooleanField("joined", hcd.getInfo().getJoined());
+                    json.writeBooleanField("gossip_initialized", hcd.getInfo().getGossipInitialized());
+                    json.writeBooleanField("gossip_running", hcd.getInfo().getGossipRunning());
+                    json.writeBooleanField("native_transport_running", hcd.getInfo().getNativeTransportRunning());
+                    json.writeBooleanField("rpc_server_running", hcd.getInfo().getRpcServerRunning());
+                    json.writeNumberField("uptime_millis", hcd.getInfo().getUptimeMillis());
+                    json.writeStringField("version", hcd.getInfo().getVersion());
+
+                    json.writeEndObject();
+                } else
+                    json.writeNullField("health_check_details");
+
+                json.writeEndObject();
+            }
+            json.writeEndArray();
+            json.writeEndObject();
+            json.close();
+        } catch (IOException e) {
+            LOGGER.error("Failed to all nodes list", e);
+            return Response.serverError().build();
+        }
+
+        return Response.ok(sw.toString(), "application/json").build();
+    }
+
+    @GET
+    @Path("/repair/start")
+    @Produces("application/json")
+    public Response repairStart() {
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            boolean started = CassandraCluster.instance().repairStart();
+            json.writeBooleanField("started", started);
+
+            json.writeEndObject();
+            json.close();
+        } catch (IOException e) {
+            LOGGER.error("Failed to build JSON response", e);
+            return Response.serverError().build();
+        }
+        return Response.ok(sw.toString(), "application/json").build();
+    }
+
+    @GET
+    @Path("/repair/abort")
+    @Produces("application/json")
+    public Response repairAbort() {
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            boolean aborted = CassandraCluster.instance().repairAbort();
+            json.writeBooleanField("aborted", aborted);
+
+            json.writeEndObject();
+            json.close();
+        } catch (IOException e) {
+            LOGGER.error("Failed to build JSON response", e);
+            return Response.serverError().build();
+        }
+        return Response.ok(sw.toString(), "application/json").build();
+    }
+
+    @GET
+    @Path("/repair/status")
+    @Produces("application/json")
+    public Response repairStatus() {
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            CassandraCluster.RepairJob status = CassandraCluster.instance().repairStatus();
+            json.writeBooleanField("running", status != null);
+            if (status != null) {
+                json.writeNumberField("started", status.getStartedTimestamp());
+                json.writeBooleanField("aborted", status.isAborted());
+
+                json.writeArrayFieldStart("repaired_nodes");
+                for (String ip : status.getRepairedNodeIps())
+                    json.writeString(ip);
+                json.writeEndArray();
+
+                json.writeStringField("current_node", status.getCurrentNodeIp());
+
+                json.writeArrayFieldStart("remaining_nodes");
+                for (String ip : status.getRemainingNodeIps())
+                    json.writeString(ip);
+                json.writeEndArray();
+            }
+
+            json.writeEndObject();
+            json.close();
+        } catch (IOException e) {
+            LOGGER.error("Failed to build JSON response", e);
+            return Response.serverError().build();
+        }
+        return Response.ok(sw.toString(), "application/json").build();
+    }
 }

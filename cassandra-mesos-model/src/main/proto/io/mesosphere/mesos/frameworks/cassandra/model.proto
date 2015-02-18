@@ -21,16 +21,30 @@ message TaskDetails {
     optional CassandraNodeRunTask cassandraNodeRunTask = 3;
     optional CassandraNodeShutdownTask cassandraNodeShutdownTask = 4;
     optional CassandraNodeHealthCheckTask cassandraNodeHealthCheckTask = 5;
+    optional CassandraNodeRepairTask cassandraNodeRepairTask = 6;
+    optional CassandraNodeCleanupTask cassandraNodeCleanupTask = 7;
 
     enum TaskType {
         SLAVE_METADATA = 1;
         CASSANDRA_NODE_RUN = 2;
         CASSANDRA_NODE_SHUTDOWN = 3;
         CASSANDRA_NODE_HEALTH_CHECK = 4;
+        CASSANDRA_NODE_REPAIR = 5;
+        CASSANDRA_NODE_REPAIR_STATUS = 6;
+        CASSANDRA_NODE_CLEANUP = 7;
+        CASSANDRA_NODE_CLEANUP_STATUS = 8;
     }
 }
 
 message SlaveMetadataTask {
+}
+
+message CassandraNodeRepairTask {
+    required JmxConnect jmx = 1;
+}
+
+message CassandraNodeCleanupTask {
+    required JmxConnect jmx = 1;
 }
 
 message CassandraNodeRunTask {
@@ -44,6 +58,10 @@ message CassandraNodeShutdownTask {
 }
 
 message CassandraNodeHealthCheckTask {
+    required JmxConnect jmx = 1;
+}
+
+message JmxConnect {
     // this is an int64 so that it generates a long field which is the type mesos uses when expressing ranges
     // port resources are expressed as ranges
     required int64 jmxPort = 1;
@@ -77,12 +95,16 @@ message SlaveStatusDetails {
     optional SlaveMetadata slaveMetadata = 2;
     optional SlaveErrorDetails slaveErrorDetails = 3;
     optional CassandraNodeHealthCheckDetails cassandraNodeHealthCheckDetails = 4;
+    optional CassandraNodeRepairStatus repairStatus = 5;
+    optional CassandraNodeCleanupStatus cleanupStatus = 6;
 
     enum StatusDetailsType {
         NULL_DETAILS = 1;
         SLAVE_METADATA = 2;
         ERROR_DETAILS = 3;
         HEALTH_CHECK_DETAILS = 4;
+        REPAIR_STATUS = 5;
+        CLEANUP_STATUS = 6;
     }
 }
 
@@ -95,9 +117,24 @@ message SlaveErrorDetails {
     optional string details = 2;
 }
 
+message CassandraNodeRepairStatus {
+    required bool running = 1;
+    repeated KeyspaceRepairStatus repairedKeyspaces = 2;
+    repeated string remainingKeyspaces = 3;
+}
+
+message CassandraNodeCleanupStatus {
+}
+
+message KeyspaceRepairStatus {
+    required string keyspace = 1;
+    required string status = 2;
+}
+
 message CassandraNodeHealthCheckDetails {
     required bool healthy = 1;
     optional string msg = 2;
+    optional CassandraNodeInfo info = 3;
 }
 
 message CassandraNodeInfo {

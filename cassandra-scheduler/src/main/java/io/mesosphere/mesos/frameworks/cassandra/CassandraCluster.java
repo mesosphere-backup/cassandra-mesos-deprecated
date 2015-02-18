@@ -26,6 +26,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.collect.FluentIterable.from;
+import static io.mesosphere.mesos.util.ProtoUtils.protoToString;
 
 /**
  * STUB to abstract state management.
@@ -50,6 +51,7 @@ public final class CassandraCluster {
     private int rpcPort;
 
     private final AtomicReference<RepairJob> currentRepair = new AtomicReference<>();
+    private volatile RepairJob lastRepair;
 
     private CassandraCluster() {
     }
@@ -156,6 +158,11 @@ public final class CassandraCluster {
         return new ArrayList<>(executorMetadataMap.values());
     }
 
+    private void repairFinished(RepairJob repairJob) {
+        currentRepair.compareAndSet(repairJob, null);
+        lastRepair = repairJob;
+    }
+
     public boolean repairStart() {
         return currentRepair.compareAndSet(null, new RepairJob());
     }
@@ -168,7 +175,11 @@ public final class CassandraCluster {
         return true;
     }
 
-    public RepairJob repairStatus() {
+    public RepairJob getLastRepair() {
+        return lastRepair;
+    }
+
+    public RepairJob getCurrentRepair() {
         return currentRepair.get();
     }
 
@@ -192,11 +203,12 @@ public final class CassandraCluster {
         private static final long REPAIR_STATUS_INVERVAL = 10000L;
 
         final long startedTimestamp = System.currentTimeMillis();
+        Long finishedTimestamp;
         private volatile boolean abort;
 
         final ConcurrentMap<Protos.ExecutorID, ExecutorMetadata> remainingNodes;
 
-        final List<String> repairedNodeIps = new CopyOnWriteArrayList<>();
+        final Map<String, CassandraTaskProtos.CassandraNodeRepairStatus> repairedNodes = Maps.newConcurrentMap();
 
         volatile ExecutorMetadata current;
         private long nextRepairStatus;
@@ -208,8 +220,13 @@ public final class CassandraCluster {
         }
 
         void gotRepairStatus(Protos.ExecutorID executorId, CassandraTaskProtos.CassandraNodeRepairStatus repairStatus) {
-            if (current != null && current.getExecutorId().equals(executorId)) {
+            LOGGER.debug("gotRepairStatus for executor {}: {}", executorId.getValue(), protoToString(repairStatus));
+            ExecutorMetadata c = current;
+            if (c != null && c.getExecutorId().equals(executorId)) {
+                LOGGER.debug("gotRepairStatus for current repair target {}/{} (executor {}) - running:{}",
+                        c.getHostname(), c.getIp(), c.getExecutorId().getValue(), repairStatus.getRunning());
                 if (!repairStatus.getRunning()) {
+                    repairedNodes.put(c.getIp(), repairStatus);
                     current = null;
                 }
             }
@@ -242,6 +259,8 @@ public final class CassandraCluster {
                 if (candidate != null) {
                     CassandraTaskProtos.CassandraNodeHealthCheckDetails hc = candidate.getLastHealthCheckDetails();
                     if (hc.getHealthy()) {
+                        LOGGER.debug("moving current repair target to {}/{} (executor {})",
+                                candidate.getHostname(), candidate.getIp(), candidate.getExecutorId().getValue());
                         current = candidate;
                         scheduleNextRepairStatus();
 
@@ -254,7 +273,8 @@ public final class CassandraCluster {
 
         private void shutdown() {
             LOGGER.info("Shutting down repair job");
-            currentRepair.compareAndSet(this, null);
+            finishedTimestamp = System.currentTimeMillis();
+            repairFinished(this);
         }
 
         public void abort() {
@@ -265,8 +285,8 @@ public final class CassandraCluster {
             return abort;
         }
 
-        public List<String> getRepairedNodeIps() {
-            return repairedNodeIps;
+        public Map<String, CassandraTaskProtos.CassandraNodeRepairStatus> getRepairedNodes() {
+            return repairedNodes;
         }
 
         public List<String> getRemainingNodeIps() {
@@ -285,6 +305,10 @@ public final class CassandraCluster {
 
         public long getStartedTimestamp() {
             return startedTimestamp;
+        }
+
+        public Long getFinishedTimestamp() {
+            return finishedTimestamp;
         }
     }
 }

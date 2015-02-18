@@ -35,4 +35,8 @@ public class AbstractKeyspacesJob {
 //        keyspaces.remove("system_auth");
 //        keyspaces.remove("system_traces");
     }
+
+    public long getStartTimestamp() {
+        return startTimestamp;
+    }
 }

@@ -121,6 +121,8 @@ message CassandraNodeRepairStatus {
     required bool running = 1;
     repeated KeyspaceRepairStatus repairedKeyspaces = 2;
     repeated string remainingKeyspaces = 3;
+    optional int64 started = 4;
+    optional int64 finished = 5;
 }
 
 message CassandraNodeCleanupStatus {
@@ -129,6 +131,7 @@ message CassandraNodeCleanupStatus {
 message KeyspaceRepairStatus {
     required string keyspace = 1;
     required string status = 2;
+    required int64 duration = 3;
 }
 
 message CassandraNodeHealthCheckDetails {

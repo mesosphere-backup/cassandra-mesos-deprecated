@@ -20,7 +20,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.frameworks.cassandra.jmx.JmxConnect;
 import io.mesosphere.mesos.frameworks.cassandra.jmx.NodeRepairJob;
 import io.mesosphere.mesos.frameworks.cassandra.jmx.Nodetool;
-import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
@@ -116,22 +115,21 @@ public final class CassandraExecutor implements Executor {
                     break;
                 case CASSANDRA_NODE_REPAIR:
                     CassandraNodeRepairTask repairTask = taskDetails.getCassandraNodeRepairTask();
-                    NodeRepairJob currentRepair;
-                    if (repair.compareAndSet(null, currentRepair = new NodeRepairJob())) {
+                    NodeRepairJob currentRepair = repair.get();
+                    if (currentRepair == null || currentRepair.isFinished()) {
+                        repair.set(currentRepair = new NodeRepairJob());
                         currentRepair.start(new JmxConnect(repairTask.getJmx()));
                         currentRepair.repairNextKeyspace();
                     }
                 case CASSANDRA_NODE_REPAIR_STATUS:
                     currentRepair = repair.get();
                     CassandraNodeRepairStatus.Builder repairStatus = CassandraNodeRepairStatus.newBuilder()
-                            .setRunning(currentRepair != null);
+                            .setRunning(currentRepair != null && !currentRepair.isFinished());
                     if (currentRepair != null) {
-                        repairStatus.addAllRemainingKeyspaces(currentRepair.getRemainingKeyspaces());
-                        for (Map.Entry<String, ActiveRepairService.Status> ksStatus : currentRepair.getKeyspaceStatus().entrySet()) {
-                            KeyspaceRepairStatus.Builder status = repairStatus.addRepairedKeyspacesBuilder();
-                            status.setKeyspace(ksStatus.getKey());
-                            status.setStatus(ksStatus.getValue().name());
-                        }
+                        repairStatus.addAllRemainingKeyspaces(currentRepair.getRemainingKeyspaces())
+                                .addAllRepairedKeyspaces(currentRepair.getKeyspaceStatus().values())
+                            .setStarted(currentRepair.getStartTimestamp())
+                            .setFinished(currentRepair.getFinishedTimestamp());
                     }
                     SlaveStatusDetails repairDetails = SlaveStatusDetails.newBuilder()
                             .setRepairStatus(repairStatus.build())

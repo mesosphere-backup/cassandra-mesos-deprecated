@@ -13,6 +13,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra;
 
+import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.*;
@@ -21,6 +22,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.frameworks.cassandra.bindown.JreLoader;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.Clock;
+import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -351,9 +353,19 @@ public final class CassandraScheduler implements Scheduler {
                                 CassandraNodeRunTask.newBuilder()
                                         .setVersion(cassandraVersion)
                                         .addAllCommand(newArrayList("apache-cassandra-" + cassandraVersion + "/bin/cassandra", "-p", "cassandra.pid"))
+                                        .setTaskEnv(taskEnv(
+                                                // see conf/cassandra-env.sh in the cassandra distribution for details
+                                                // about these variables.
+                                                tuple2("JMX_PORT", String.valueOf(defaultCassandraPortMappings.get("jmx_port"))),
+                                                tuple2("MAX_HEAP_SIZE", memMb + "m"),
+                                                // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
+                                                // times. If in doubt, and if you do not particularly want to tweak, go with
+                                                // 100 MB per physical CPU core.
+                                                tuple2("HEAP_NEWSIZE", (int) (cpuCores * 100) + "m")
+                                        ))
                                         .setTaskConfig(taskConfig)
                         )
-                            .build();
+                        .build();
                     final TaskID taskId = taskId(executorID.getValue() + ".server");
                     final TaskInfo task = TaskInfo.newBuilder()
                         .setName(taskId.getValue())
@@ -538,6 +550,14 @@ public final class CassandraScheduler implements Scheduler {
     }
 
     @NotNull
+    @SafeVarargs
+    private static TaskEnv taskEnv(@NotNull final Tuple2<String, String>... tuples) {
+        return TaskEnv.newBuilder()
+            .addAllVariables(from(newArrayList(tuples)).transform(tupleToTaskEnvEntry))
+            .build();
+    }
+
+    @NotNull
     private String getUrlForResource(@NotNull final String resourceName) {
         return URL_FOR_RESOURCE_PATTERN.matcher((httpServerBaseUrl + '/' + resourceName)).replaceAll("/");
     }
@@ -583,4 +603,10 @@ public final class CassandraScheduler implements Scheduler {
         return errors;
     }
 
+    private static final Function<Tuple2<String, String>, TaskEnv.Entry> tupleToTaskEnvEntry = new Function<Tuple2<String, String>, TaskEnv.Entry>() {
+        @Override
+        public TaskEnv.Entry apply(final Tuple2<String, String> input) {
+            return TaskEnv.Entry.newBuilder().setName(input._1).setValue(input._2).build();
+        }
+    };
 }

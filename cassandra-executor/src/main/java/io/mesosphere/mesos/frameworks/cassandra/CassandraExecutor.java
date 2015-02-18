@@ -49,7 +49,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos.*;
+import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 import static io.mesosphere.mesos.util.ProtoUtils.protoToString;
 
 public final class CassandraExecutor implements Executor {
@@ -84,36 +84,36 @@ public final class CassandraExecutor implements Executor {
             final TaskDetails taskDetails = TaskDetails.parseFrom(data);
             LOGGER.debug(taskIdMarker, "received taskDetails: {}", protoToString(taskDetails));
             switch (taskDetails.getTaskType()) {
-                case SLAVE_METADATA:
-                    final SlaveMetadata slaveMetadata = collectSlaveMetadata();
+                case EXECUTOR_METADATA:
+                    final ExecutorMetadataTask executorMetadataTask = taskDetails.getExecutorMetadataTask();
+                    final ExecutorMetadata slaveMetadata = collectSlaveMetadata(executorMetadataTask.getExecutorId());
                     final SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
-                        .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.SLAVE_METADATA)
-                        .setSlaveMetadata(slaveMetadata)
+                        .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.EXECUTOR_METADATA)
+                        .setExecutorMetadata(slaveMetadata)
                         .build();
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_RUNNING, details));
                     break;
-                case CASSANDRA_NODE_RUN:
-                    final Process cassandraProcess = launchCassandraNodeTask(taskIdMarker, taskDetails.getCassandraNodeRunTask());
+                case CASSANDRA_SERVER_RUN:
+                    final Process cassandraProcess = launchCassandraNodeTask(taskIdMarker, taskDetails.getCassandraServerRunTask());
                     process.set(cassandraProcess);
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_STARTING));
                     // TODO(BenWhitehead) this should really come from the first successful health check, but stubbed for now.
                     scheduledExecutorService.schedule(new TaskStateChange(driver, task, TaskState.TASK_RUNNING), 15, TimeUnit.SECONDS);
                     break;
-                case CASSANDRA_NODE_SHUTDOWN:
+                case CASSANDRA_SERVER_SHUTDOWN:
                     process.get().destroy();
                     process.set(null);
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
                     break;
-                case CASSANDRA_NODE_HEALTH_CHECK:
-                    final CassandraNodeHealthCheckTask healthCheckTask = taskDetails.getCassandraNodeHealthCheckTask();
+                case CASSANDRA_SERVER_HEALTH_CHECK:
+                    final CassandraServerHealthCheckTask healthCheckTask = taskDetails.getCassandraServerHealthCheckTask();
                     LOGGER.info(taskIdMarker, "Received healthCheckTask: {}", protoToString(healthCheckTask));
                     final CassandraNodeHealthCheckDetails healthCheck = performHealthCheck(healthCheckTask);
                     final SlaveStatusDetails healthCheckDetails = SlaveStatusDetails.newBuilder()
                         .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.HEALTH_CHECK_DETAILS)
                         .setCassandraNodeHealthCheckDetails(healthCheck)
                         .build();
-                    final TaskState state = healthCheck.getHealthy() ? TaskState.TASK_FINISHED : TaskState.TASK_ERROR;
-                    driver.sendStatusUpdate(taskStatus(task, state, healthCheckDetails));
+                    driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED, healthCheckDetails));
                     break;
             }
         } catch (InvalidProtocolBufferException e) {
@@ -166,8 +166,9 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
-    private SlaveMetadata collectSlaveMetadata() throws UnknownHostException {
-        return SlaveMetadata.newBuilder()
+    private ExecutorMetadata collectSlaveMetadata(@NotNull final String executorId) throws UnknownHostException {
+        return ExecutorMetadata.newBuilder()
+            .setExecutorId(executorId)
             .setIp(getHostAddress())
             .build();
     }
@@ -178,8 +179,7 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
-    private Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraNodeRunTask cassandraNodeTask) throws IOException {
-
+    private Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraServerRunTask cassandraNodeTask) throws IOException {
         for (final TaskFile taskFile : cassandraNodeTask.getTaskFilesList()) {
             final File file = new File(taskFile.getOutputPath());
             LOGGER.debug(taskIdMarker, "Overwriting file {}", file);
@@ -202,7 +202,7 @@ public final class CassandraExecutor implements Executor {
         return processBuilder.start();
     }
 
-    private static void modifyCassandraEnvSh(Marker taskIdMarker, CassandraNodeRunTask cassandraNodeTask) throws IOException {
+    private static void modifyCassandraEnvSh(Marker taskIdMarker, CassandraServerRunTask cassandraNodeTask) throws IOException {
         int jmxPort = 0;
         for (TaskEnv.Entry entry : cassandraNodeTask.getTaskEnv().getVariablesList()) {
             if ("JMX_PORT".equals(entry.getName())) {
@@ -238,7 +238,7 @@ public final class CassandraExecutor implements Executor {
     }
 
     @SuppressWarnings("unchecked")
-    private static void modifyCassandraYaml(Marker taskIdMarker, CassandraNodeRunTask cassandraNodeTask) throws IOException {
+    private static void modifyCassandraYaml(Marker taskIdMarker, CassandraServerRunTask cassandraNodeTask) throws IOException {
         LOGGER.info(taskIdMarker, "Building cassandra.yaml");
 
         File cassandraYaml = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra.yaml");
@@ -278,7 +278,7 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
-    private CassandraNodeHealthCheckDetails performHealthCheck(@NotNull final CassandraNodeHealthCheckTask healthCheckTask) {
+    private CassandraNodeHealthCheckDetails performHealthCheck(@NotNull final CassandraServerHealthCheckTask healthCheckTask) {
         CassandraNodeHealthCheckDetails.Builder builder = CassandraNodeHealthCheckDetails.newBuilder();
         try (JmxConnect jmx = new JmxConnect(getHostAddress(), (int) healthCheckTask.getJmxPort() & 0xffff)) {
 
@@ -301,7 +301,7 @@ public final class CassandraExecutor implements Executor {
                     info.getVersion());
         } catch (Exception e) {
             LOGGER.warn("Healthcheck failed.", e);
-            builder.setHealthy(true)
+            builder.setHealthy(false)
                    .setMsg(e.toString());
         }
         return builder.build();

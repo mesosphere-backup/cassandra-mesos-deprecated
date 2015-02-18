@@ -16,6 +16,7 @@ package io.mesosphere.mesos.util;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.mesos.Protos.*;
 import org.jetbrains.annotations.NotNull;
 
@@ -26,11 +27,17 @@ import java.util.TreeSet;
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Sets.newTreeSet;
-import static io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos.TaskEnv;
+import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.TaskEnv;
 
 public final class ProtoUtils {
 
     private ProtoUtils() {
+    }
+
+    public static final class RuntimeInvalidProtocolBufferException extends RuntimeException {
+        public RuntimeInvalidProtocolBufferException(final InvalidProtocolBufferException cause) {
+            super(cause);
+        }
     }
 
     @NotNull
@@ -67,7 +74,7 @@ public final class ProtoUtils {
             .setType(Value.Type.RANGES)
             .setRanges(
                 Value.Ranges.newBuilder().addAllRange(
-                    from(ports).transform(LongToRange())
+                    from(ports).transform(longToRange())
                 )
                 .build()
             )
@@ -257,16 +264,19 @@ public final class ProtoUtils {
         return set;
     }
 
-
-
     @NotNull
     public static Function<Resource, String> resourceToName() {
         return ResourceToName.INSTANCE;
     }
 
     @NotNull
-    public static Function<Long, Value.Range> LongToRange() {
+    public static Function<Long, Value.Range> longToRange() {
         return LongToRange.INSTANCE;
+    }
+
+    @NotNull
+    public static FrameworkID frameworkId(final String frameworkName) {
+        return FrameworkID.newBuilder().setValue(frameworkName).build();
     }
 
     private static final class ResourceToName implements Function<Resource, String> {

@@ -15,12 +15,15 @@ package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Optional;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
+import io.mesosphere.mesos.util.Clock;
 import io.mesosphere.mesos.util.ProtoUtils;
 import io.mesosphere.mesos.util.SystemClock;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos.Credential;
 import org.apache.mesos.Protos.FrameworkInfo;
 import org.apache.mesos.Scheduler;
+import org.apache.mesos.state.State;
+import org.apache.mesos.state.ZooKeeperState;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -30,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.*;
+import java.util.concurrent.TimeUnit;
 
 public final class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
@@ -44,6 +48,9 @@ public final class Main {
         } catch (UnknownHostException e) {
             LOGGER.error("Unable to resolve local interface for http server");
             status = 6;
+        } catch (Throwable e) {
+            LOGGER.error("Unhandled fatal exception", e);
+            status = 10;
         }
 
         System.exit(status);
@@ -66,11 +73,12 @@ public final class Main {
         final String    frameworkName           = frameworkName(        Env.option("CASSANDRA_CLUSTER_NAME"));
 
         final FrameworkInfo.Builder frameworkBuilder =
-                FrameworkInfo.newBuilder()
-                        .setFailoverTimeout(Period.days(7).getSeconds())
-                        .setUser("") // Have Mesos fill in the current user.
-                        .setName(frameworkName)
-                        .setCheckpoint(true);
+            FrameworkInfo.newBuilder()
+                .setFailoverTimeout(Period.days(7).getSeconds())
+                .setUser("") // Have Mesos fill in the current user.
+//                .setId(ProtoUtils.frameworkId(frameworkName))
+                .setName(frameworkName)
+                .setCheckpoint(true);
 
 
         final ResourceConfig rc = new ResourceConfig().packages("io.mesosphere.mesos.frameworks.cassandra");
@@ -78,9 +86,17 @@ public final class Main {
         final URI httpServerBaseUri = URI.create(String.format("http://%s:%d/", formatInetAddress(InetAddress.getLocalHost()), port0));
         final HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
 
-        final Scheduler scheduler = new CassandraScheduler(
-            new SystemClock(),
+        final State state = new ZooKeeperState(
+            "localhost:2181",
+            10000,
+            TimeUnit.MILLISECONDS,
+            "/cassandra-mesos/state"
+        );
+        final Clock clock = new SystemClock();
+        final CassandraCluster cassandraCluster = new CassandraCluster(
+            clock,
             frameworkName,
+            state,
             cassandraVersion,
             httpServerBaseUri.toString(),
             executorCount,
@@ -88,6 +104,9 @@ public final class Main {
             resourceMemoryMegabytes,
             resourceDiskMegabytes,
             healthCheckIntervalSec
+        );
+        final Scheduler scheduler = new CassandraScheduler(
+            cassandraCluster
         );
 
         final String mesosMasterZkUrl = Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");
@@ -117,6 +136,7 @@ public final class Main {
                 break;
         }
 
+        httpServer.shutdownNow();
         // Ensure that the driver process terminates.
         driver.stop();
         return status;

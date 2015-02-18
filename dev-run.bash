@@ -17,10 +17,6 @@ function main {(
     export JDK_FILE_PATH=$(pwd)/target/framework-package/jdk.tar.gz
     export CASSANDRA_FILE_PATH=$(pwd)/target/framework-package/cassandra.tar.gz
 
-    if [ -z ${MESOS_NATIVE_JAVA_LIBRARY:=} ] ; then
-        export MESOS_NATIVE_JAVA_LIBRARY=`pwd`/../mesos/build/src/.libs/libmesos.dylib
-    fi
-
     cd cassandra-framework
     mvn exec:java -Dexec.mainClass="io.mesosphere.mesos.frameworks.cassandra.Main"
 

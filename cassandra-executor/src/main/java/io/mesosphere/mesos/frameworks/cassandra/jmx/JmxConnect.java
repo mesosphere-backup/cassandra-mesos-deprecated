@@ -43,7 +43,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * JMX interface class to Cassandra node.
- * The JMX via RMI connection is lazyly created when the first call requires it.
+ * The JMX via RMI connection is lazily created when the first call requires it.
  *
  * @author Robert Stupp
  */
@@ -127,14 +127,14 @@ public class JmxConnect implements Closeable {
         }
     }
 
-    public void connect() throws IOException {
+    private void connect() throws IOException {
         lock.lock();
         try {
             if (jmxc != null)
                 return;
 
             JMXServiceURL jmxUrl = new JMXServiceURL(String.format(fmtUrl, host, port));
-            Map<String, Object> env = new HashMap<String, Object>();
+            Map<String, Object> env = new HashMap<>();
             if (username != null) {
                 String[] creds = {username, password};
                 env.put(JMXConnector.CREDENTIALS, creds);
@@ -146,25 +146,25 @@ public class JmxConnect implements Closeable {
         }
     }
 
-    public <T> T newProxy(String name, Class<T> type) {
+    private <T> T newProxy(String name, Class<T> type) {
         lock.lock();
         try {
             connect();
             return JMX.newMBeanProxy(mbeanServerConn, new ObjectName(name), type);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new JmxRuntimeException("Failed to create proxy for " + name, e);
         } finally {
             lock.unlock();
         }
     }
 
-    public <T> T newPlatformProxy(String name, Class<T> type) {
+    private <T> T newPlatformProxy(String name, Class<T> type) {
         lock.lock();
         try {
             connect();
             return ManagementFactory.newPlatformMXBeanProxy(mbeanServerConn, name, type);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new JmxRuntimeException("Failed to create proxy for " + name, e);
         } finally {
             lock.unlock();
         }

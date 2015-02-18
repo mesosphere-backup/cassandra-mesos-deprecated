@@ -21,6 +21,7 @@ import com.google.common.collect.*;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.util.Clock;
+import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -271,8 +272,6 @@ public final class CassandraScheduler implements Scheduler {
                             .setStoragePortSsl(defaultCassandraPortMappings.get("storage_port_ssl"))
                             .setNativeTransportPort(defaultCassandraPortMappings.get("native_transport_port"))
                             .setRpcPort(defaultCassandraPortMappings.get("rpc_port"))
-                            // TODO(BenWhitehead): Figure out how to set the JMX port
-                            // --> configured in conf/cassandra-env.sh (JMX_PORT)
                             .setSeeds(newArrayList(from(executorMetadata.values()).transform(toIp)))
                             .dump();
                         final TaskDetails taskDetails = TaskDetails.newBuilder()
@@ -287,6 +286,16 @@ public final class CassandraScheduler implements Scheduler {
                                             .setOutputPath("apache-cassandra-2.1.2/conf/cassandra.yaml")
                                             .setData(ByteString.copyFromUtf8(cassandraYaml))
                                     )
+                                .setTaskEnv(taskEnv(
+                                    // see conf/cassandra-env.sh in the cassandra distribution for details
+                                    // about these variables.
+                                    tuple2("JMX_PORT", String.valueOf(defaultCassandraPortMappings.get("jmx_port"))),
+                                    tuple2("MAX_HEAP_SIZE", memMb + "m"),
+                                    // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
+                                    // times. If in doubt, and if you do not particularly want to tweak, go with
+                                    // 100 MB per physical CPU core.
+                                    tuple2("HEAP_NEWSIZE", (int) (cpuCores * 100) + "m")
+                                ))
                             )
                             .build();
                         final TaskID taskId = taskId(executorID.getValue() + ".server");
@@ -405,6 +414,14 @@ public final class CassandraScheduler implements Scheduler {
     }
 
     @NotNull
+    @SafeVarargs
+    private final TaskEnv taskEnv(@NotNull final Tuple2<String, String>... tuples) {
+        return TaskEnv.newBuilder()
+            .addAllVariables(from(newArrayList(tuples)).transform(tupleToTaskEnvEntry))
+            .build();
+    }
+
+    @NotNull
     private String getUrlForResource(@NotNull final String resourceName) {
         return (httpServerBaseUrl + "/" + resourceName).replaceAll("(?<!:)/+", "/");
     }
@@ -461,5 +478,13 @@ public final class CassandraScheduler implements Scheduler {
             return input.getIp();
         }
     };
+
+    private static final Function<Tuple2<String, String>, TaskEnv.Entry> tupleToTaskEnvEntry = new Function<Tuple2<String, String>, TaskEnv.Entry>() {
+        @Override
+        public TaskEnv.Entry apply(final Tuple2<String, String> input) {
+            return TaskEnv.Entry.newBuilder().setName(input._1).setValue(input._2).build();
+        }
+    };
+
 
 }

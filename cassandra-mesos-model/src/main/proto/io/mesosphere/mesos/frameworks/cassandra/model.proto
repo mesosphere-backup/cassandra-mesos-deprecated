@@ -105,9 +105,9 @@ message CassandraNodeInfo {
     optional bool joined = 3;
     optional bool rpcServerRunning = 4;
     optional bool nativeTransportRunning = 5;
-    optional bool goosipInitialized = 6;
+    optional bool gossipInitialized = 6;
     optional bool gossipRunning = 7;
-    optional int64 uptimeSeconds = 8;
+    optional int64 uptimeMillis = 8;
     optional string hostId = 9;
     optional string endpoint = 10;
     optional int32 tokenCount = 11;

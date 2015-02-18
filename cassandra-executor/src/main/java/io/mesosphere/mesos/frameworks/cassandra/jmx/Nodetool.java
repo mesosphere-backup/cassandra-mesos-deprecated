@@ -98,17 +98,14 @@ public class Nodetool {
         return jmxConnect.getEndpointSnitchInfoProxy().getRack(endpoint);
     }
 
-    public String getEndpoint()
-    {
+    public String getEndpoint() {
         // Try to find the endpoint using the local token, doing so in a crazy manner
         // to maintain backwards compatibility with the MBean interface
         String stringToken = jmxConnect.getStorageServiceProxy().getTokens().get(0);
         Map<String, String> tokenToEndpoint = jmxConnect.getStorageServiceProxy().getTokenToEndpointMap();
 
-        for (Map.Entry<String, String> pair : tokenToEndpoint.entrySet())
-        {
-            if (pair.getKey().equals(stringToken))
-            {
+        for (Map.Entry<String, String> pair : tokenToEndpoint.entrySet()) {
+            if (pair.getKey().equals(stringToken)) {
                 return pair.getValue();
             }
         }

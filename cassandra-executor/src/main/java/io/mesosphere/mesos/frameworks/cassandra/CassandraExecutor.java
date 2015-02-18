@@ -196,14 +196,14 @@ public final class CassandraExecutor implements Executor {
 
             CassandraNodeInfo info = buildInfo(jmx);
             builder.setHealthy(true)
-                    .setInfo(info);
+                   .setInfo(info);
             LOGGER.info("Healthcheck succeeded: operationMode:{} joined:{} gossip:{} native:{} rpc:{} uptime:{}s endpoint:{}, dc:{}, rack:{}, hostId:{}, version:{}",
                     info.getOperationMode(),
                     info.getJoined(),
                     info.getGossipRunning(),
                     info.getNativeTransportRunning(),
                     info.getRpcServerRunning(),
-                    info.getUptimeSeconds(),
+                    info.getUptimeMillis() / 1000,
                     info.getEndpoint(),
                     info.getDataCenter(),
                     info.getRack(),
@@ -211,7 +211,8 @@ public final class CassandraExecutor implements Executor {
                     info.getVersion());
         } catch (Exception e) {
             LOGGER.warn("Healthcheck failed.", e);
-            builder.setMsg(e.toString());
+            builder.setHealthy(true)
+                   .setMsg(e.toString());
         }
         return builder.build();
     }
@@ -228,11 +229,11 @@ public final class CassandraExecutor implements Executor {
         return CassandraNodeInfo.newBuilder()
                 .setOperationMode(nodetool.getOperationMode())
                 .setJoined(nodetool.isJoined())
-                .setGoosipInitialized(nodetool.isGossipInitialized())
+                .setGossipInitialized(nodetool.isGossipInitialized())
                 .setGossipRunning(nodetool.isGossipRunning())
                 .setNativeTransportRunning(nodetool.isNativeTransportRunning())
                 .setRpcServerRunning(nodetool.isRPCServerRunning())
-                .setUptimeSeconds(nodetool.getUptimeInMillis() / 1000L)
+                .setUptimeMillis(nodetool.getUptimeInMillis())
                 .setVersion(nodetool.getVersion())
                 .setHostId(nodetool.getHostID())
                 .setEndpoint(endpoint)

@@ -94,8 +94,7 @@ message SlaveErrorDetails {
 
 message CassandraNodeHealthCheckDetails {
     required bool healthy = 1;
-    optional CassandraNodeInfo info = 2;
-    optional string msg = 3;
+    optional string msg = 2;
 }
 
 message CassandraNodeInfo {

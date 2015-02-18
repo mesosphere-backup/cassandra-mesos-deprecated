@@ -195,8 +195,7 @@ public final class CassandraExecutor implements Executor {
             // I.e. track status/operation-mode changes
 
             CassandraNodeInfo info = buildInfo(jmx);
-            builder.setHealthy(true)
-                   .setInfo(info);
+            builder.setHealthy(true);
             LOGGER.info("Healthcheck succeeded: operationMode:{} joined:{} gossip:{} native:{} rpc:{} uptime:{}s endpoint:{}, dc:{}, rack:{}, hostId:{}, version:{}",
                     info.getOperationMode(),
                     info.getJoined(),

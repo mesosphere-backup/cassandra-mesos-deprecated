@@ -152,7 +152,7 @@ public class JmxConnect implements Closeable {
             connect();
             return JMX.newMBeanProxy(mbeanServerConn, new ObjectName(name), type);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new JmxRuntimeException("Failed to create proxy for " + name, e);
         } finally {
             lock.unlock();
         }
@@ -164,7 +164,7 @@ public class JmxConnect implements Closeable {
             connect();
             return ManagementFactory.newPlatformMXBeanProxy(mbeanServerConn, name, type);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new JmxRuntimeException("Failed to create proxy for " + name, e);
         } finally {
             lock.unlock();
         }

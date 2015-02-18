@@ -110,6 +110,6 @@ public class Nodetool {
             }
         }
 
-        throw new RuntimeException("Could not find myself in the endpoint list, something is very wrong!  Is the Cassandra node fully started?");
+        throw new InconsistentNodeException("Could not find myself in the endpoint list, something is very wrong!  Is the Cassandra node fully started?");
     }
 }

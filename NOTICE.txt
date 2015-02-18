@@ -1,0 +1,7 @@
+Apache Mesos
+Copyright The Apache Software Foundation
+
+Apache Cassandra
+Copyright 2009-2014 The Apache Software Foundation
+
+... TODO to be completed with other libraries that will be distributed as part of the framework

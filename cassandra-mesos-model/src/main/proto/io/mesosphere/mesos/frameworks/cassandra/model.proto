@@ -1,3 +1,16 @@
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.mesosphere.mesos.frameworks.cassandra;
 
 option java_outer_classname = "CassandraTaskProtos";
@@ -81,4 +94,23 @@ message SlaveErrorDetails {
 
 message CassandraNodeHealthCheckDetails {
     required bool healthy = 1;
+    optional string msg = 2;
+}
+
+message CassandraNodeInfo {
+    // extracted this information because it could be meaningful outside of a health-check
+    optional string clusterName = 1;
+    optional string operationMode = 2;
+    optional bool joined = 3;
+    optional bool rpcServerRunning = 4;
+    optional bool nativeTransportRunning = 5;
+    optional bool gossipInitialized = 6;
+    optional bool gossipRunning = 7;
+    optional int64 uptimeMillis = 8;
+    optional string hostId = 9;
+    optional string endpoint = 10;
+    optional int32 tokenCount = 11;
+    optional string dataCenter = 12;
+    optional string rack = 13;
+    optional string version = 14;
 }

@@ -11,15 +11,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.mesosphere.mesos.util;
+package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
-import org.jetbrains.annotations.NotNull;
-import org.joda.time.Instant;
+public class InconsistentNodeException extends RuntimeException {
+    public InconsistentNodeException(String message) {
+        super(message);
+    }
 
-public final class SystemClock implements Clock {
-    @NotNull
-    @Override
-    public Instant now() {
-        return Instant.now();
+    public InconsistentNodeException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

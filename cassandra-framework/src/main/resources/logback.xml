@@ -33,7 +33,7 @@
     <logger name="io.mesosphere" level="trace"/>
 
     <root level="info">
-        <!--<appender-ref ref="STDOUT"/>-->
+        <!-- <appender-ref ref="STDOUT"/> -->
         <appender-ref ref="FILE"/>
     </root>
 

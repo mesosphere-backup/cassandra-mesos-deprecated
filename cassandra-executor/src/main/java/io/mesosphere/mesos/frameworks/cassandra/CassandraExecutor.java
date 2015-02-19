@@ -353,12 +353,7 @@ public final class CassandraExecutor implements Executor {
         LOGGER.info("Cassandra node status: operationMode={}, joined={}, gossipInitialized={}, gossipRunning={}, nativeTransportRunning={}, rpcServerRunning={}",
                 operationMode, joined, gossipInitialized, gossipRunning, nativeTransportRunning, rpcServerRunning);
 
-        String endpoint = valid ? nodetool.getEndpoint() : null;
-        int tokenCount = valid ? nodetool.getTokenCount() : 0;
-        String dataCenter = valid ? nodetool.getDataCenter(endpoint) : null;
-        String rack = valid ? nodetool.getRack(endpoint) : null;
-
-        return CassandraNodeInfo.newBuilder()
+        CassandraNodeInfo.Builder builder = CassandraNodeInfo.newBuilder()
                 .setOperationMode(operationMode)
                 .setJoined(joined)
                 .setGossipInitialized(gossipInitialized)
@@ -368,12 +363,17 @@ public final class CassandraExecutor implements Executor {
                 .setUptimeMillis(nodetool.getUptimeInMillis())
                 .setVersion(nodetool.getVersion())
                 .setHostId(nodetool.getHostID())
-                .setEndpoint(endpoint)
-                .setTokenCount(tokenCount)
-                .setDataCenter(dataCenter)
-                .setRack(rack)
-                .setClusterName(nodetool.getClusterName())
-                .build();
+                .setClusterName(nodetool.getClusterName());
+
+        if (valid) {
+            String endpoint = nodetool.getEndpoint();
+            builder.setEndpoint(endpoint)
+                    .setTokenCount(nodetool.getTokenCount())
+                    .setDataCenter(nodetool.getDataCenter(endpoint))
+                    .setRack(nodetool.getRack(endpoint));
+        }
+
+        return builder.build();
     }
 
     public static void main(final String[] args) {

@@ -48,13 +48,21 @@ public class ExecutorMetadata {
     }
 
     public void executorLost() {
-        // TODO do what ?
-    }
+        executorTaskId = null;
 
-    public void clear() {
-        lastHealthCheck = 0L;
         ip = null;
         hostname = null;
+        executorInfo = null;
+
+        serverLost();
+    }
+
+    public void serverLost() {
+        status.set(ExecutorStatus.LOST);
+
+        lastHealthCheck = 0L;
+        lastHealthCheckDetails = null;
+        serverTaskId = null;
     }
 
     public void repairDone(long now) {
@@ -177,11 +185,14 @@ public class ExecutorMetadata {
     }
 
     public boolean shouldTriggerLaunch() {
-        if (status.get() != ExecutorStatus.ROLLED_OUT)
-            return false;
-
-        stateChange(ExecutorStatus.ROLLED_OUT, ExecutorStatus.LAUNCHING);
-        return true;
+        ExecutorStatus s = status.get();
+        switch (s) {
+            case ROLLED_OUT:
+            case LOST:
+                stateChange(s, ExecutorStatus.LAUNCHING);
+                return true;
+        }
+        return false;
     }
 
     public void notLaunched() {
@@ -217,6 +228,8 @@ public class ExecutorMetadata {
 
         LAUNCHED,
 
-        RUNNING
+        RUNNING,
+
+        LOST
     }
 }

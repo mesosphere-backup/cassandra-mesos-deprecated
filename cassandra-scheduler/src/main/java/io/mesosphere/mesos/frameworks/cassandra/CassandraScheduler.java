@@ -147,19 +147,28 @@ public final class CassandraScheduler implements Scheduler {
                         // this code should really be handled by executorLost, but it can't due to the fact that
                         // executorLost will never be called.
 
-                        // there is the possibility that the executorId we get in the task status is empty,
-                        // so here we use the taskId to lookup the executorId based on the tasks we're tracking
-                        // to try and have a more accurate value.
                         cluster.unassociateTaskId(taskId);
-                        if (isExecutorTask(taskId) && executorMetadata != null)
-                            executorLost(driver, executorMetadata.getExecutorId(), status.getSlaveId(), status.getState().ordinal());
+
+                        if (executorMetadata != null) {
+                            if (isExecutorTask(taskId)) {
+                                if (isExecutorTask(taskId))
+                                    executorLost(driver, executorMetadata.getExecutorId(), status.getSlaveId(), status.getState().ordinal());
+                            }
+                            if (executorMetadata.getServerTaskId().equals(taskId))
+                                cluster.serverLost(executorMetadata);
+                        }
                     } else {
 
-                        cluster.metadataForExecutor(executorId);
+                        cluster.unassociateTaskId(taskId);
 
-                        if (isExecutorTask(taskId) && executorMetadata != null)
-                            // TODO remove executor
-                            executorMetadata.clear();
+                        if (executorMetadata != null) {
+                            if (isExecutorTask(taskId)) {
+                                if (isExecutorTask(taskId))
+                                    executorLost(driver, executorMetadata.getExecutorId(), status.getSlaveId(), status.getState().ordinal());
+                            }
+                            if (executorMetadata.getServerTaskId() != null && executorMetadata.getServerTaskId().equals(taskId))
+                                cluster.serverLost(executorMetadata);
+                        }
 
                         // TODO trigger node restart on error/failed/lost state
 
@@ -266,17 +275,16 @@ public final class CassandraScheduler implements Scheduler {
             if (!executorMetadata.isRunning()) {
                 if (cluster.canAddNode() && executorMetadata.shouldTriggerLaunch()) {
                     if (launchNode(marker, driver, offer, executorMetadata)) {
-                        cluster.nodeInitializing();
+                        cluster.nodeFlapped();
                         offerUsed = true;
                     } else
                         executorMetadata.notLaunched();
-                }
-                else if (executorMetadata.isLaunched()) {
+                } else if (executorMetadata.isLaunched()) {
                     // TODO this state is reached after the C* daemon has been launched but before we recognize it as running.
 
                     executorMetadata.setRunning();
 
-                    cluster.nodeRunning();
+                    cluster.nodeFlapped();
                 }
             }
 

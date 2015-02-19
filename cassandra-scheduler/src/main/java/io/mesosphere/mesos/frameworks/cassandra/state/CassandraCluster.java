@@ -237,6 +237,14 @@ public final class CassandraCluster {
         // TODO check repair + cleanup jobs
     }
 
+    public void serverLost(ExecutorMetadata executorMetadata) {
+        LOGGER.debug("Cassandra server {} lost", executorMetadata.getExecutorId().getValue());
+
+        executorMetadata.serverLost();
+
+        // TODO check repair + cleanup jobs
+    }
+
     //
 
     public void makeSeed(ExecutorMetadata executorMetadata) {
@@ -255,11 +263,7 @@ public final class CassandraCluster {
         return nextNodeAddTime < clock.now().getMillis();
     }
 
-    public void nodeInitializing() {
-        nextNodeAddTime = Long.MAX_VALUE;
-    }
-
-    public void nodeRunning() {
+    public void nodeFlapped() {
         nextNodeAddTime = clock.now().getMillis() + bootstrapGraceTimeMillis;
     }
 

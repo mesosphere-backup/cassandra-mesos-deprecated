@@ -154,6 +154,7 @@ public final class ApiController {
                     json.writeBooleanField("healthy", hcd.getHealthy());
                     json.writeStringField("msg", hcd.getMsg());
 
+                    json.writeStringField("operation_mode", hcd.getInfo().getOperationMode());
                     json.writeStringField("cluster_name", hcd.getInfo().getClusterName());
                     json.writeStringField("data_center", hcd.getInfo().getDataCenter());
                     json.writeStringField("rack", hcd.getInfo().getRack());

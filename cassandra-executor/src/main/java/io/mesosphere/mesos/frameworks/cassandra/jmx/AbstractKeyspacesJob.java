@@ -13,10 +13,12 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class AbstractKeyspacesJob {
+public class AbstractKeyspacesJob implements Closeable {
 
     protected final long startTimestamp = System.currentTimeMillis();
 
@@ -27,13 +29,27 @@ public class AbstractKeyspacesJob {
 
     }
 
-    protected void start(JmxConnect jmxConnect) {
+    protected boolean start(JmxConnect jmxConnect) {
         this.jmxConnect = jmxConnect;
+
+        if (!"NORMAL".equals(jmxConnect.getStorageServiceProxy().getOperationMode()))
+            return false;
 
         keyspaces = new CopyOnWriteArrayList<>(jmxConnect.getStorageServiceProxy().getKeyspaces());
         keyspaces.remove("system");
 //        keyspaces.remove("system_auth");
 //        keyspaces.remove("system_traces");
+
+        return true;
+    }
+
+    @Override
+    public void close() {
+        try {
+            jmxConnect.close();
+        } catch (IOException e) {
+            // ignore
+        }
     }
 
     public long getStartTimestamp() {

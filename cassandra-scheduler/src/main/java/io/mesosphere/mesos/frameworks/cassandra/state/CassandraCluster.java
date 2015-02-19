@@ -22,6 +22,8 @@ import io.mesosphere.mesos.util.Clock;
 import io.mesosphere.mesos.util.SystemClock;
 import org.apache.mesos.Protos;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
@@ -39,6 +41,7 @@ import static io.mesosphere.mesos.util.Tuple2.tuple2;
  * STUB to abstract state management.
  */
 public final class CassandraCluster {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CassandraCluster.class);
 
     // see: http://www.datastax.com/documentation/cassandra/2.1/cassandra/security/secureFireWall_r.html
     private static final Map<String, Long> defaultCassandraPortMappings = unmodifiableHashMap(
@@ -170,23 +173,12 @@ public final class CassandraCluster {
         return storagePort;
     }
 
-    public boolean shouldRunHealthCheck(Protos.ExecutorID executorID) {
-        ExecutorMetadata executorMetadata = metadataForExecutor(executorID);
-
-        return executorMetadata != null
-                && clock.now().getMillis() > executorMetadata.getLastHealthCheck() + healthCheckIntervalMillis;
-
-    }
-
-    public ExecutorMetadata metadataForExecutor(Protos.ExecutorID executorId) {
-        return executorId != null ? executorMetadataMap.get(executorId) : null;
-    }
+    //
 
     public ExecutorMetadata allocateNewExecutor(String hostname) {
         for (ExecutorMetadata executorMetadata : executorMetadataMap.values())
             if (hostname.equals(executorMetadata.getHostname()))
                 return null;
-
 
         Protos.ExecutorID executorId = executorId(name + ".node." + hostname + ".executor");
 
@@ -196,8 +188,56 @@ public final class CassandraCluster {
             assert false;
         else
             executorMetadata.updateHostname(hostname, jmxPort);
+
+        LOGGER.debug("Allocated new executor {} on host {}/{}", executorId.getValue(), hostname, executorMetadata.getIp());
+
         return executorMetadata;
     }
+
+    public ExecutorMetadata metadataForExecutor(Protos.ExecutorID executorId) {
+        return executorId != null ? executorMetadataMap.get(executorId) : null;
+    }
+
+    public ExecutorMetadata metadataForTask(Protos.TaskID taskId) {
+        return metadataForExecutor(taskToExecutor.get(taskId));
+    }
+
+    public ExecutorMetadata unassociateTaskId(Protos.TaskID taskId) {
+        Protos.ExecutorID executorId = taskToExecutor.remove(taskId);
+        LOGGER.debug("removing taskId {} from executor {}", taskId.getValue(), executorId != null ? executorId.getValue() : null);
+        return metadataForExecutor(executorId);
+    }
+
+    public Protos.TaskID createTaskId(ExecutorMetadata executorMetadata, String suffix) {
+        return associateTaskId(executorMetadata, executorMetadata.createTaskId(suffix));
+    }
+
+    public Protos.TaskID associateTaskId(ExecutorMetadata executorMetadata, Protos.TaskID taskId) {
+        LOGGER.debug("associated taskId {} to executor {}", taskId.getValue(), executorMetadata.getExecutorId().getValue());
+        taskToExecutor.put(taskId, executorMetadata.getExecutorId());
+        return taskId;
+    }
+
+    public void executorLost(Protos.ExecutorID executorId) {
+        LOGGER.debug("executor {} lost", executorId.getValue());
+
+        for (Iterator<Map.Entry<Protos.TaskID, Protos.ExecutorID>> iter = taskToExecutor.entrySet().iterator();
+             iter.hasNext(); ) {
+            Map.Entry<Protos.TaskID, Protos.ExecutorID> entry = iter.next();
+            if (entry.getValue().equals(executorId)) {
+                LOGGER.debug("executor {} lost with task {}", executorId.getValue(), entry.getKey().getValue());
+                iter.remove();
+            }
+        }
+
+        ExecutorMetadata executorMetadata = executorMetadataMap.remove(executorId);
+        if (executorMetadata != null)
+            executorMetadata.executorLost();
+
+        // TODO check repair + cleanup jobs
+    }
+
+    //
 
     public void makeSeed(ExecutorMetadata executorMetadata) {
         seedNodeExecutors.add(executorMetadata.getExecutorId());
@@ -229,6 +269,14 @@ public final class CassandraCluster {
 
     public long getBootstrapGraceTimeMillis() {
         return bootstrapGraceTimeMillis;
+    }
+
+    public boolean shouldRunHealthCheck(Protos.ExecutorID executorID) {
+        ExecutorMetadata executorMetadata = metadataForExecutor(executorID);
+
+        return executorMetadata != null
+                && clock.now().getMillis() > executorMetadata.getLastHealthCheck() + healthCheckIntervalMillis;
+
     }
 
     public long getHealthCheckIntervalMillis() {
@@ -314,34 +362,6 @@ public final class CassandraCluster {
         ExecutorMetadata executorMetadata = metadataForExecutor(executorId);
         if (executorMetadata != null)
             executorMetadata.updateHealthCheck(clock.now().getMillis(), healthCheckDetails);
-    }
-
-    public Protos.TaskID createTaskId(ExecutorMetadata executorMetadata, String suffix) {
-        return associateTaskId(executorMetadata, executorMetadata.createTaskId(suffix));
-    }
-
-    public Protos.TaskID associateTaskId(ExecutorMetadata executorMetadata, Protos.TaskID taskId) {
-        taskToExecutor.put(taskId, executorMetadata.getExecutorId());
-        return taskId;
-    }
-
-    public ExecutorMetadata unassociateTaskId(Protos.TaskID taskId) {
-        return metadataForExecutor(taskToExecutor.remove(taskId));
-    }
-
-    public void executorLost(Protos.ExecutorID executorId) {
-        for (Iterator<Map.Entry<Protos.TaskID, Protos.ExecutorID>> iter = taskToExecutor.entrySet().iterator();
-             iter.hasNext(); ) {
-            Map.Entry<Protos.TaskID, Protos.ExecutorID> entry = iter.next();
-            if (entry.getValue().equals(executorId))
-                iter.remove();
-        }
-
-        ExecutorMetadata executorMetadata = executorMetadataMap.remove(executorId);
-        if (executorMetadata != null)
-            executorMetadata.executorLost();
-
-        // TODO check repair + cleanup jobs
     }
 
     public double getCpuCores() {

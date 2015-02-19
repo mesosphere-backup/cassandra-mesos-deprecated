@@ -100,15 +100,23 @@ public final class CassandraScheduler implements Scheduler {
         final Marker taskIdMarker = MarkerFactory.getMarker("taskId:" + status.getTaskId().getValue());
         LOGGER.debug(taskIdMarker, "> statusUpdate(driver : {}, status : {})", driver, protoToString(status));
         try {
-            final ExecutorID executorId = status.getExecutorId();
-            final TaskID taskId = status.getTaskId();
-            final SlaveStatusDetails statusDetails;
+            ExecutorID executorId = status.getExecutorId();
+            TaskID taskId = status.getTaskId();
+
+            SlaveStatusDetails statusDetails;
             if (!status.getData().isEmpty()) {
                 statusDetails = SlaveStatusDetails.parseFrom(status.getData());
             } else {
                 statusDetails = SlaveStatusDetails.getDefaultInstance();
             }
             LOGGER.info("Status update: {} for task={} executorID={}", status.getState(), taskId.getValue(), executorId.getValue());
+
+            ExecutorMetadata executorMetadata = cluster.metadataForExecutor(executorId);
+            if (executorMetadata == null)
+                executorMetadata = cluster.metadataForTask(taskId);
+            if (executorMetadata == null)
+                LOGGER.warn("No metadata for executor {} / task {}", executorId.getValue(), taskId.getValue());
+
             switch (status.getState()) {
                 case TASK_STAGING:
                 case TASK_STARTING:
@@ -117,10 +125,12 @@ public final class CassandraScheduler implements Scheduler {
                         case NULL_DETAILS:
                             break;
                         case ROLLED_OUT_DETAILS:
-                            cluster.metadataForExecutor(executorId).rolledOut();
+                            if (executorMetadata != null)
+                                executorMetadata.rolledOut();
                             break;
                         case LAUNCHED_DETAILS:
-                            cluster.metadataForExecutor(executorId).launched();
+                            if (executorMetadata != null)
+                                executorMetadata.launched();
                             break;
                         case ERROR_DETAILS:
                             break;
@@ -140,15 +150,15 @@ public final class CassandraScheduler implements Scheduler {
                         // there is the possibility that the executorId we get in the task status is empty,
                         // so here we use the taskId to lookup the executorId based on the tasks we're tracking
                         // to try and have a more accurate value.
-                        ExecutorMetadata executorMetadata = cluster.unassociateTaskId(taskId);
-                        if (executorMetadata == null)
-                            throw new NullPointerException("No executor found for taskId=" + taskId.getValue());
-                        executorLost(driver, executorMetadata.getExecutorId(), status.getSlaveId(), status.getState().ordinal());
+                        cluster.unassociateTaskId(taskId);
+                        if (isExecutorTask(taskId) && executorMetadata != null)
+                            executorLost(driver, executorMetadata.getExecutorId(), status.getSlaveId(), status.getState().ordinal());
                     } else {
 
-                        ExecutorMetadata executorMetadata = cluster.metadataForExecutor(executorId);
+                        cluster.metadataForExecutor(executorId);
 
-                        if (isMainTask(taskId))
+                        if (isExecutorTask(taskId) && executorMetadata != null)
+                            // TODO remove executor
                             executorMetadata.clear();
 
                         // TODO trigger node restart on error/failed/lost state
@@ -157,10 +167,12 @@ public final class CassandraScheduler implements Scheduler {
                             case NULL_DETAILS:
                                 break;
                             case ROLLED_OUT_DETAILS:
-                                executorMetadata.rolledOut();
+                                if (executorMetadata != null)
+                                    executorMetadata.rolledOut();
                                 break;
                             case LAUNCHED_DETAILS:
-                                executorMetadata.launched();
+                                if (executorMetadata != null)
+                                    executorMetadata.launched();
                                 break;
                             case ERROR_DETAILS:
                                 LOGGER.error(taskIdMarker, protoToString(statusDetails.getSlaveErrorDetails()));
@@ -186,7 +198,7 @@ public final class CassandraScheduler implements Scheduler {
         LOGGER.trace(taskIdMarker, "< statusUpdate(driver : {}, status : {})", driver, protoToString(status));
     }
 
-    private static boolean isMainTask(TaskID taskId) {
+    private static boolean isExecutorTask(TaskID taskId) {
         return taskId.getValue().endsWith(EXECUTOR_SUFFIX);
     }
 
@@ -246,8 +258,9 @@ public final class CassandraScheduler implements Scheduler {
         for (ExecutorID executorID : offer.getExecutorIdsList()) {
             ExecutorMetadata executorMetadata = cluster.metadataForExecutor(executorID);
             if (executorMetadata == null) {
-                // oops - no information about executor!
-                assert false;
+                LOGGER.warn(marker, "No information about executor {}", executorID.getValue());
+                // TODO no information about executor!
+                continue;
             }
 
             if (!executorMetadata.isRunning()) {
@@ -396,7 +409,8 @@ public final class CassandraScheduler implements Scheduler {
                 .build();
         LOGGER.debug(marker, "Launching executor = {} with task = {}", protoToString(info), protoToString(task));
 
-        executorMetadata.setExecutorInfo(info);
+        executorMetadata.setExecutorInfo(info, taskId);
+        cluster.associateTaskId(executorMetadata, taskId);
 
         driver.launchTasks(Collections.singletonList(offer.getId()), Collections.singletonList(task));
     }
@@ -451,7 +465,7 @@ public final class CassandraScheduler implements Scheduler {
         LOGGER.debug(marker, "Launching CASSANDRA_NODE_LAUNCH task = {}", protoToString(task));
 
         cluster.associateTaskId(executorMetadata, taskId);
-        executorMetadata.setMainTaskId(taskId);
+        executorMetadata.setServerTaskId(taskId);
 
         driver.launchTasks(Collections.singletonList(offer.getId()), Collections.singletonList(task));
 

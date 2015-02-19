@@ -37,10 +37,11 @@ public class ExecutorMetadata {
 
     private volatile long lastRepair;
 
-    private Protos.TaskID mainTaskId;
+    private Protos.TaskID serverTaskId;
     private Protos.ExecutorInfo executorInfo;
 
     private final AtomicReference<ExecutorStatus> status = new AtomicReference<>(ExecutorStatus.ROLLING_OUT);
+    private Protos.TaskID executorTaskId;
 
     public ExecutorMetadata(Protos.ExecutorID executorId) {
         this.executorId = executorId;
@@ -129,16 +130,21 @@ public class ExecutorMetadata {
         return executorInfo;
     }
 
-    public void setExecutorInfo(Protos.ExecutorInfo executorInfo) {
+    public void setExecutorInfo(Protos.ExecutorInfo executorInfo, Protos.TaskID taskId) {
         this.executorInfo = executorInfo;
+        this.executorTaskId = taskId;
     }
 
-    public Protos.TaskID getMainTaskId() {
-        return mainTaskId;
+    public Protos.TaskID getExecutorTaskId() {
+        return executorTaskId;
     }
 
-    public void setMainTaskId(Protos.TaskID mainTaskId) {
-        this.mainTaskId = mainTaskId;
+    public Protos.TaskID getServerTaskId() {
+        return serverTaskId;
+    }
+
+    public void setServerTaskId(Protos.TaskID serverTaskId) {
+        this.serverTaskId = serverTaskId;
     }
 
     @Override
@@ -154,7 +160,7 @@ public class ExecutorMetadata {
 
     public Protos.TaskID createTaskId(String suffix) {
         return Protos.TaskID.newBuilder()
-                .setValue(mainTaskId.getValue() + suffix)
+                .setValue(serverTaskId.getValue() + suffix)
                 .build();
     }
 

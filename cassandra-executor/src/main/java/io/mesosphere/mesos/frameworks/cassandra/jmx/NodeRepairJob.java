@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import javax.management.ListenerNotFoundException;
 import javax.management.Notification;
 import javax.management.NotificationListener;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,12 +38,15 @@ public class NodeRepairJob extends AbstractKeyspacesJob implements NotificationL
     public NodeRepairJob() {
     }
 
-    public void start(JmxConnect jmxConnect) {
-        super.start(jmxConnect);
+    public boolean start(JmxConnect jmxConnect) {
+        if (!super.start(jmxConnect))
+            return false;
 
         jmxConnect.getStorageServiceProxy().addNotificationListener(this, null, null);
 
         LOGGER.info("Initiated repair job for keyspaces {}", keyspaces);
+
+        return true;
     }
 
     public boolean isFinished() {
@@ -90,6 +94,7 @@ public class NodeRepairJob extends AbstractKeyspacesJob implements NotificationL
             long duration = System.currentTimeMillis() - startTimestamp;
             LOGGER.info("Repair job finished in {} seconds : {}", duration / 1000L, keyspaceStatus);
             jmxConnect.getStorageServiceProxy().removeNotificationListener(this);
+            close();
         } catch (ListenerNotFoundException ignored) {
             // ignore this
         }

@@ -13,6 +13,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra;
 
+import ch.qos.logback.classic.LoggerContext;
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.Yaml;
 import com.google.common.base.Joiner;
 import com.google.common.io.Files;
@@ -43,6 +44,13 @@ import static io.mesosphere.mesos.util.ProtoUtils.protoToString;
 
 public final class CassandraExecutor implements Executor {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraExecutor.class);
+
+    static {
+        // don't let logback load classes ...
+        // logback loads classes mentioned in stack traces...
+        // this may involve C* node classes - and that may cause strange exceptions hiding the original cause
+        ((LoggerContext)LoggerFactory.getILoggerFactory()).setPackagingDataEnabled(false);
+    }
 
     private volatile Process process;
     private volatile TaskID serverTaskID;
@@ -120,8 +128,12 @@ public final class CassandraExecutor implements Executor {
                     NodeRepairJob currentRepair = repair.get();
                     if (currentRepair == null || currentRepair.isFinished()) {
                         repair.set(currentRepair = new NodeRepairJob());
-                        currentRepair.start(new JmxConnect(repairTask.getJmx()));
-                        currentRepair.repairNextKeyspace();
+                        if (currentRepair.start(new JmxConnect(repairTask.getJmx())))
+                            currentRepair.repairNextKeyspace();
+                        else {
+                            currentRepair.close();
+                            repair.set(null);
+                        }
                     }
                 case CASSANDRA_NODE_REPAIR_STATUS:
                     currentRepair = repair.get();
@@ -164,6 +176,7 @@ public final class CassandraExecutor implements Executor {
         } catch (VirtualMachineError e) {
             throw e;
         } catch (Throwable e) {
+            e.printStackTrace();
             final String msg = "Error starting task due to exception.";
             LOGGER.error(taskIdMarker, msg, e);
             final SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
@@ -297,10 +310,6 @@ public final class CassandraExecutor implements Executor {
         CassandraNodeHealthCheckDetails.Builder builder = CassandraNodeHealthCheckDetails.newBuilder();
         CassandraTaskProtos.JmxConnect jmxInfo = healthCheckTask.getJmx();
         try (JmxConnect jmx = new JmxConnect(jmxInfo)) {
-
-            // TODO Robert : we should add some "timeout" that allows C* to start and join
-            // I.e. track status/operation-mode changes
-
             CassandraNodeInfo info = buildInfo(jmx);
             builder.setInfo(info)
                    .setHealthy(true);
@@ -328,26 +337,41 @@ public final class CassandraExecutor implements Executor {
     private static CassandraNodeInfo buildInfo(JmxConnect jmx) throws UnknownHostException {
         Nodetool nodetool = new Nodetool(jmx);
 
-        String endpoint = nodetool.getEndpoint();
-
-        // TODO HC response might be a bit over-engineered
 
         // C* should be considered healthy, if the information can be collected.
         // All flags can be manually set by any administrator and represent a valid state.
+
+        String operationMode = nodetool.getOperationMode();
+        boolean joined = nodetool.isJoined();
+        boolean gossipInitialized = nodetool.isGossipInitialized();
+        boolean gossipRunning = nodetool.isGossipRunning();
+        boolean nativeTransportRunning = nodetool.isNativeTransportRunning();
+        boolean rpcServerRunning = nodetool.isRPCServerRunning();
+
+        boolean valid = "NORMAL".equals(operationMode);
+
+        LOGGER.info("Cassandra node status: operationMode={}, joined={}, gossipInitialized={}, gossipRunning={}, nativeTransportRunning={}, rpcServerRunning={}",
+                operationMode, joined, gossipInitialized, gossipRunning, nativeTransportRunning, rpcServerRunning);
+
+        String endpoint = valid ? nodetool.getEndpoint() : null;
+        int tokenCount = valid ? nodetool.getTokenCount() : 0;
+        String dataCenter = valid ? nodetool.getDataCenter(endpoint) : null;
+        String rack = valid ? nodetool.getRack(endpoint) : null;
+
         return CassandraNodeInfo.newBuilder()
-                .setOperationMode(nodetool.getOperationMode())
-                .setJoined(nodetool.isJoined())
-                .setGossipInitialized(nodetool.isGossipInitialized())
-                .setGossipRunning(nodetool.isGossipRunning())
-                .setNativeTransportRunning(nodetool.isNativeTransportRunning())
-                .setRpcServerRunning(nodetool.isRPCServerRunning())
+                .setOperationMode(operationMode)
+                .setJoined(joined)
+                .setGossipInitialized(gossipInitialized)
+                .setGossipRunning(gossipRunning)
+                .setNativeTransportRunning(nativeTransportRunning)
+                .setRpcServerRunning(rpcServerRunning)
                 .setUptimeMillis(nodetool.getUptimeInMillis())
                 .setVersion(nodetool.getVersion())
                 .setHostId(nodetool.getHostID())
                 .setEndpoint(endpoint)
-                .setTokenCount(nodetool.getTokenCount())
-                .setDataCenter(nodetool.getDataCenter(endpoint))
-                .setRack(nodetool.getRack(endpoint))
+                .setTokenCount(tokenCount)
+                .setDataCenter(dataCenter)
+                .setRack(rack)
                 .setClusterName(nodetool.getClusterName())
                 .build();
     }

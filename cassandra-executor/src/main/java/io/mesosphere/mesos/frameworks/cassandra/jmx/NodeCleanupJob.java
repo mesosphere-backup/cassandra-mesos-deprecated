@@ -28,10 +28,13 @@ public class NodeCleanupJob extends AbstractKeyspacesJob {
     public NodeCleanupJob() {
     }
 
-    public void start(JmxConnect jmxConnect) {
-        super.start(jmxConnect);
+    public boolean start(JmxConnect jmxConnect) {
+        if (!super.start(jmxConnect))
+            return false;
 
         LOGGER.info("Initiated cleanup job for keyspaces {}", keyspaces);
+
+        return true;
     }
 
     public void cleanupBlocking() {

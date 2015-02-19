@@ -30,9 +30,9 @@
     <logger name="org.jboss.logging" level="warn"/>
     <logger name="org.xnio" level="info"/>
 
-    <logger name="io.mesosphere" level="trace"/>
+    <logger name="io.mesosphere" level="trace" packagingDataEnabled="false"/>
 
-    <root level="info">
+    <root level="info" packagingDataEnabled="false">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
     </root>

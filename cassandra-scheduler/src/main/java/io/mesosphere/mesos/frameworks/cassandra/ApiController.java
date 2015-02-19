@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -80,7 +81,7 @@ public final class ApiController {
     }
 
     @GET
-    @Path("/all-nodes")
+    @Path("/status")
     @Produces("application/json")
     public Response allNodes() {
         StringWriter sw = new StringWriter();
@@ -116,9 +117,10 @@ public final class ApiController {
 
             writeSeedIps(json);
 
+            json.writeNumberField("health_check_interval_millis", cluster.getHealthCheckIntervalMillis());
+
             json.writeObjectFieldStart("node_bootstrap");
             json.writeNumberField("bootstrap_grace_time_millis", cluster.getBootstrapGraceTimeMillis());
-            json.writeNumberField("health_check_interval_millis", cluster.getHealthCheckIntervalMillis());
             json.writeBooleanField("could_add_node", cluster.canAddNode());
             json.writeNumberField("next_possible_node_launch", cluster.getNextNodeLaunchTime());
             json.writeEndObject();
@@ -181,6 +183,38 @@ public final class ApiController {
 
         return Response.ok(sw.toString(), "application/json").build();
     }
+
+    // cluster scaling
+
+    @GET
+    @Path("/scale/nodes")
+    @Produces("application/json")
+    public Response updateNodeCount(@QueryParam("nodes") int nodeCount) {
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            CassandraCluster cluster = CassandraCluster.singleton();
+            json.writeNumberField("old_node_count", cluster.getNodeCount());
+            json.writeNumberField("seed_node_count", cluster.getSeedNodeCount());
+            int newCount = cluster.updateNodeCount(nodeCount);
+            json.writeBooleanField("applied", newCount == nodeCount);
+            json.writeNumberField("new_node_count", newCount);
+
+            json.writeEndObject();
+            json.close();
+        } catch (Exception e) {
+            LOGGER.error("Failed to build JSON response", e);
+            return Response.serverError().build();
+        }
+        return Response.ok(sw.toString(), "application/json").build();
+    }
+
+
+    // repair stuff
 
     @GET
     @Path("/repair/start")

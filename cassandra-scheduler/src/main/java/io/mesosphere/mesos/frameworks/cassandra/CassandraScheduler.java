@@ -141,6 +141,8 @@ public final class CassandraScheduler implements Scheduler {
                         // so here we use the taskId to lookup the executorId based on the tasks we're tracking
                         // to try and have a more accurate value.
                         ExecutorMetadata executorMetadata = cluster.unassociateTaskId(taskId);
+                        if (executorMetadata == null)
+                            throw new NullPointerException("No executor found for taskId=" + taskId.getValue());
                         executorLost(driver, executorMetadata.getExecutorId(), status.getSlaveId(), status.getState().ordinal());
                     } else {
 

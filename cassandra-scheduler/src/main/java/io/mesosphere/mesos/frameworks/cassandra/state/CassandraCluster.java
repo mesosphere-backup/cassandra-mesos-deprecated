@@ -257,6 +257,13 @@ public final class CassandraCluster {
         return new ArrayList<>(executorMetadataMap.values());
     }
 
+    public int updateNodeCount(int nodeCount) {
+        if (nodeCount < seedNodeCount)
+            return this.nodeCount;
+        this.nodeCount = nodeCount;
+        return nodeCount;
+    }
+
     public <J extends ClusterJob> J currentClusterJob() {
         return (J) currentClusterJob.get();
     }

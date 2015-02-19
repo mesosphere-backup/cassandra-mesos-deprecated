@@ -116,7 +116,7 @@ public final class ApiController {
 
             writeSeedIps(json);
 
-            json.writeArrayFieldStart("node_bootstrap");
+            json.writeObjectFieldStart("node_bootstrap");
             json.writeNumberField("bootstrap_grace_time_millis", cluster.getBootstrapGraceTimeMillis());
             json.writeNumberField("health_check_interval_millis", cluster.getHealthCheckIntervalMillis());
             json.writeBooleanField("could_add_node", cluster.canAddNode());

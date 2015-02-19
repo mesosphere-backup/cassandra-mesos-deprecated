@@ -14,9 +14,9 @@
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Optional;
+import io.mesosphere.mesos.frameworks.cassandra.state.CassandraCluster;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.ProtoUtils;
-import io.mesosphere.mesos.util.SystemClock;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos.Credential;
 import org.apache.mesos.Protos.FrameworkInfo;
@@ -25,6 +25,7 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.jetbrains.annotations.NotNull;
+import org.joda.time.Duration;
 import org.joda.time.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +63,7 @@ public final class Main {
         final long      resourceMemoryMegabytes = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_MEM_MB").or("2048"));
         final long      resourceDiskMegabytes   = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_DISK_MB").or("2048"));
         final long      healthCheckIntervalSec  = Long.parseLong(       Env.option("CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS").or("60"));
+        final long      bootstrapGraceTimeSec   = Long.parseLong(       Env.option("CASSANDRA_BOOTSTRAP_GRACE_SECONDS").or("5"));
         final String    cassandraVersion        =                       Env.option("CASSANDRA_VERSION").or("2.1.2");
         final String    frameworkName           = frameworkName(        Env.option("CASSANDRA_CLUSTER_NAME"));
 
@@ -78,17 +80,15 @@ public final class Main {
         final URI httpServerBaseUri = URI.create(String.format("http://%s:%d/", formatInetAddress(InetAddress.getLocalHost()), port0));
         final HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
 
-        final Scheduler scheduler = new CassandraScheduler(
-            new SystemClock(),
-            frameworkName,
-            httpServerBaseUri.toString(),
-            executorCount,
-            resourceCpuCores,
-            resourceMemoryMegabytes,
-            resourceDiskMegabytes,
-            healthCheckIntervalSec,
-            cassandraVersion
-        );
+        CassandraCluster cluster = new CassandraCluster();
+        cluster.configure(frameworkName,
+                executorCount,
+                Duration.standardSeconds(healthCheckIntervalSec),
+                Duration.standardSeconds(bootstrapGraceTimeSec),
+                resourceCpuCores, resourceMemoryMegabytes, resourceDiskMegabytes,
+                cassandraVersion);
+
+        final Scheduler scheduler = new CassandraScheduler(cluster, httpServerBaseUri.toString());
 
         final String mesosMasterZkUrl = Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");
         final MesosSchedulerDriver driver;

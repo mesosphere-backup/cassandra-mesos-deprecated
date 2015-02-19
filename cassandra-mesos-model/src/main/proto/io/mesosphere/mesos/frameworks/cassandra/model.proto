@@ -17,16 +17,16 @@ option java_outer_classname = "CassandraTaskProtos";
 
 message TaskDetails {
     required TaskType taskType = 1;
-    optional SlaveMetadataTask slaveMetadataTask = 2;
-    optional CassandraNodeRunTask cassandraNodeRunTask = 3;
+    optional CassandraNodeRolloutTask cassandraNodeRolloutTask = 2;
+    optional CassandraNodeLaunchTask cassandraNodeLaunchTask = 3;
     optional CassandraNodeShutdownTask cassandraNodeShutdownTask = 4;
     optional CassandraNodeHealthCheckTask cassandraNodeHealthCheckTask = 5;
     optional CassandraNodeRepairTask cassandraNodeRepairTask = 6;
     optional CassandraNodeCleanupTask cassandraNodeCleanupTask = 7;
 
     enum TaskType {
-        SLAVE_METADATA = 1;
-        CASSANDRA_NODE_RUN = 2;
+        CASSANDRA_NODE_ROLLOUT = 1;
+        CASSANDRA_NODE_LAUNCH = 2;
         CASSANDRA_NODE_SHUTDOWN = 3;
         CASSANDRA_NODE_HEALTH_CHECK = 4;
         CASSANDRA_NODE_REPAIR = 5;
@@ -36,18 +36,10 @@ message TaskDetails {
     }
 }
 
-message SlaveMetadataTask {
+message CassandraNodeRolloutTask {
 }
 
-message CassandraNodeRepairTask {
-    required JmxConnect jmx = 1;
-}
-
-message CassandraNodeCleanupTask {
-    required JmxConnect jmx = 1;
-}
-
-message CassandraNodeRunTask {
+message CassandraNodeLaunchTask {
     required string version = 1;
     required TaskConfig taskConfig = 2;
     repeated string command = 3;
@@ -58,6 +50,14 @@ message CassandraNodeShutdownTask {
 }
 
 message CassandraNodeHealthCheckTask {
+    required JmxConnect jmx = 1;
+}
+
+message CassandraNodeRepairTask {
+    required JmxConnect jmx = 1;
+}
+
+message CassandraNodeCleanupTask {
     required JmxConnect jmx = 1;
 }
 
@@ -92,24 +92,20 @@ message TaskEnv {
 
 message SlaveStatusDetails {
     required StatusDetailsType statusDetailsType = 1;
-    optional SlaveMetadata slaveMetadata = 2;
-    optional SlaveErrorDetails slaveErrorDetails = 3;
-    optional CassandraNodeHealthCheckDetails cassandraNodeHealthCheckDetails = 4;
-    optional CassandraNodeRepairStatus repairStatus = 5;
-    optional CassandraNodeCleanupStatus cleanupStatus = 6;
+    optional SlaveErrorDetails slaveErrorDetails = 2;
+    optional CassandraNodeHealthCheckDetails cassandraNodeHealthCheckDetails = 3;
+    optional CassandraNodeRepairStatus repairStatus = 4;
+    optional CassandraNodeCleanupStatus cleanupStatus = 5;
 
     enum StatusDetailsType {
         NULL_DETAILS = 1;
-        SLAVE_METADATA = 2;
-        ERROR_DETAILS = 3;
-        HEALTH_CHECK_DETAILS = 4;
-        REPAIR_STATUS = 5;
-        CLEANUP_STATUS = 6;
+        ROLLED_OUT_DETAILS = 2;
+        LAUNCHED_DETAILS = 3;
+        ERROR_DETAILS = 4;
+        HEALTH_CHECK_DETAILS = 5;
+        REPAIR_STATUS = 6;
+        CLEANUP_STATUS = 7;
     }
-}
-
-message SlaveMetadata {
-    optional string ip = 1;
 }
 
 message SlaveErrorDetails {

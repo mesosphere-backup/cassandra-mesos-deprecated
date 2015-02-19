@@ -15,6 +15,7 @@ package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.Yaml;
 import com.google.common.base.Joiner;
+import com.google.common.io.Files;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.frameworks.cassandra.jmx.JmxConnect;
@@ -31,8 +32,8 @@ import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
 import java.io.*;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -73,19 +74,20 @@ public final class CassandraExecutor implements Executor {
             final TaskDetails taskDetails = TaskDetails.parseFrom(data);
             LOGGER.debug(taskIdMarker, "received taskDetails: {}", protoToString(taskDetails));
             switch (taskDetails.getTaskType()) {
-                case SLAVE_METADATA:
-                    final SlaveMetadata slaveMetadata = collectSlaveMetadata();
-                    final SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
-                        .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.SLAVE_METADATA)
-                        .setSlaveMetadata(slaveMetadata)
+                case CASSANDRA_NODE_ROLLOUT:
+                    SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
+                        .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.ROLLED_OUT_DETAILS)
                         .build();
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_RUNNING, details));
                     break;
-                case CASSANDRA_NODE_RUN:
-                    final Process cassandraProcess = launchCassandraNodeTask(taskIdMarker, taskDetails.getCassandraNodeRunTask());
+                case CASSANDRA_NODE_LAUNCH:
+                    final Process cassandraProcess = launchCassandraNodeTask(taskIdMarker, taskDetails.getCassandraNodeLaunchTask());
                     process = cassandraProcess;
                     serverTaskID = task.getTaskId();
-                    driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_STARTING));
+                    details = SlaveStatusDetails.newBuilder()
+                            .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.LAUNCHED_DETAILS)
+                            .build();
+                    driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_STARTING, details));
                     break;
                 case CASSANDRA_NODE_SHUTDOWN:
                     process.destroy();
@@ -199,19 +201,59 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
-    private static SlaveMetadata collectSlaveMetadata() throws UnknownHostException {
-        return SlaveMetadata.newBuilder()
-            .setIp(getHostAddress())
-            .build();
+    private static Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraNodeLaunchTask cassandraNodeTask) throws IOException {
+
+        modifyCassandraYaml(taskIdMarker, cassandraNodeTask);
+        modifyCassandraEnvSh(taskIdMarker, cassandraNodeTask);
+
+        final ProcessBuilder processBuilder = new ProcessBuilder(cassandraNodeTask.getCommandList())
+                .directory(new File(System.getProperty("user.dir")))
+                .redirectOutput(new File("cassandra-stdout.log"))
+                .redirectError(new File("cassandra-stderr.log"));
+        for (final TaskEnv.Entry entry : cassandraNodeTask.getTaskEnv().getVariablesList()) {
+            processBuilder.environment().put(entry.getName(), entry.getValue());
+        }
+        processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
+        LOGGER.debug("Starting Process: {}", processBuilderToString(processBuilder));
+        return processBuilder.start();
     }
 
-    private static String getHostAddress() throws UnknownHostException {
-        // TODO: what to do on multihomed hosts?
-        return InetAddress.getLocalHost().getHostAddress(); //TODO(BenWhitehead): This resolution may have to be more sophisticated
+    private static void modifyCassandraEnvSh(Marker taskIdMarker, CassandraNodeLaunchTask cassandraNodeTask) throws IOException {
+        int jmxPort = 0;
+        for (TaskEnv.Entry entry : cassandraNodeTask.getTaskEnv().getVariablesList()) {
+            if ("JMX_PORT".equals(entry.getName())) {
+                jmxPort = Integer.parseInt(entry.getValue());
+                break;
+            }
+        }
+
+        if (jmxPort == 7199 || jmxPort == 0) {
+            // Don't modify, if there's nothing to do...
+            return;
+        }
+
+        LOGGER.info(taskIdMarker, "Building cassandra-env.sh");
+
+        // Unfortunately it is not possible to pass JMX_PORT as an environment variable to C* startup -
+        // it is explicitly set in cassandra-env.sh
+
+        File cassandraEnvSh = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra-env.sh");
+
+        LOGGER.info(taskIdMarker, "Reading cassandra-env.sh");
+        List<String> lines = Files.readLines(cassandraEnvSh, Charset.forName("UTF-8"));
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            if (line.startsWith("JMX_PORT="))
+                lines.set(i, "JMX_PORT=\"" + jmxPort + '"');
+        }
+        LOGGER.info(taskIdMarker, "Writing cassandra-env.sh");
+        try (PrintWriter pw = new PrintWriter(new FileWriter(cassandraEnvSh))) {
+            for (String line : lines)
+                pw.println(line);
+        }
     }
 
-    @NotNull
-    private static Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraNodeRunTask cassandraNodeTask) throws IOException {
+    private static void modifyCassandraYaml(Marker taskIdMarker, CassandraNodeLaunchTask cassandraNodeTask) throws IOException {
         LOGGER.info(taskIdMarker, "Building cassandra.yaml");
 
         File cassandraYaml = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra.yaml");
@@ -248,17 +290,6 @@ public final class CassandraExecutor implements Executor {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(cassandraYaml))) {
             yaml.dump(yamlMap, bw);
         }
-
-        final ProcessBuilder processBuilder = new ProcessBuilder(cassandraNodeTask.getCommandList())
-                .directory(new File(System.getProperty("user.dir")))
-                .redirectOutput(new File("cassandra-stdout.log"))
-                .redirectError(new File("cassandra-stderr.log"));
-        for (final TaskEnv.Entry entry : cassandraNodeTask.getTaskEnv().getVariablesList()) {
-            processBuilder.environment().put(entry.getName(), entry.getValue());
-        }
-        processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
-        LOGGER.debug("Starting Process: {}", processBuilderToString(processBuilder));
-        return processBuilder.start();
     }
 
     @NotNull

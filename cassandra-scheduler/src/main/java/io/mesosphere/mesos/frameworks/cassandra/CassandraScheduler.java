@@ -260,6 +260,8 @@ public final class CassandraScheduler implements Scheduler {
                 final SuperTask head = tasks.get(0);
                 final ExecutorInfo info = head.getExecutorInfo();
                 final boolean nodeNotAlreadyRunning = from(tasks).filter(SuperTask.taskDetailsTypeEq(TaskDetails.TaskType.CASSANDRA_NODE_RUN)).isEmpty();
+                // TODO there's a bug in current state management that causes the executorID to be accidentally removed (fixed in future PR)
+                final SlaveMetadata metadata = executorMetadata.get(executorID);
                 if (nodeNotAlreadyRunning) {
                     final List<String> errors = hasResources(offer, cpuCores, memMb, diskMb, defaultCassandraPortMappings);
                     if (!errors.isEmpty()) {
@@ -267,7 +269,6 @@ public final class CassandraScheduler implements Scheduler {
                         continue;
                     }
 
-                    final SlaveMetadata metadata = executorMetadata.get(executorID);
                     if (metadata != null) {
                         final TaskConfig taskConfig = TaskConfig.newBuilder()
                                 .addVariables(TaskConfig.Entry.newBuilder().setName("cluster_name").setStringValue(frameworkName))
@@ -323,9 +324,11 @@ public final class CassandraScheduler implements Scheduler {
                     final TaskDetails taskDetails = TaskDetails.newBuilder()
                         .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_HEALTH_CHECK)
                         .setCassandraNodeHealthCheckTask(
-                            CassandraNodeHealthCheckTask.newBuilder()
-                                .setJmxPort(defaultCassandraPortMappings.get("jmx_port"))
-                                .build()
+                                CassandraNodeHealthCheckTask.newBuilder()
+                                        .setJmx(JmxConnect.newBuilder()
+                                                .setIp(metadata.getIp())
+                                                .setJmxPort(defaultCassandraPortMappings.get("jmx_port")))
+                                        .build()
                         )
                         .build();
                     final TaskID taskId = taskId(head.getTaskInfo().getTaskId().getValue() + ".healthcheck");

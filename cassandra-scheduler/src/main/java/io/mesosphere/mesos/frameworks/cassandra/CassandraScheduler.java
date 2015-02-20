@@ -54,7 +54,7 @@ public final class CassandraScheduler implements Scheduler {
     private static final Map<String, Long> defaultCassandraPortMappings = unmodifiableHashMap(
         tuple2("storage_port", 7000L),
         tuple2("ssl_storage_port", 7001L),
-        tuple2("jmx", 7199L),
+        tuple2("jmx_port", 7199L),
         tuple2("native_transport_port", 9042L),
         tuple2("rpc_port", 9160L)
     );
@@ -323,7 +323,7 @@ public final class CassandraScheduler implements Scheduler {
                         .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_HEALTH_CHECK)
                         .setCassandraNodeHealthCheckTask(
                             CassandraNodeHealthCheckTask.newBuilder()
-                                .setJmxPort(defaultCassandraPortMappings.get("jmx"))
+                                .setJmxPort(defaultCassandraPortMappings.get("jmx_port"))
                                 .build()
                         )
                         .build();

@@ -19,6 +19,10 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -248,7 +252,7 @@ public final class CassandraCluster {
                     final Optional<ExecutorMetadata> maybeMetadata = getExecutorMetadata(executorId);
                     if (maybeMetadata.isPresent()) {
                         final ExecutorMetadata metadata = maybeMetadata.get();
-                        final CassandraNodeTask task = getServerTask(executorId, taskId, metadata);
+                        final CassandraNodeTask task = getServerTask(executorId, taskId, metadata, node.getJmxConnect());
                         node.setServerTask(task);
                         cassandraNodeTasks.add(task);
                     }
@@ -266,14 +270,38 @@ public final class CassandraCluster {
             return Optional.of(retVal);
         } else if (launchNode()) {
             clusterState.nodes(append(
-                clusterState.nodes(),
-                CassandraNode.newBuilder()
-                    .setHostname(offer.getHostname())
-                    .build()
+                    clusterState.nodes(),
+                    buildCassandraNode(offer)
             ));
             return Optional.absent();
         } else {
             return Optional.absent();
+        }
+    }
+
+    private static CassandraNode buildCassandraNode(Protos.Offer offer) {
+        CassandraNode.Builder builder = CassandraNode.newBuilder()
+                .setHostname(offer.getHostname());
+        try {
+            InetAddress ia = InetAddress.getByName(offer.getHostname());
+
+            int jmxPort = defaultCassandraPortMappings.get("jmx_port").intValue();
+            if (ia.isLoopbackAddress())
+                try (ServerSocket serverSocket = new ServerSocket(0)) {
+                    jmxPort = serverSocket.getLocalPort();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+
+            return builder.setIp(ia.getHostAddress())
+                    .setJmxConnect(JmxConnect.newBuilder()
+                            .setIp("127.0.0.1")
+                            .setJmxPort(jmxPort)
+                            // TODO JMX auth parameters go here
+                    )
+                    .build();
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -316,10 +344,10 @@ public final class CassandraCluster {
 
     @NotNull
     private CassandraNodeTask getServerTask(
-        @NotNull final String executorId,
-        @NotNull final String taskId,
-        @NotNull final ExecutorMetadata metadata
-    ) {
+            @NotNull final String executorId,
+            @NotNull final String taskId,
+            @NotNull final ExecutorMetadata metadata,
+            @NotNull final JmxConnect jmxConnect) {
         final TaskConfig taskConfig = TaskConfig.newBuilder()
             .addVariables(configValue("cluster_name", configuration.frameworkName()))
             .addVariables(configValue("broadcast_address", metadata.getIp()))
@@ -334,21 +362,22 @@ public final class CassandraCluster {
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setTaskType(TaskDetails.TaskType.CASSANDRA_SERVER_RUN)
             .setCassandraServerRunTask(
-                CassandraServerRunTask.newBuilder()
-                    //TODO(BenWhitehead) Cleanup path handling to make more maintainable across different versions of cassandra
-                    .addAllCommand(newArrayList("apache-cassandra-" + configuration.cassandraVersion() + "/bin/cassandra", "-p", "cassandra.pid"))
-                    .setTaskConfig(taskConfig)
-                    .setVersion(configuration.cassandraVersion())
-                    .setTaskEnv(taskEnv(
-                        // see conf/cassandra-env.sh in the cassandra distribution for details
-                        // about these variables.
-                        tuple2("JMX_PORT", String.valueOf(defaultCassandraPortMappings.get("jmx_port"))),
-                        tuple2("MAX_HEAP_SIZE", configuration.memMb() + "m"),
-                        // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
-                        // times. If in doubt, and if you do not particularly want to tweak, go with
-                        // 100 MB per physical CPU core.
-                        tuple2("HEAP_NEWSIZE", (int) (configuration.cpuCores() * 100) + "m")
-                    ))
+                    CassandraServerRunTask.newBuilder()
+                            //TODO(BenWhitehead) Cleanup path handling to make more maintainable across different versions of cassandra
+                            .addAllCommand(newArrayList("apache-cassandra-" + configuration.cassandraVersion() + "/bin/cassandra", "-p", "cassandra.pid"))
+                            .setTaskConfig(taskConfig)
+                            .setVersion(configuration.cassandraVersion())
+                            .setTaskEnv(taskEnv(
+                                    // see conf/cassandra-env.sh in the cassandra distribution for details
+                                    // about these variables.
+                                    tuple2("JMX_PORT", String.valueOf(defaultCassandraPortMappings.get("jmx_port"))),
+                                    tuple2("MAX_HEAP_SIZE", configuration.memMb() + "m"),
+                                    // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
+                                    // times. If in doubt, and if you do not particularly want to tweak, go with
+                                    // 100 MB per physical CPU core.
+                                    tuple2("HEAP_NEWSIZE", (int) (configuration.cpuCores() * 100) + "m")
+                            ))
+                            .setJmx(jmxConnect)
             )
             .build();
 
@@ -392,9 +421,9 @@ public final class CassandraCluster {
             .addCommandArgs("io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor")
             .setTaskEnv(taskEnvFromMap(executorEnv))
             .addAllResource(newArrayList(
-                resourceUri(getUrlForResource("/jre-" + osName + "-7.tar.gz"), true),
-                resourceUri(getUrlForResource("/apache-cassandra-" + configuration.cassandraVersion() + "-bin.tar.gz"), true),
-                resourceUri(getUrlForResource("/cassandra-executor.jar"), false)
+                    resourceUri(getUrlForResource("/jre-7-" + osName + ".tar.gz"), true),
+                    resourceUri(getUrlForResource("/apache-cassandra-" + configuration.cassandraVersion() + "-bin.tar.gz"), true),
+                    resourceUri(getUrlForResource("/cassandra-executor.jar"), false)
             ))
             .build();
     }
@@ -403,11 +432,7 @@ public final class CassandraCluster {
     private static CassandraNodeTask getHealthCheckTask(@NotNull final String executorId, @NotNull final String taskId) {
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setTaskType(TaskDetails.TaskType.CASSANDRA_SERVER_HEALTH_CHECK)
-            .setCassandraServerHealthCheckTask(
-                CassandraServerHealthCheckTask.newBuilder()
-                    .setJmxPort(defaultCassandraPortMappings.get("jmx_port"))
-                    .build()
-            )
+            .setCassandraServerHealthCheckTask(CassandraServerHealthCheckTask.getDefaultInstance())
             .build();
         return CassandraNodeTask.newBuilder()
             .setTaskId(taskId)

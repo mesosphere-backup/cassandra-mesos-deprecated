@@ -62,7 +62,7 @@
         <version.mesos>0.21.1</version.mesos>
         <version.slf4j>1.7.10</version.slf4j>
         <version.joda>2.7</version.joda>
-        <version.snakeyaml>1.14</version.snakeyaml>
+        <version.grizzly>2.16</version.grizzly>
         <version.cassandra>2.1.2</version.cassandra>
 
         <version.grizzly>2.16</version.grizzly>
@@ -115,22 +115,6 @@
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
                 <artifactId>jackson-dataformat-yaml</artifactId>
                 <version>${version.jackson}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>org.glassfish.jersey.containers</groupId>
-                <artifactId>jersey-container-grizzly2-http</artifactId>
-                <version>2.16</version>
-            </dependency>
-            <dependency>
-                <groupId>org.glassfish.jersey.media</groupId>
-                <artifactId>jersey-media-json-jackson</artifactId>
-                <version>2.16</version>
-            </dependency>
-            <dependency>
-                <groupId>org.yaml</groupId>
-                <artifactId>snakeyaml</artifactId>
-                <version>${version.snakeyaml}</version>
             </dependency>
 
             <!-- Mesos dependencies -->

@@ -121,7 +121,6 @@ message TaskDetails {
     optional CassandraNodeRepairTask cassandraNodeRepairTask = 6;
     optional CassandraNodeCleanupTask cassandraNodeCleanupTask = 7;
 
-
     enum TaskType {
         EXECUTOR_METADATA = 1;
         CASSANDRA_SERVER_RUN = 2;
@@ -214,6 +213,7 @@ message SlaveStatusDetails {
         HEALTH_CHECK_DETAILS = 4;
         REPAIR_STATUS = 5;
         CLEANUP_STATUS = 6;
+        SERVER_RUN_DETAILS = 7;
     }
 }
 

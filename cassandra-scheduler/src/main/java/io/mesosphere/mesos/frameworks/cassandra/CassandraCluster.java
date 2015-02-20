@@ -179,6 +179,11 @@ public final class CassandraCluster {
         clusterState.executorMetadata(newArrayList(update));
     }
 
+    public void recordRepairStatus(final String executorId, final CassandraNodeRepairStatus repairStatus) {
+
+    }
+
+
     public void recordHealthCheck(@NotNull final String executorId, @NotNull final CassandraNodeHealthCheckDetails details) {
         LOGGER.debug("> recordHealthCheck(executorId : {}, details : {})", executorId, protoToString(details));
         if (!details.getHealthy()) {

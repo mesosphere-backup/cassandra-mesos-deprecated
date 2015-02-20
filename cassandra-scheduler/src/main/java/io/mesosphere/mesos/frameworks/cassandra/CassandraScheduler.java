@@ -20,6 +20,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.Clock;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos.*;
@@ -358,6 +359,11 @@ public final class CassandraScheduler implements Scheduler {
     }
 
     private boolean maybeLaunchExecutor(final SchedulerDriver driver, final Offer offer, final Marker marker, final ListMultimap<ExecutorID, SuperTask> tasksByExecutor) {
+        String osName = Env.option("OS_NAME").or(Env.osFromSystemProperty());
+        String javaExec = "macosx".equals(osName)
+                ? "$(pwd)/jre*/Contents/Home/bin/java"
+                : "$(pwd)/jre*/bin/java";
+
         final int ec = tasksByExecutor.size();
         final FluentIterable<SuperTask> tasksAlreadyOnHost = from(superTasks).filter(SuperTask.hostnameEq(offer.getHostname()));
         if (ec < numberOfNodes && tasksAlreadyOnHost.isEmpty()) {
@@ -367,10 +373,10 @@ public final class CassandraScheduler implements Scheduler {
                 executorId.getValue(),
                 frameworkName,
                 commandInfo(
-                    "$(pwd)/jdk*/bin/java $JAVA_OPTS -classpath cassandra-executor.jar io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor",
+                    javaExec + " $JAVA_OPTS -classpath cassandra-executor.jar io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor",
                     environmentFromMap(executorEnv),
-                    commandUri(getUrlForResource("/jdk.tar.gz"), true),
-                    commandUri(getUrlForResource("/cassandra.tar.gz"), true),
+                    commandUri(getUrlForResource("/jre-" + osName + "-7.tar.gz"), true),
+                    commandUri(getUrlForResource("/apache-cassandra-" + cassandraVersion + "-bin.tar.gz"), true),
                     commandUri(getUrlForResource("/cassandra-executor.jar"))
                 ),
                 cpu(0.1),

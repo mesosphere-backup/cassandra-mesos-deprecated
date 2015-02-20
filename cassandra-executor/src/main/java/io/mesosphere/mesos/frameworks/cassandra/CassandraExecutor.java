@@ -15,6 +15,8 @@ package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Joiner;
 import com.google.common.io.Files;
+
+import com.fasterxml.jackson.dataformat.yaml.snakeyaml.Yaml;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.frameworks.cassandra.jmx.JmxConnect;
@@ -29,10 +31,19 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -168,12 +179,17 @@ public final class CassandraExecutor implements Executor {
 
     @NotNull
     private Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraNodeRunTask cassandraNodeTask) throws IOException {
+
         for (final TaskFile taskFile : cassandraNodeTask.getTaskFilesList()) {
             final File file = new File(taskFile.getOutputPath());
             LOGGER.debug(taskIdMarker, "Overwriting file {}", file);
             Files.createParentDirs(file);
             Files.write(taskFile.getData().toByteArray(), file);
         }
+
+        modifyCassandraYaml(taskIdMarker, cassandraNodeTask);
+        modifyCassandraEnvSh(taskIdMarker, cassandraNodeTask);
+
         final ProcessBuilder processBuilder = new ProcessBuilder(cassandraNodeTask.getCommandList())
             .directory(new File(System.getProperty("user.dir")))
             .redirectOutput(new File("cassandra-stdout.log"))
@@ -184,6 +200,80 @@ public final class CassandraExecutor implements Executor {
         processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
         LOGGER.debug("Starting Process: {}", processBuilderToString(processBuilder));
         return processBuilder.start();
+    }
+
+    private static void modifyCassandraEnvSh(Marker taskIdMarker, CassandraNodeRunTask cassandraNodeTask) throws IOException {
+        int jmxPort = 0;
+        for (TaskEnv.Entry entry : cassandraNodeTask.getTaskEnv().getVariablesList()) {
+            if ("JMX_PORT".equals(entry.getName())) {
+                jmxPort = Integer.parseInt(entry.getValue());
+                break;
+            }
+        }
+
+        if (jmxPort == 7199 || jmxPort == 0) {
+            // Don't modify, if there's nothing to do...
+            return;
+        }
+
+        LOGGER.info(taskIdMarker, "Building cassandra-env.sh");
+
+        // Unfortunately it is not possible to pass JMX_PORT as an environment variable to C* startup -
+        // it is explicitly set in cassandra-env.sh
+
+        File cassandraEnvSh = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra-env.sh");
+
+        LOGGER.info(taskIdMarker, "Reading cassandra-env.sh");
+        List<String> lines = Files.readLines(cassandraEnvSh, Charset.forName("UTF-8"));
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            if (line.startsWith("JMX_PORT="))
+                lines.set(i, "JMX_PORT=\"" + jmxPort + '"');
+        }
+        LOGGER.info(taskIdMarker, "Writing cassandra-env.sh");
+        try (PrintWriter pw = new PrintWriter(new FileWriter(cassandraEnvSh))) {
+            for (String line : lines)
+                pw.println(line);
+        }
+    }
+
+    private static void modifyCassandraYaml(Marker taskIdMarker, CassandraNodeRunTask cassandraNodeTask) throws IOException {
+        LOGGER.info(taskIdMarker, "Building cassandra.yaml");
+
+        File cassandraYaml = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra.yaml");
+
+        Yaml yaml = new Yaml();
+        Map<String, Object> yamlMap;
+        LOGGER.info(taskIdMarker, "Reading cassandra.yaml");
+        try (BufferedReader br = new BufferedReader(new FileReader(cassandraYaml))) {
+            yamlMap = (Map<String, Object>) yaml.load(br);
+        }
+        LOGGER.info(taskIdMarker, "Modifying cassandra.yaml");
+        for (TaskConfig.Entry entry : cassandraNodeTask.getTaskConfig().getVariablesList()) {
+            switch (entry.getName()) {
+                case "seeds":
+                    List<Map<String, Object>> seedProviderList = (List<Map<String, Object>>) yamlMap.get("seed_provider");
+                    Map<String, Object> seedProviderMap = seedProviderList.get(0);
+                    List<Map<String, Object>> parameters = (List<Map<String, Object>>) seedProviderMap.get("parameters");
+                    Map<String, Object> parametersMap = parameters.get(0);
+                    parametersMap.put("seeds", entry.getStringValue());
+                    break;
+                default:
+                    if (entry.hasStringValue())
+                        yamlMap.put(entry.getName(), entry.getStringValue());
+                    else if (entry.hasLongValue())
+                        yamlMap.put(entry.getName(), entry.getLongValue());
+            }
+        }
+        if (LOGGER.isDebugEnabled()) {
+            StringWriter sw = new StringWriter();
+            yaml.dump(yamlMap, sw);
+            LOGGER.debug("cassandra.yaml result: {}", sw);
+        }
+        LOGGER.info(taskIdMarker, "Writing cassandra.yaml");
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(cassandraYaml))) {
+            yaml.dump(yamlMap, bw);
+        }
     }
 
     @NotNull

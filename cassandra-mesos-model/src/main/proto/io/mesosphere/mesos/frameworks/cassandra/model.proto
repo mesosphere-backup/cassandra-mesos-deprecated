@@ -34,9 +34,11 @@ message SlaveMetadataTask {
 }
 
 message CassandraNodeRunTask {
-    repeated string command = 1;
-    optional TaskEnv taskEnv = 2;
-    repeated TaskFile taskFiles = 3;
+    required string version = 1;
+    repeated string command = 2;
+    optional TaskEnv taskEnv = 3;
+    required TaskConfig taskConfig = 4;
+    repeated TaskFile taskFiles = 5;
 }
 
 message CassandraNodeShutdownTask {
@@ -55,6 +57,16 @@ message CassandraNodeHealthCheckTask {
 message TaskFile {
     required string outputPath = 1;
     required bytes data = 2;
+}
+
+message TaskConfig {
+    message Entry {
+        required string name = 1;
+        optional string stringValue = 2;
+        optional int64 longValue = 3;
+    }
+
+    repeated Entry variables = 1;
 }
 
 /**

@@ -219,11 +219,13 @@ public final class CassandraScheduler implements Scheduler {
     @Override
     public void disconnected(final SchedulerDriver driver) {
         LOGGER.debug("disconnected(driver : {})", driver);
+        // TODO implement
     }
 
     @Override
     public void slaveLost(final SchedulerDriver driver, final SlaveID slaveId) {
         LOGGER.debug("slaveLost(driver : {}, slaveId : {})", driver, protoToString(slaveId));
+        // TODO implement
     }
 
     @Override
@@ -237,7 +239,7 @@ public final class CassandraScheduler implements Scheduler {
 
     @Override
     public void error(final SchedulerDriver driver, final String message) {
-        LOGGER.debug("error(driver : {}, message : {})", driver, message);
+        LOGGER.warn("error(driver : {}, message : {})", driver, message);
     }
 
     // ---------------------------- Helper methods ---------------------------------------------------------------------
@@ -275,7 +277,7 @@ public final class CassandraScheduler implements Scheduler {
             if (!executorMetadata.isRunning()) {
                 if (cluster.canAddNode() && executorMetadata.shouldTriggerLaunch()) {
                     if (launchNode(marker, driver, offer, executorMetadata)) {
-                        cluster.nodeFlapped();
+                        cluster.nodeRunStateUpdate();
                         offerUsed = true;
                     } else
                         executorMetadata.notLaunched();
@@ -284,7 +286,7 @@ public final class CassandraScheduler implements Scheduler {
 
                     executorMetadata.setRunning();
 
-                    cluster.nodeFlapped();
+                    cluster.nodeRunStateUpdate();
                 }
             }
 

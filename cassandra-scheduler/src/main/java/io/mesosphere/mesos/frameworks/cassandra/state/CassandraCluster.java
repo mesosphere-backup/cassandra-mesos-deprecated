@@ -263,7 +263,7 @@ public final class CassandraCluster {
         return nextNodeAddTime < clock.now().getMillis();
     }
 
-    public void nodeFlapped() {
+    public void nodeRunStateUpdate() {
         nextNodeAddTime = clock.now().getMillis() + bootstrapGraceTimeMillis;
     }
 

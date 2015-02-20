@@ -41,14 +41,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos.*;
@@ -65,9 +61,9 @@ public final class CassandraExecutor implements Executor {
     }
 
     private volatile Process process;
+    private volatile TaskID serverTaskID;
+    private volatile Boolean lastKnownStatus;
     private final AtomicReference<NodeRepairJob> repair = new AtomicReference<>();
-
-    private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
     @Override
     public void registered(final ExecutorDriver driver, final ExecutorInfo executorInfo, final FrameworkInfo frameworkInfo, final SlaveInfo slaveInfo) {
@@ -94,24 +90,29 @@ public final class CassandraExecutor implements Executor {
             final TaskDetails taskDetails = TaskDetails.parseFrom(data);
             LOGGER.debug(taskIdMarker, "received taskDetails: {}", protoToString(taskDetails));
             switch (taskDetails.getTaskType()) {
-                case SLAVE_METADATA:
-                    final SlaveMetadata slaveMetadata = collectSlaveMetadata();
-                    final SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
-                        .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.SLAVE_METADATA)
-                        .setSlaveMetadata(slaveMetadata)
+                case CASSANDRA_NODE_ROLLOUT:
+                    SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
+                        .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.ROLLED_OUT_DETAILS)
                         .build();
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_RUNNING, details));
                     break;
                 case CASSANDRA_NODE_RUN:
+                    lastKnownStatus = null;
                     final Process cassandraProcess = launchCassandraNodeTask(taskIdMarker, taskDetails.getCassandraNodeRunTask());
                     process = cassandraProcess;
-                    driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_STARTING));
-                    // TODO(BenWhitehead) this should really come from the first successful health check, but stubbed for now.
-                    scheduledExecutorService.schedule(new TaskStateChange(driver, task, TaskState.TASK_RUNNING), 15, TimeUnit.SECONDS);
+                    serverTaskID = task.getTaskId();
+                    details = SlaveStatusDetails.newBuilder()
+                            .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.RUN_DETAILS)
+                            .build();
+                    driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_STARTING, details));
                     break;
                 case CASSANDRA_NODE_SHUTDOWN:
                     process.destroy();
                     process = null;
+                    driver.sendStatusUpdate(taskStatus(task.getExecutor().getExecutorId(),
+                            serverTaskID,
+                            TaskState.TASK_FINISHED,
+                            nullSlaveStatusDetails()));
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
                     break;
                 case CASSANDRA_NODE_HEALTH_CHECK:
@@ -122,8 +123,14 @@ public final class CassandraExecutor implements Executor {
                         .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.HEALTH_CHECK_DETAILS)
                         .setCassandraNodeHealthCheckDetails(healthCheck)
                         .build();
-                    final TaskState state = healthCheck.getHealthy() ? TaskState.TASK_FINISHED : TaskState.TASK_ERROR;
-                    driver.sendStatusUpdate(taskStatus(task, state, healthCheckDetails));
+                    if (lastKnownStatus == null || healthCheck.getHealthy() != lastKnownStatus) {
+                        lastKnownStatus = healthCheck.getHealthy();
+                        driver.sendStatusUpdate(taskStatus(task.getExecutor().getExecutorId(),
+                                serverTaskID,
+                                healthCheck.getHealthy() ? TaskState.TASK_RUNNING : TaskState.TASK_ERROR,
+                                nullSlaveStatusDetails()));
+                    }
+                    driver.sendStatusUpdate(taskStatus(task, healthCheck.getHealthy() ? TaskState.TASK_FINISHED : TaskState.TASK_ERROR, healthCheckDetails));
                     break;
                 case CASSANDRA_NODE_REPAIR:
                     CassandraNodeRepairTask repairTask = taskDetails.getCassandraNodeRepairTask();
@@ -213,19 +220,7 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
-    private SlaveMetadata collectSlaveMetadata() throws UnknownHostException {
-        return SlaveMetadata.newBuilder()
-            .setIp(getHostAddress())
-            .build();
-    }
-
-    private String getHostAddress() throws UnknownHostException {
-        // TODO: what to do on multihomed hosts?
-        return InetAddress.getLocalHost().getHostAddress(); //TODO(BenWhitehead): This resolution may have to be more sophisticated
-    }
-
-    @NotNull
-    private Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraNodeRunTask cassandraNodeTask) throws IOException {
+    private static Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraNodeRunTask cassandraNodeTask) throws IOException {
 
         for (final TaskFile taskFile : cassandraNodeTask.getTaskFilesList()) {
             final File file = new File(taskFile.getOutputPath());
@@ -324,13 +319,9 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
-    private CassandraNodeHealthCheckDetails performHealthCheck(@NotNull final CassandraNodeHealthCheckTask healthCheckTask) {
+    private static CassandraNodeHealthCheckDetails performHealthCheck(@NotNull final CassandraNodeHealthCheckTask healthCheckTask) {
         CassandraNodeHealthCheckDetails.Builder builder = CassandraNodeHealthCheckDetails.newBuilder();
         try (JmxConnect jmx = new JmxConnect(healthCheckTask.getJmx())) {
-
-            // TODO Robert : we should add some "timeout" that allows C* to start and join
-            // I.e. track status/operation-mode changes
-
             CassandraNodeInfo info = buildInfo(jmx);
             builder.setHealthy(true)
                     .setInfo(info);
@@ -441,6 +432,22 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
+    private static TaskStatus taskStatus(
+            @NotNull final ExecutorID executorID,
+            @NotNull final TaskID taskID,
+            @NotNull final TaskState state,
+            @NotNull final SlaveStatusDetails details
+    ) {
+        return TaskStatus.newBuilder()
+                .setExecutorId(executorID)
+                .setTaskId(taskID)
+                .setState(state)
+                .setSource(TaskStatus.Source.SOURCE_EXECUTOR)
+                .setData(ByteString.copyFrom(details.toByteArray()))
+                .build();
+    }
+
+    @NotNull
     private static SlaveStatusDetails nullSlaveStatusDetails() {
         return SlaveStatusDetails.newBuilder()
             .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.NULL_DETAILS)
@@ -449,57 +456,10 @@ public final class CassandraExecutor implements Executor {
 
     @NotNull
     private static String processBuilderToString(@NotNull final ProcessBuilder builder) {
-        final StringBuilder sb = new StringBuilder("ProcessBuilder{\n");
-        sb.append("directory() = ").append(builder.directory());
-        sb.append(",\n");
-        sb.append("command() = ").append(Joiner.on(" ").join(builder.command()));
-        sb.append(",\n");
-        sb.append("environment() = ").append(Joiner.on("\n").withKeyValueSeparator("->").join(builder.environment()));
-        sb.append("\n}");
-        return sb.toString();
+        return "ProcessBuilder{\n" +
+                "directory() = " + builder.directory() +
+                ",\ncommand() = " + Joiner.on(" ").join(builder.command()) +
+                ",\nenvironment() = " + Joiner.on("\n").withKeyValueSeparator("->").join(builder.environment()) +
+                "\n}";
     }
-
-    private static class TaskStateChange implements Runnable {
-        @NotNull
-        private final ExecutorDriver driver;
-        @NotNull
-        private final TaskInfo task;
-        @NotNull
-        private final TaskState state;
-
-        public TaskStateChange(@NotNull final ExecutorDriver driver, @NotNull final TaskInfo task, @NotNull final TaskState state) {
-            this.driver = driver;
-            this.task = task;
-            this.state = state;
-        }
-
-        @Override
-        public void run() {
-            LOGGER.debug("Sending {} for {}", state, protoToString(task.getTaskId()));
-            driver.sendStatusUpdate(taskStatus(task, state));
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            final TaskStateChange that = (TaskStateChange) o;
-
-            if (!driver.equals(that.driver)) return false;
-            if (state != that.state) return false;
-            if (!task.equals(that.task)) return false;
-
-            return true;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = driver.hashCode();
-            result = 31 * result + task.hashCode();
-            result = 31 * result + state.hashCode();
-            return result;
-        }
-    }
-
 }

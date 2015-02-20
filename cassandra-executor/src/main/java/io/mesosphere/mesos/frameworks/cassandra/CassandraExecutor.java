@@ -332,7 +332,8 @@ public final class CassandraExecutor implements Executor {
             // I.e. track status/operation-mode changes
 
             CassandraNodeInfo info = buildInfo(jmx);
-            builder.setHealthy(true);
+            builder.setHealthy(true)
+                    .setInfo(info);
             LOGGER.info("Healthcheck succeeded: operationMode:{} joined:{} gossip:{} native:{} rpc:{} uptime:{}s endpoint:{}, dc:{}, rack:{}, hostId:{}, version:{}",
                     info.getOperationMode(),
                     info.getJoined(),
@@ -347,7 +348,7 @@ public final class CassandraExecutor implements Executor {
                     info.getVersion());
         } catch (Exception e) {
             LOGGER.warn("Healthcheck failed.", e);
-            builder.setHealthy(true)
+            builder.setHealthy(false)
                    .setMsg(e.toString());
         }
         return builder.build();

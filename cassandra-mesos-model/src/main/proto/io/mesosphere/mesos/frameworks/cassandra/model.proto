@@ -148,6 +148,7 @@ message CassandraNodeCleanupStatus {
 message CassandraNodeHealthCheckDetails {
     required bool healthy = 1;
     optional string msg = 2;
+    optional CassandraNodeInfo info = 3;
 }
 
 message CassandraNodeInfo {

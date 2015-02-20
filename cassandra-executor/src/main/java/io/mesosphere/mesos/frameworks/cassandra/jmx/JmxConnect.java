@@ -13,6 +13,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
+import io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos;
 import org.apache.cassandra.db.HintedHandOffManager;
 import org.apache.cassandra.db.HintedHandOffManagerMBean;
 import org.apache.cassandra.db.compaction.CompactionManager;
@@ -96,6 +97,10 @@ public class JmxConnect implements Closeable {
 
     public JmxConnect(String host, int port) {
         this(host, port, null, null);
+    }
+
+    public JmxConnect(CassandraTaskProtos.JmxConnect jmxInfo) {
+        this(jmxInfo.getIp(), (int) jmxInfo.getJmxPort() & 0xffff);
     }
 
     @Override
@@ -247,5 +252,4 @@ public class JmxConnect implements Closeable {
             hhProxy = newProxy(HintedHandOffManager.MBEAN_NAME, HintedHandOffManagerMBean.class);
         return hhProxy;
     }
-
 }

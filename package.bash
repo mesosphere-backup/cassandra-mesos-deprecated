@@ -4,8 +4,6 @@ set -o errexit -o nounset -o pipefail
 PROJECT_DIR=$(pwd)
 TARGET_DIR="target/framework-package"
 
-DOWNLOAD_URL_CASS="https://downloads.mesosphere.io/cassandra-mesos/cassandra/apache-cassandra-2.1.2-bin.tar.gz"
-
 VERSION=${VERSION:-"dev"}
 CLEAN_VERSION=${VERSION//\//_}
 PACKAGE_TAR="cassandra-mesos-${CLEAN_VERSION}.tar.gz"
@@ -14,35 +12,18 @@ DEPLOY_BUCKET=${DEPLOY_BUCKET:-"downloads.mesosphere.io/cassandra-mesos/artifact
 S3_DEPLOY_BUCKET="s3://${DEPLOY_BUCKET}"
 HTTPS_DEPLOY_BUCKET="https://${DEPLOY_BUCKET}"
 
-function _download {
-    wget --progress=dot -e dotbytes=1M -O $2 $1
-}
-
 function clean {(
 
     rm -rf ${TARGET_DIR}
 
 )}
 
-function download {(
+function package {(
 
     mkdir -p ${TARGET_DIR}
-    cd ${TARGET_DIR}
-    _download ${DOWNLOAD_URL_CASS} "cassandra.tar.gz"
-
-)}
-
-function preparePackage {(
-
-    download
 
     cp ${PROJECT_DIR}/cassandra-framework/target/cassandra-framework-*-jar-with-dependencies.jar ${TARGET_DIR}/cassandra-framework.jar
     cp ${PROJECT_DIR}/cassandra-executor/target/cassandra-executor-*-jar-with-dependencies.jar ${TARGET_DIR}/cassandra-executor.jar
-)}
-
-function package {(
-
-    preparePackage
 
     cd ${TARGET_DIR}
     tar czf ${PACKAGE_TAR} *

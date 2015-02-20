@@ -15,33 +15,28 @@ package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.mesosphere.mesos.util.Clock;
+import io.mesosphere.mesos.frameworks.cassandra.bindown.JreLoader;
+import io.mesosphere.mesos.frameworks.cassandra.state.CassandraCluster;
+import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 import org.jetbrains.annotations.NotNull;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
-import static com.google.common.base.Predicates.not;
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos.*;
-import static io.mesosphere.mesos.util.Functions.headOption;
-import static io.mesosphere.mesos.util.Functions.unmodifiableHashMap;
 import static io.mesosphere.mesos.util.ProtoUtils.*;
 import static io.mesosphere.mesos.util.Tuple2.tuple2;
 
@@ -50,66 +45,31 @@ public final class CassandraScheduler implements Scheduler {
 
     private static final Joiner JOINER = Joiner.on("','");
 
-    // see: http://www.datastax.com/documentation/cassandra/2.1/cassandra/security/secureFireWall_r.html
-    private static final Map<String, Long> defaultCassandraPortMappings = unmodifiableHashMap(
-        tuple2("storage_port", 7000L),
-        tuple2("storage_port_ssl", 7001L),
-        tuple2("jmx", 7199L),
-        tuple2("native_transport_port", 9042L),
-        tuple2("rpc_port", 9160L)
-    );
+    private static final Pattern URL_FOR_RESOURCE_PATTERN = Pattern.compile("(?<!:)/+");
 
-    @NotNull
-    private final Map<ExecutorID, SlaveMetadata> executorMetadata;
-    @NotNull
-    private final AtomicInteger execCounter;
-    @NotNull
-    private final Clock clock;
-    @NotNull
-    private final String frameworkName;
+    private static final String EXECUTOR_SUFFIX = ".executor";
+    private static final String HEALTHCHECK_SUFFIX = ".healthcheck";
+    private static final String REPAIR_SUFFIX = ".repair";
+    private static final String REPAIR_STATUS_SUFFIX = ".repair-status";
+    private static final String SERVER_SUFFIX = ".server";
+
     @NotNull
     private String httpServerBaseUrl;
-    private final int numberOfNodes;
-    private final double cpuCores;
-    private final long memMb;
-    private final long diskMb;
-    private final Duration healthCheckInterval;
-
-    // TODO(BenWhitehead): Fix thread safety for this state
-    @NotNull
-    private List<SuperTask> superTasks;
 
     @NotNull
     private final Map<String, String> executorEnv;
 
-    // TODO(BenWhitehead): Make this more robust
-    @NotNull
-    private final Map<ExecutorID, Instant> healthCheckHistory;
+    private final CassandraCluster cluster;
 
     public CassandraScheduler(
-        @NotNull final Clock clock,
-        @NotNull final String frameworkName,
-        @NotNull final String httpServerBaseUrl,
-        final int numberOfNodes,
-        final double cpuCores,
-        final long memMb,
-        final long diskMb,
-        final long healthCheckIntervalSeconds
+            @NotNull final CassandraCluster cluster,
+            @NotNull final String httpServerBaseUrl
     ) {
-        this.clock = clock;
-        this.frameworkName = frameworkName;
         this.httpServerBaseUrl = httpServerBaseUrl;
-        this.numberOfNodes = numberOfNodes;
-        this.cpuCores = cpuCores;
-        this.memMb = memMb;
-        this.diskMb = diskMb;
-        healthCheckInterval = Duration.standardSeconds(healthCheckIntervalSeconds);
 
-        execCounter = new AtomicInteger(0);
-        executorMetadata = Maps.newConcurrentMap();
-        superTasks = Collections.synchronizedList(Lists.<SuperTask>newArrayList());
-        healthCheckHistory = Maps.newConcurrentMap();
         executorEnv = Collections.unmodifiableMap(newHashMap("JAVA_OPTS", "-Xms256m -Xmx256m"));
+
+        this.cluster = cluster;
     }
 
     @Override
@@ -125,9 +85,8 @@ public final class CassandraScheduler implements Scheduler {
     @Override
     public void resourceOffers(final SchedulerDriver driver, final List<Offer> offers) {
         LOGGER.debug("> resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
-        for (final Offer offer : offers) {
+        for (Offer offer : offers)
             evaluateOffer(driver, offer);
-        }
         LOGGER.trace("< resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
     }
 
@@ -141,14 +100,23 @@ public final class CassandraScheduler implements Scheduler {
         final Marker taskIdMarker = MarkerFactory.getMarker("taskId:" + status.getTaskId().getValue());
         LOGGER.debug(taskIdMarker, "> statusUpdate(driver : {}, status : {})", driver, protoToString(status));
         try {
-            final ExecutorID executorId = status.getExecutorId();
-            final TaskID taskId = status.getTaskId();
-            final SlaveStatusDetails statusDetails;
+            ExecutorID executorId = status.getExecutorId();
+            TaskID taskId = status.getTaskId();
+
+            SlaveStatusDetails statusDetails;
             if (!status.getData().isEmpty()) {
                 statusDetails = SlaveStatusDetails.parseFrom(status.getData());
             } else {
                 statusDetails = SlaveStatusDetails.getDefaultInstance();
             }
+            LOGGER.info("Status update: {} for task={} executorID={}", status.getState(), taskId.getValue(), executorId.getValue());
+
+            ExecutorMetadata executorMetadata = cluster.metadataForExecutor(executorId);
+            if (executorMetadata == null)
+                executorMetadata = cluster.metadataForTask(taskId);
+            if (executorMetadata == null)
+                LOGGER.warn("No metadata for executor {} / task {}", executorId.getValue(), taskId.getValue());
+
             switch (status.getState()) {
                 case TASK_STAGING:
                 case TASK_STARTING:
@@ -156,12 +124,18 @@ public final class CassandraScheduler implements Scheduler {
                     switch (statusDetails.getStatusDetailsType()) {
                         case NULL_DETAILS:
                             break;
-                        case SLAVE_METADATA:
-                            final SlaveMetadata slaveMetadata = statusDetails.getSlaveMetadata();
-                            executorMetadata.put(executorId, slaveMetadata);
+                        case ROLLED_OUT_DETAILS:
+                            if (executorMetadata != null)
+                                executorMetadata.rolledOut();
+                            break;
+                        case LAUNCHED_DETAILS:
+                            if (executorMetadata != null)
+                                executorMetadata.launched();
                             break;
                         case ERROR_DETAILS:
                             break;
+                        default:
+                            assert false : "got unexpected status message " + statusDetails.getStatusDetailsType();
                     }
                     break;
                 case TASK_FINISHED:
@@ -173,36 +147,68 @@ public final class CassandraScheduler implements Scheduler {
                         // this code should really be handled by executorLost, but it can't due to the fact that
                         // executorLost will never be called.
 
-                        // there is the possibility that the executorId we get in the task status is empty,
-                        // so here we use the taskId to lookup the executorId based on the tasks we're tracking
-                        // to try and have a more accurate value.
-                        final ExecutorID executorIdForTask = headOption(
-                            from(superTasks).filter(SuperTask.taskIdEq(taskId)).transform(SuperTask.toExecutorId())
-                        ).or(executorId);
-                        executorLost(driver, executorIdForTask, status.getSlaveId(), status.getState().ordinal());
+                        cluster.unassociateTaskId(taskId);
+
+                        if (executorMetadata != null) {
+                            if (isExecutorTask(taskId)) {
+                                if (isExecutorTask(taskId))
+                                    executorLost(driver, executorMetadata.getExecutorId(), status.getSlaveId(), status.getState().ordinal());
+                            }
+                            if (executorMetadata.getServerTaskId().equals(taskId))
+                                cluster.serverLost(executorMetadata);
+                        }
                     } else {
-                        superTasks = filterNot(superTasks, SuperTask.taskIdEq(taskId));
-                        executorMetadata.remove(executorId);
+
+                        cluster.unassociateTaskId(taskId);
+
+                        if (executorMetadata != null) {
+                            if (isExecutorTask(taskId)) {
+                                if (isExecutorTask(taskId))
+                                    executorLost(driver, executorMetadata.getExecutorId(), status.getSlaveId(), status.getState().ordinal());
+                            }
+                            if (executorMetadata.getServerTaskId() != null && executorMetadata.getServerTaskId().equals(taskId))
+                                cluster.serverLost(executorMetadata);
+                        }
+
+                        // TODO trigger node restart on error/failed/lost state
+
                         switch (statusDetails.getStatusDetailsType()) {
                             case NULL_DETAILS:
                                 break;
-                            case SLAVE_METADATA:
+                            case ROLLED_OUT_DETAILS:
+                                if (executorMetadata != null)
+                                    executorMetadata.rolledOut();
+                                break;
+                            case LAUNCHED_DETAILS:
+                                if (executorMetadata != null)
+                                    executorMetadata.launched();
                                 break;
                             case ERROR_DETAILS:
                                 LOGGER.error(taskIdMarker, protoToString(statusDetails.getSlaveErrorDetails()));
                                 break;
                             case HEALTH_CHECK_DETAILS:
-                                healthCheckHistory.put(executorId, clock.now());
+                                cluster.updateHealthCheck(executorId, statusDetails.getCassandraNodeHealthCheckDetails());
                                 break;
+                            case REPAIR_STATUS:
+                                cluster.gotRepairStatus(executorId, statusDetails.getRepairStatus());
+                                break;
+                            case CLEANUP_STATUS:
+                                // TODO implement
+                                break;
+                            default:
+                                assert false : "got unexpected status message " + statusDetails.getStatusDetailsType();
                         }
                     }
                     break;
             }
         } catch (InvalidProtocolBufferException e) {
-            final String msg = "Error deserializing task stats data to type: " + SlaveMetadata.class.getName();
-            LOGGER.error(msg, e);
+            LOGGER.error("Error (de)serializing task", e);
         }
         LOGGER.trace(taskIdMarker, "< statusUpdate(driver : {}, status : {})", driver, protoToString(status));
+    }
+
+    private static boolean isExecutorTask(TaskID taskId) {
+        return taskId.getValue().endsWith(EXECUTOR_SUFFIX);
     }
 
     @Override
@@ -213,11 +219,13 @@ public final class CassandraScheduler implements Scheduler {
     @Override
     public void disconnected(final SchedulerDriver driver) {
         LOGGER.debug("disconnected(driver : {})", driver);
+        // TODO implement
     }
 
     @Override
     public void slaveLost(final SchedulerDriver driver, final SlaveID slaveId) {
         LOGGER.debug("slaveLost(driver : {}, slaveId : {})", driver, protoToString(slaveId));
+        // TODO implement
     }
 
     @Override
@@ -226,209 +234,273 @@ public final class CassandraScheduler implements Scheduler {
         // this method will never be called by mesos until MESOS-313 is fixed
         // https://issues.apache.org/jira/browse/MESOS-313
         LOGGER.debug(executorIdMarker, "executorLost(driver : {}, executorId : {}, slaveId : {}, status : {})", driver, protoToString(executorId), protoToString(slaveId), protoToString(status));
-        superTasks = filterNot(superTasks, SuperTask.executorIdEq(executorId));
+        cluster.executorLost(executorId);
     }
 
     @Override
     public void error(final SchedulerDriver driver, final String message) {
-        LOGGER.debug("error(driver : {}, message : {})", driver, message);
+        LOGGER.warn("error(driver : {}, message : {})", driver, message);
     }
 
     // ---------------------------- Helper methods ---------------------------------------------------------------------
 
-    /**
-     * @return boolean representing if the the offer was used
-     */
-    private boolean evaluateOffer(final SchedulerDriver driver, final Offer offer) {
-        final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname());
-        LOGGER.debug(marker, "> evaluateOffer(driver : {}, offer : {})", driver, protoToString(offer));
+    private void evaluateOffer(SchedulerDriver driver, Offer offer) {
+        Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname());
+        LOGGER.debug(marker, "evaluateOffer(driver : {}, offer : {})", driver, protoToString(offer));
+
         boolean offerUsed = false;
-        final ImmutableListMultimap<ExecutorID, SuperTask> tasksByExecutor = from(superTasks).index(SuperTask.toExecutorId());
-        if (maybeLaunchExecutor(driver, offer, marker, tasksByExecutor)) {
-            LOGGER.trace(marker, "< evaluateOffer(driver : {}, offer : {})", driver, protoToString(offer));
-            return true;
+
+        if (!cluster.hasRequiredNodes()) {
+            ExecutorMetadata executorMetadata = cluster.allocateNewExecutor(offer.getHostname());
+            if (executorMetadata != null) {
+                if (!cluster.hasRequiredSeedNodes()) {
+                    cluster.makeSeed(executorMetadata);
+
+                    LOGGER.info(marker, "Allocated executor {} on {}/{} as seed node", executorMetadata.getExecutorId().getValue(), executorMetadata.getHostname(), executorMetadata.getIp());
+                }
+                else
+                    LOGGER.info(marker, "Allocated executor {} on {}/{} as non-seed node", executorMetadata.getExecutorId().getValue(), executorMetadata.getHostname(), executorMetadata.getIp());
+
+                rolloutNode(marker, driver, offer, executorMetadata);
+                offerUsed = true;
+            }
         }
 
-        for (final ExecutorID executorID : offer.getExecutorIdsList()) {
-            final ImmutableList<SuperTask> tasks = tasksByExecutor.get(executorID);
-            if (!tasks.isEmpty()) {
-                final SuperTask head = tasks.get(0);
-                final ExecutorInfo info = head.getExecutorInfo();
-                final boolean nodeNotAlreadyRunning = from(tasks).filter(SuperTask.taskDetailsTypeEq(TaskDetails.TaskType.CASSANDRA_NODE_RUN)).isEmpty();
-                if (nodeNotAlreadyRunning) {
-                    final List<String> errors = hasResources(offer, cpuCores, memMb, diskMb, defaultCassandraPortMappings);
-                    if (!errors.isEmpty()) {
-                        LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
-                        continue;
-                    }
+        for (ExecutorID executorID : offer.getExecutorIdsList()) {
+            ExecutorMetadata executorMetadata = cluster.metadataForExecutor(executorID);
+            if (executorMetadata == null) {
+                LOGGER.warn(marker, "No information about executor {}", executorID.getValue());
+                // TODO no information about executor!
+                continue;
+            }
 
-                    final SlaveMetadata metadata = executorMetadata.get(executorID);
-                    if (metadata != null) {
-                        final String cassandraYaml = CassandraYaml.defaultCassandraYaml()
-                            .setClusterName(frameworkName)
-                            .setRpcAddress(metadata.getIp())
-                            .setListenAddress(metadata.getIp())
-                            .setStoragePort(defaultCassandraPortMappings.get("storage_port"))
-                            .setStoragePortSsl(defaultCassandraPortMappings.get("storage_port_ssl"))
-                            .setNativeTransportPort(defaultCassandraPortMappings.get("native_transport_port"))
-                            .setRpcPort(defaultCassandraPortMappings.get("rpc_port"))
-                            .setSeeds(newArrayList(from(executorMetadata.values()).transform(toIp)))
-                            .dump();
-                        final TaskDetails taskDetails = TaskDetails.newBuilder()
-                            .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_RUN)
-                            .setCassandraNodeRunTask(
-                                CassandraNodeRunTask.newBuilder()
-                                    //TODO(BenWhitehead) Cleanup path handling to make more maintainable across different versions of cassandra
-                                    .addAllCommand(newArrayList("apache-cassandra-2.1.2/bin/cassandra", "-p", "cassandra.pid"))
-                                    .addTaskFiles(
-                                        TaskFile.newBuilder()
-                                            //TODO(BenWhitehead) Cleanup path handling to make more maintainable across different versions of cassandra
-                                            .setOutputPath("apache-cassandra-2.1.2/conf/cassandra.yaml")
-                                            .setData(ByteString.copyFromUtf8(cassandraYaml))
-                                    )
-                                .setTaskEnv(taskEnv(
-                                    // see conf/cassandra-env.sh in the cassandra distribution for details
-                                    // about these variables.
-                                    tuple2("JMX_PORT", String.valueOf(defaultCassandraPortMappings.get("jmx_port"))),
-                                    tuple2("MAX_HEAP_SIZE", memMb + "m"),
-                                    // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
-                                    // times. If in doubt, and if you do not particularly want to tweak, go with
-                                    // 100 MB per physical CPU core.
-                                    tuple2("HEAP_NEWSIZE", (int) (cpuCores * 100) + "m")
-                                ))
-                            )
-                            .build();
-                        final TaskID taskId = taskId(executorID.getValue() + ".server");
-                        final TaskInfo task = TaskInfo.newBuilder()
-                            .setName(taskId.getValue())
-                            .setTaskId(taskId)
-                            .setSlaveId(offer.getSlaveId())
-                            .setData(ByteString.copyFrom(taskDetails.toByteArray()))
-                            .addAllResources(newArrayList(
-                                cpu(cpuCores),
-                                mem(memMb),
-                                disk(diskMb),
-                                ports(defaultCassandraPortMappings.values())
-                            ))
-                            .setExecutor(info)
-                            .build();
-                        LOGGER.debug(marker, "Launching CASSANDRA_NODE_RUN task = {}", protoToString(task));
-                        driver.launchTasks(newArrayList(offer.getId()), newArrayList(task));
-                        superTasks.add(new SuperTask(offer.getHostname(), task, info, taskDetails));
+            if (!executorMetadata.isRunning()) {
+                if (cluster.canAddNode() && executorMetadata.shouldTriggerLaunch()) {
+                    if (launchNode(marker, driver, offer, executorMetadata)) {
+                        cluster.nodeRunStateUpdate();
                         offerUsed = true;
-                    }
-                } else if (shouldRunHealthCheck(executorID)) {
-                    final TaskDetails taskDetails = TaskDetails.newBuilder()
-                        .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_HEALTH_CHECK)
-                        .setCassandraNodeHealthCheckTask(
-                            CassandraNodeHealthCheckTask.newBuilder()
-                                .setJmxPort(defaultCassandraPortMappings.get("jmx"))
-                                .build()
-                        )
-                        .build();
-                    final TaskID taskId = taskId(head.getTaskInfo().getTaskId().getValue() + ".healthcheck");
-                    final TaskInfo task = TaskInfo.newBuilder()
-                        .setName(taskId.getValue())
-                        .setTaskId(taskId)
-                        .setSlaveId(offer.getSlaveId())
-                        .setData(ByteString.copyFrom(taskDetails.toByteArray()))
-                        .addAllResources(newArrayList(
-                            cpu(0.1),
-                            mem(16),
-                            disk(16)
-                        ))
-                        .setExecutor(info)
-                        .build();
-                    LOGGER.debug(marker, "Launching CASSANDRA_NODE_HEALTH_CHECK task", protoToString(task));
-                    driver.launchTasks(newArrayList(offer.getId()), newArrayList(task));
-                    superTasks.add(new SuperTask(offer.getHostname(), task, info, taskDetails));
+                    } else
+                        executorMetadata.notLaunched();
+                } else if (executorMetadata.isLaunched()) {
+                    // TODO this state is reached after the C* daemon has been launched but before we recognize it as running.
+
+                    executorMetadata.setRunning();
+
+                    cluster.nodeRunStateUpdate();
+                }
+            }
+
+            if (executorMetadata.isRunning()) {
+                if (cluster.shouldRunHealthCheck(executorID)) {
+                    submitHealthCheck(marker, driver, offer, executorMetadata);
+                    offerUsed = true;
+                } else if (cluster.shouldGetRepairStatusOnExecutor(executorID)) {
+                    submitRepairStatus(marker, driver, offer, executorMetadata);
+                    offerUsed = true;
+                } else if (cluster.shouldStartRepairOnExecutor(executorID)) {
+                    submitStartRepair(marker, driver, offer, executorMetadata);
                     offerUsed = true;
                 }
             }
         }
 
-
-        if (!offerUsed) {
-            LOGGER.trace(marker, "Declining Offer: {}", offer.getId().getValue());
+        if (!offerUsed)
             driver.declineOffer(offer.getId());
-        }
-        LOGGER.trace(marker, "< evaluateOffer(driver : {}, offer : {})", driver, protoToString(offer));
-        return offerUsed;
     }
 
-    private boolean maybeLaunchExecutor(final SchedulerDriver driver, final Offer offer, final Marker marker, final ListMultimap<ExecutorID, SuperTask> tasksByExecutor) {
-        final int ec = tasksByExecutor.size();
-        final FluentIterable<SuperTask> tasksAlreadyOnHost = from(superTasks).filter(SuperTask.hostnameEq(offer.getHostname()));
-        if (ec < numberOfNodes && tasksAlreadyOnHost.isEmpty()) {
-            final ExecutorID executorId = executorId(frameworkName + ".node." + execCounter.getAndIncrement() + ".executor");
-            final ExecutorInfo info = executorInfo(
-                executorId,
-                executorId.getValue(),
-                frameworkName,
-                commandInfo(
-                    "$(pwd)/jdk*/bin/java $JAVA_OPTS -classpath cassandra-executor.jar io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor",
-                    environmentFromMap(executorEnv),
-                    commandUri(getUrlForResource("/jdk.tar.gz"), true),
-                    commandUri(getUrlForResource("/cassandra.tar.gz"), true),
-                    commandUri(getUrlForResource("/cassandra-executor.jar"))
-                ),
-                cpu(0.1),
-                mem(256),
-                disk(16)
-            );
-
-            final TaskDetails taskDetails = TaskDetails.newBuilder()
-                .setTaskType(TaskDetails.TaskType.SLAVE_METADATA)
-                .setSlaveMetadataTask(SlaveMetadataTask.newBuilder())
+    private void submitRepairStatus(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata) {
+        TaskID taskId = cluster.createTaskId(executorMetadata, REPAIR_STATUS_SUFFIX);
+        TaskDetails taskDetails = TaskDetails.newBuilder()
+                .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_REPAIR_STATUS)
                 .build();
-            final TaskID taskId = taskId(executorId.getValue());
-            final TaskInfo task = TaskInfo.newBuilder()
+        TaskInfo task = TaskInfo.newBuilder()
                 .setName(taskId.getValue())
                 .setTaskId(taskId)
                 .setSlaveId(offer.getSlaveId())
                 .setData(ByteString.copyFrom(taskDetails.toByteArray()))
                 .addAllResources(newArrayList(
-                    cpu(0.1),
-                    mem(16),
-                    disk(16)
+                        cpu(0.1),
+                        mem(16),
+                        disk(16)
+                ))
+                .setExecutor(executorMetadata.getExecutorInfo())
+                .build();
+        LOGGER.debug(marker, "Launching CASSANDRA_NODE_REPAIR_STATUS task", protoToString(task));
+        driver.launchTasks(Collections.singletonList(offer.getId()), Collections.singletonList(task));
+    }
+
+    private void submitStartRepair(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata) {
+        TaskID taskId = cluster.createTaskId(executorMetadata, REPAIR_SUFFIX);
+        TaskDetails taskDetails = TaskDetails.newBuilder()
+                .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_REPAIR)
+                .setCassandraNodeRepairTask(CassandraNodeRepairTask.newBuilder()
+                        .setJmx(jmxConnect(executorMetadata)))
+                .build();
+        TaskInfo task = TaskInfo.newBuilder()
+                .setName(taskId.getValue())
+                .setTaskId(taskId)
+                .setSlaveId(offer.getSlaveId())
+                .setData(ByteString.copyFrom(taskDetails.toByteArray()))
+                .addAllResources(newArrayList(
+                        cpu(0.1),
+                        mem(16),
+                        disk(16)
+                ))
+                .setExecutor(executorMetadata.getExecutorInfo())
+                .build();
+        LOGGER.debug(marker, "Launching CASSANDRA_NODE_REPAIR task", protoToString(task));
+        driver.launchTasks(Collections.singletonList(offer.getId()), Collections.singletonList(task));
+
+    }
+
+    private void submitHealthCheck(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata) {
+        TaskID taskId = cluster.createTaskId(executorMetadata, HEALTHCHECK_SUFFIX);
+        TaskDetails taskDetails = TaskDetails.newBuilder()
+                .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_HEALTH_CHECK)
+                .setCassandraNodeHealthCheckTask(
+                        CassandraNodeHealthCheckTask.newBuilder()
+                                .setJmx(jmxConnect(executorMetadata))
+                                .build()
+                )
+                .build();
+        TaskInfo task = TaskInfo.newBuilder()
+                .setName(taskId.getValue())
+                .setTaskId(taskId)
+                .setSlaveId(offer.getSlaveId())
+                .setData(ByteString.copyFrom(taskDetails.toByteArray()))
+                .addAllResources(newArrayList(
+                        cpu(0.1),
+                        mem(16),
+                        disk(16)
+                ))
+                .setExecutor(executorMetadata.getExecutorInfo())
+                .build();
+        LOGGER.debug(marker, "Launching CASSANDRA_NODE_HEALTH_CHECK task", protoToString(task));
+        driver.launchTasks(Collections.singletonList(offer.getId()), Collections.singletonList(task));
+    }
+
+    private void rolloutNode(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata) {
+        String osName = Env.option("OS_NAME").or(JreLoader.osFromSystemProperty());
+        String javaExec = "macosx".equals(osName)
+                ? "$(pwd)/jre*/Contents/Home/bin/java"
+                : "$(pwd)/jre*/bin/java";
+
+        ExecutorInfo info = executorInfo(
+                executorMetadata.getExecutorId(),
+                executorMetadata.getExecutorId().getValue(),
+                cluster.getName(),
+                commandInfo(
+                        javaExec + " $JAVA_OPTS -classpath cassandra-executor.jar io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor",
+                        environmentFromMap(executorEnv),
+                        commandUri(getUrlForResource("/jre-" + osName + ".tar.gz"), true),
+                        commandUri(getUrlForResource("/apache-cassandra-" + cluster.getCassandraVersion() + "-bin.tar.gz"), true),
+                        commandUri(getUrlForResource("/cassandra-executor.jar"))
+                ),
+                cpu(0.1),
+                mem(256),
+                disk(16)
+        );
+
+        TaskDetails taskDetails = TaskDetails.newBuilder()
+                .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_ROLLOUT)
+                .build();
+        TaskID taskId = taskId(executorMetadata.getExecutorId().getValue());
+        TaskInfo task = TaskInfo.newBuilder()
+                .setName(taskId.getValue())
+                .setTaskId(taskId)
+                .setSlaveId(offer.getSlaveId())
+                .setData(ByteString.copyFrom(taskDetails.toByteArray()))
+                .addAllResources(newArrayList(
+                        cpu(0.1),
+                        mem(16),
+                        disk(16)
                 ))
                 .setExecutor(info)
                 .build();
-            LOGGER.debug(marker, "Launching executor = {}", protoToString(info));
-            LOGGER.debug(marker, "Launching SLAVE_METADATA task = {}", protoToString(task));
-            driver.launchTasks(newArrayList(offer.getId()), newArrayList(task));
-            superTasks.add(new SuperTask(offer.getHostname(), task, info, taskDetails));
-            return true;
-        }
-        return false;
+        LOGGER.debug(marker, "Launching executor = {} with task = {}", protoToString(info), protoToString(task));
+
+        executorMetadata.setExecutorInfo(info, taskId);
+        cluster.associateTaskId(executorMetadata, taskId);
+
+        driver.launchTasks(Collections.singletonList(offer.getId()), Collections.singletonList(task));
     }
 
-    private boolean shouldRunHealthCheck(final ExecutorID executorID) {
-        final Optional<Instant> previousHealthCheckTime = Optional.fromNullable(healthCheckHistory.get(executorID));
-        if (previousHealthCheckTime.isPresent()) {
-            final Duration duration = new Duration(previousHealthCheckTime.get(), clock.now());
-            return duration.isLongerThan(healthCheckInterval);
-        } else {
-            return true;
+    private boolean launchNode(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata) {
+        final List<String> errors = cluster.checkResources(offer, executorMetadata);
+        if (!errors.isEmpty()) {
+            LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
+            return false;
         }
+
+        TaskConfig taskConfig = TaskConfig.newBuilder()
+                .addVariables(TaskConfig.Entry.newBuilder().setName("cluster_name").setStringValue(cluster.getName()))
+                .addVariables(TaskConfig.Entry.newBuilder().setName("broadcast_address").setStringValue(executorMetadata.getIp()))
+                .addVariables(TaskConfig.Entry.newBuilder().setName("rpc_address").setStringValue(executorMetadata.getIp()))
+                .addVariables(TaskConfig.Entry.newBuilder().setName("listen_address").setStringValue(executorMetadata.getIp()))
+                .addVariables(TaskConfig.Entry.newBuilder().setName("storage_port").setLongValue(cluster.getStoragePort()))
+                .addVariables(TaskConfig.Entry.newBuilder().setName("ssl_storage_port").setLongValue(cluster.getSslStoragePort()))
+                .addVariables(TaskConfig.Entry.newBuilder().setName("native_transport_port").setLongValue(cluster.getNativePort()))
+                .addVariables(TaskConfig.Entry.newBuilder().setName("rpc_port").setLongValue(cluster.getRpcPort()))
+                .addVariables(TaskConfig.Entry.newBuilder().setName("seeds").setStringValue(Joiner.on(',').join(newArrayList(cluster.seedsIpList()))))
+                .build();
+        TaskDetails taskDetails = TaskDetails.newBuilder()
+                .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_LAUNCH)
+                .setCassandraNodeLaunchTask(
+                        CassandraNodeLaunchTask.newBuilder()
+                                .setVersion(cluster.getCassandraVersion())
+                                .addAllCommand(newArrayList("apache-cassandra-" + cluster.getCassandraVersion() + "/bin/cassandra", "-p", "cassandra.pid"))
+                                .setTaskEnv(taskEnv(
+                                        // see conf/cassandra-env.sh in the cassandra distribution for details
+                                        // about these variables.
+                                        tuple2("JMX_PORT", String.valueOf(executorMetadata.getJmxPort())),
+                                        tuple2("MAX_HEAP_SIZE", cluster.getMemMb() + "m"),
+                                        // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
+                                        // times. If in doubt, and if you do not particularly want to tweak, go with
+                                        // 100 MB per physical CPU core.
+                                        tuple2("HEAP_NEWSIZE", (int) (cluster.getCpuCores() * 100) + "m")
+                                ))
+                                .setTaskConfig(taskConfig)
+                )
+                .build();
+        TaskID taskId = taskId(executorMetadata.getExecutorId().getValue() + SERVER_SUFFIX);
+        TaskInfo task = TaskInfo.newBuilder()
+                .setName(taskId.getValue())
+                .setTaskId(taskId)
+                .setSlaveId(offer.getSlaveId())
+                .setData(ByteString.copyFrom(taskDetails.toByteArray()))
+                .addAllResources(cluster.resourcesForExecutor(executorMetadata))
+                .setExecutor(executorMetadata.getExecutorInfo())
+                .build();
+
+        LOGGER.debug(marker, "Launching CASSANDRA_NODE_LAUNCH task = {}", protoToString(task));
+
+        cluster.associateTaskId(executorMetadata, taskId);
+        executorMetadata.setServerTaskId(taskId);
+
+        driver.launchTasks(Collections.singletonList(offer.getId()), Collections.singletonList(task));
+
+        return true;
+    }
+
+    private static JmxConnect jmxConnect(ExecutorMetadata executorMetadata) {
+        return JmxConnect.newBuilder()
+                .setJmxPort(executorMetadata.getJmxPort())
+                        // TODO add jmxSsl, jmxUsername, jmxPassword
+                .setIp(executorMetadata.getIp())
+                .build();
     }
 
     @NotNull
     @SafeVarargs
-    private final TaskEnv taskEnv(@NotNull final Tuple2<String, String>... tuples) {
+    private static TaskEnv taskEnv(@NotNull final Tuple2<String, String>... tuples) {
         return TaskEnv.newBuilder()
-            .addAllVariables(from(newArrayList(tuples)).transform(tupleToTaskEnvEntry))
-            .build();
+                .addAllVariables(from(newArrayList(tuples)).transform(tupleToTaskEnvEntry))
+                .build();
     }
 
     @NotNull
     private String getUrlForResource(@NotNull final String resourceName) {
-        return (httpServerBaseUrl + "/" + resourceName).replaceAll("(?<!:)/+", "/");
-    }
-
-    @NotNull
-    private static <A> List<A> filterNot(@NotNull final List<A> list, @NotNull final Predicate<A> predicate) {
-        return Collections.synchronizedList(newArrayList(from(list).filter(not(predicate))));
+        return URL_FOR_RESOURCE_PATTERN.matcher((httpServerBaseUrl + '/' + resourceName)).replaceAll("/");
     }
 
     @NotNull
@@ -438,53 +510,10 @@ public final class CassandraScheduler implements Scheduler {
         return map;
     }
 
-    @NotNull
-    private static List<String> hasResources(
-        @NotNull final Offer offer,
-        final double cpu,
-        final long mem,
-        final long disk,
-        @NotNull final Map<String, Long> portMapping
-    ) {
-        final List<String> errors = newArrayList();
-        final ListMultimap<String, Resource> index = from(offer.getResourcesList()).index(resourceToName());
-        final Double availableCpus = resourceValueDouble(headOption(index.get("cpus"))).or(0.0);
-        final Long availableMem = resourceValueLong(headOption(index.get("mem"))).or(0L);
-        final Long availableDisk = resourceValueLong(headOption(index.get("disk"))).or(0L);
-        if (availableCpus <= cpu) {
-            errors.add(String.format("Not enough cpu resources. Required %f only %f available.", cpu, availableCpus));
-        }
-        if (availableMem <= mem) {
-            errors.add(String.format("Not enough mem resources. Required %d only %d available", mem, availableMem));
-        }
-        if (availableDisk <= disk) {
-            errors.add(String.format("Not enough disk resources. Required %d only %d available", disk, availableDisk));
-        }
-
-        final TreeSet<Long> ports = resourceValueRange(headOption(index.get("ports")));
-        for (final Map.Entry<String, Long> entry : portMapping.entrySet()) {
-            final String key = entry.getKey();
-            final Long value = entry.getValue();
-            if (!ports.contains(value)) {
-                errors.add(String.format("Unavailable port %d(%s). %d other ports available.", value, key, ports.size()));
-            }
-        }
-        return errors;
-    }
-
-    private static final Function<SlaveMetadata, String> toIp = new Function<SlaveMetadata, String>() {
-        @Override
-        public String apply(final SlaveMetadata input) {
-            return input.getIp();
-        }
-    };
-
     private static final Function<Tuple2<String, String>, TaskEnv.Entry> tupleToTaskEnvEntry = new Function<Tuple2<String, String>, TaskEnv.Entry>() {
         @Override
         public TaskEnv.Entry apply(final Tuple2<String, String> input) {
             return TaskEnv.Entry.newBuilder().setName(input._1).setValue(input._2).build();
         }
     };
-
-
 }

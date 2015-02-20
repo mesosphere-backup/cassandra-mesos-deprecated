@@ -45,6 +45,7 @@ import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos.*;
@@ -188,9 +189,9 @@ public final class CassandraExecutor implements Executor {
             final SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
                 .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.ERROR_DETAILS)
                 .setSlaveErrorDetails(
-                    SlaveErrorDetails.newBuilder()
-                        .setMsg(msg)
-                        .setDetails(e.getMessage())
+                        SlaveErrorDetails.newBuilder()
+                                .setMsg(msg)
+                                .setDetails(e.getMessage())
                 )
                 .build();
             final TaskStatus taskStatus = taskStatus(task, TaskState.TASK_ERROR, details);
@@ -231,6 +232,7 @@ public final class CassandraExecutor implements Executor {
 
         modifyCassandraYaml(taskIdMarker, cassandraNodeTask);
         modifyCassandraEnvSh(taskIdMarker, cassandraNodeTask);
+        modifyCassandraRackdc(taskIdMarker, cassandraNodeTask);
 
         final ProcessBuilder processBuilder = new ProcessBuilder(cassandraNodeTask.getCommandList())
             .directory(new File(System.getProperty("user.dir")))
@@ -242,6 +244,22 @@ public final class CassandraExecutor implements Executor {
         processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
         LOGGER.debug("Starting Process: {}", processBuilderToString(processBuilder));
         return processBuilder.start();
+    }
+
+    private static void modifyCassandraRackdc(Marker taskIdMarker, CassandraNodeRunTask cassandraNodeTask) throws IOException {
+        NodeLocation location = cassandraNodeTask.getLocation();
+
+        Properties props = new Properties();
+        props.put("dc", location != null ? location.getDatacenter() : "datacenter1");
+        props.put("rack", location != null ? location.getRack() : "rack1");
+        // Add a suffix to a datacenter name. Used by the Ec2Snitch and Ec2MultiRegionSnitch to append a string to the EC2 region name.
+        //props.put("dc_suffix", "");
+        // Uncomment the following line to make this snitch prefer the internal ip when possible, as the Ec2MultiRegionSnitch does.
+        //props.put("prefer_local", "true");
+        File cassandraRackDc = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra-rackdc.properties");
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(cassandraRackDc))) {
+            props.store(bw, "Created by Mesos Cassandra framework");
+        }
     }
 
     private static void modifyCassandraEnvSh(Marker taskIdMarker, CassandraNodeRunTask cassandraNodeTask) throws IOException {

@@ -45,6 +45,13 @@ message CassandraNodeRunTask {
     optional TaskEnv taskEnv = 3;
     required TaskConfig taskConfig = 4;
     repeated TaskFile taskFiles = 5;
+
+    optional NodeLocation location = 6;
+}
+
+message NodeLocation {
+    required string datacenter = 1;
+    required string rack = 2;
 }
 
 message CassandraNodeShutdownTask {

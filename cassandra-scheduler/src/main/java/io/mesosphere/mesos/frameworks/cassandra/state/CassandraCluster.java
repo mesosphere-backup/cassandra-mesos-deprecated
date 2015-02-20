@@ -78,6 +78,8 @@ public final class CassandraCluster {
     private int nativePort;
     private int rpcPort;
 
+    private String snitch = "GossipingPropertyFileSnitch";
+
     private long healthCheckIntervalMillis;
 
     private long bootstrapGraceTimeMillis = TimeUnit.MINUTES.toMillis(2);
@@ -170,6 +172,10 @@ public final class CassandraCluster {
 
     public int getStoragePort() {
         return storagePort;
+    }
+
+    public String getSnitch() {
+        return snitch;
     }
 
     //

@@ -438,6 +438,7 @@ public final class CassandraScheduler implements Scheduler {
                 .addVariables(TaskConfig.Entry.newBuilder().setName("native_transport_port").setLongValue(cluster.getNativePort()))
                 .addVariables(TaskConfig.Entry.newBuilder().setName("rpc_port").setLongValue(cluster.getRpcPort()))
                 .addVariables(TaskConfig.Entry.newBuilder().setName("seeds").setStringValue(Joiner.on(',').join(newArrayList(cluster.seedsIpList()))))
+                .addVariables(TaskConfig.Entry.newBuilder().setName("endpoint_snitch").setStringValue(cluster.getSnitch()))
                 .build();
         TaskDetails taskDetails = TaskDetails.newBuilder()
                 .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_RUN)

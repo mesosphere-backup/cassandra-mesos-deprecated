@@ -35,7 +35,7 @@ import java.util.Map;
 
 @Path("/")
 public final class ApiController {
-    private static final Logger LOGGER = LoggerFactory.getLogger(io.mesosphere.mesos.frameworks.cassandra.ApiController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApiController.class);
 
     @GET
     @Path("/")

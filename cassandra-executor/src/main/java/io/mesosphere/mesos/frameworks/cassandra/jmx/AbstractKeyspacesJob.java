@@ -13,23 +13,37 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
+import io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class AbstractKeyspacesJob implements Closeable {
+public abstract class AbstractKeyspacesJob implements Closeable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractKeyspacesJob.class);
 
     protected final long startTimestamp = System.currentTimeMillis();
 
     protected JmxConnect jmxConnect;
-    protected List<String> keyspaces;
+    private List<String> keyspaces;
+    private final Map<String, CassandraTaskProtos.JobKeyspaceStatus> keyspaceStatus = new HashMap<>();
+
+    private volatile long keyspaceStartedAt;
+
+    private long finishedTimestamp;
 
     protected AbstractKeyspacesJob() {
 
     }
 
-    protected boolean start(JmxConnect jmxConnect) {
+    public abstract CassandraTaskProtos.KeyspaceJobType getType();
+
+    public boolean start(JmxConnect jmxConnect) {
         this.jmxConnect = jmxConnect;
 
         if (!"NORMAL".equals(jmxConnect.getStorageServiceProxy().getOperationMode()))
@@ -55,4 +69,53 @@ public class AbstractKeyspacesJob implements Closeable {
     public long getStartTimestamp() {
         return startTimestamp;
     }
+
+    public boolean isFinished() {
+        return finishedTimestamp != 0L;
+    }
+
+    public long getFinishedTimestamp() {
+        return finishedTimestamp;
+    }
+
+    public List<String> getRemainingKeyspaces() {
+        return keyspaces;
+    }
+
+    public Map<String, CassandraTaskProtos.JobKeyspaceStatus> getKeyspaceStatus() {
+        return keyspaceStatus;
+    }
+
+    protected void finished() {
+        finishedTimestamp = System.currentTimeMillis();
+        long duration = System.currentTimeMillis() - startTimestamp;
+        LOGGER.info("{} finished in {} seconds : {}", duration / 1000L, getClass().getSimpleName(), keyspaceStatus);
+    }
+
+    protected List<String> getKeyspaces() {
+        return keyspaces;
+    }
+
+    protected void keyspaceStarted() {
+        keyspaceStartedAt = System.currentTimeMillis();
+    }
+
+    protected void keyspaceFinished(String status, String keyspace) {
+        keyspaceStatus.put(keyspace, CassandraTaskProtos.JobKeyspaceStatus.newBuilder()
+                .setDuration(System.currentTimeMillis() - keyspaceStartedAt)
+                .setStatus(status)
+                .setKeyspace(keyspace)
+                .build());
+    }
+
+    public String nextKeyspace() {
+        if (keyspaces.isEmpty()) {
+            finished();
+            return null;
+        }
+
+        return keyspaces.remove(0);
+    }
+
+    public abstract void startNextKeyspace();
 }

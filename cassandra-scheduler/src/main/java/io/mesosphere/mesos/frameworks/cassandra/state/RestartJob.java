@@ -22,4 +22,14 @@ public class RestartJob extends ClusterJob {
     }
 
     // TODO implement
+
+    @Override
+    protected long statusInterval() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected boolean statusIsFinished(Object status) {
+        throw new UnsupportedOperationException();
+    }
 }

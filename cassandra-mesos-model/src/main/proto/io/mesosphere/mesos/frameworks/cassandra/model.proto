@@ -21,18 +21,16 @@ message TaskDetails {
     optional CassandraNodeRunTask cassandraNodeRunTask = 3;
     optional CassandraNodeShutdownTask cassandraNodeShutdownTask = 4;
     optional CassandraNodeHealthCheckTask cassandraNodeHealthCheckTask = 5;
-    optional CassandraNodeRepairTask cassandraNodeRepairTask = 6;
-    optional CassandraNodeCleanupTask cassandraNodeCleanupTask = 7;
+    optional CassandraNodeKeyspaceJobTask cassandraNodeKeyspaceJobTask = 6;
+    optional CassandraNodeKeyspaceJobStatusTask cassandraNodeKeyspaceJobStatusTask = 7;
 
     enum TaskType {
         CASSANDRA_NODE_ROLLOUT = 1;
         CASSANDRA_NODE_RUN = 2;
         CASSANDRA_NODE_SHUTDOWN = 3;
         CASSANDRA_NODE_HEALTH_CHECK = 4;
-        CASSANDRA_NODE_REPAIR = 5;
-        CASSANDRA_NODE_REPAIR_STATUS = 6;
-        CASSANDRA_NODE_CLEANUP = 7;
-        CASSANDRA_NODE_CLEANUP_STATUS = 8;
+        CASSANDRA_NODE_KEYSPACE_JOB = 5;
+        CASSANDRA_NODE_KEYSPACE_JOB_STATUS = 6;
     }
 }
 
@@ -54,12 +52,13 @@ message CassandraNodeHealthCheckTask {
     required JmxConnect jmx = 1;
 }
 
-message CassandraNodeRepairTask {
+message CassandraNodeKeyspaceJobTask {
     required JmxConnect jmx = 1;
+    required KeyspaceJobType type = 2;
 }
 
-message CassandraNodeCleanupTask {
-    required JmxConnect jmx = 1;
+message CassandraNodeKeyspaceJobStatusTask {
+    required KeyspaceJobType type = 2;
 }
 
 message JmxConnect {
@@ -105,8 +104,7 @@ message SlaveStatusDetails {
     required StatusDetailsType statusDetailsType = 1;
     optional SlaveErrorDetails slaveErrorDetails = 2;
     optional CassandraNodeHealthCheckDetails cassandraNodeHealthCheckDetails = 3;
-    optional CassandraNodeRepairStatus repairStatus = 4;
-    optional CassandraNodeCleanupStatus cleanupStatus = 5;
+    optional KeyspaceJobStatus keyspaceJobStatus = 4;
 
     enum StatusDetailsType {
         NULL_DETAILS = 1;
@@ -124,21 +122,24 @@ message SlaveErrorDetails {
     optional string details = 2;
 }
 
-message CassandraNodeRepairStatus {
-    required bool running = 1;
-    repeated KeyspaceRepairStatus repairedKeyspaces = 2;
-    repeated string remainingKeyspaces = 3;
-    optional int64 started = 4;
-    optional int64 finished = 5;
+enum KeyspaceJobType {
+    REPAIR = 1;
+    CLEANUP = 2;
 }
 
-message KeyspaceRepairStatus {
+message KeyspaceJobStatus {
+    required KeyspaceJobType type = 1;
+    required bool running = 2;
+    repeated JobKeyspaceStatus processedKeyspaces = 3;
+    repeated string remainingKeyspaces = 4;
+    optional int64 started = 5;
+    optional int64 finished = 6;
+}
+
+message JobKeyspaceStatus {
     required string keyspace = 1;
     required string status = 2;
     required int64 duration = 3;
-}
-
-message CassandraNodeCleanupStatus {
 }
 
 message CassandraNodeHealthCheckDetails {

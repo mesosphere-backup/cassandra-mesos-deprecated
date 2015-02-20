@@ -13,14 +13,29 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.state;
 
+import com.google.common.collect.Maps;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos;
+import org.apache.mesos.Protos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public final class RepairJob extends ClusterJob<CassandraTaskProtos.KeyspaceJobStatus> {
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
-    private static final long REPAIR_STATUS_INVERVAL = 10000L;
+import static io.mesosphere.mesos.util.ProtoUtils.protoToString;
 
-    RepairJob(CassandraCluster cassandraCluster) {
+public final class CleanupJob extends ClusterJob<CassandraTaskProtos.KeyspaceJobStatus> {
+
+    private static final long CLEANUP_STATUS_INVERVAL = 10000L;
+
+    CleanupJob(CassandraCluster cassandraCluster) {
         super(cassandraCluster);
+    }
+
+    @Override
+    protected long statusInterval() {
+        return CLEANUP_STATUS_INVERVAL;
     }
 
     @Override
@@ -31,10 +46,5 @@ public final class RepairJob extends ClusterJob<CassandraTaskProtos.KeyspaceJobS
     @Override
     protected boolean checkNodeStatus(CassandraTaskProtos.CassandraNodeHealthCheckDetails hc) {
         return super.checkNodeStatus(hc) && "NORMAL".equals(hc.getInfo().getOperationMode());
-    }
-
-    @Override
-    protected long statusInterval() {
-        return REPAIR_STATUS_INVERVAL;
     }
 }

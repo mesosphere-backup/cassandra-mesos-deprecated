@@ -46,10 +46,12 @@ public final class CassandraScheduler implements Scheduler {
     private static final Joiner JOINER = Joiner.on("','");
 
     private static final String EXECUTOR_SUFFIX = ".executor";
+    private static final String SERVER_SUFFIX = ".server";
     private static final String HEALTHCHECK_SUFFIX = ".healthcheck";
     private static final String REPAIR_SUFFIX = ".repair";
     private static final String REPAIR_STATUS_SUFFIX = ".repair-status";
-    private static final String SERVER_SUFFIX = ".server";
+    private static final String CLEANUP_SUFFIX = ".cleanup";
+    private static final String CLEANUP_STATUS_SUFFIX = ".cleanup-status";
 
     @NotNull
     private String httpServerBaseUrl;
@@ -186,10 +188,10 @@ public final class CassandraScheduler implements Scheduler {
                                 cluster.updateHealthCheck(executorId, statusDetails.getCassandraNodeHealthCheckDetails());
                                 break;
                             case REPAIR_STATUS:
-                                cluster.gotRepairStatus(executorId, statusDetails.getRepairStatus());
+                                cluster.gotRepairStatus(executorId, statusDetails.getKeyspaceJobStatus());
                                 break;
                             case CLEANUP_STATUS:
-                                // TODO implement
+                                cluster.gotCleanupStatus(executorId, statusDetails.getKeyspaceJobStatus());
                                 break;
                             default:
                                 assert false : "got unexpected status message " + statusDetails.getStatusDetailsType();
@@ -291,10 +293,16 @@ public final class CassandraScheduler implements Scheduler {
                     submitHealthCheck(marker, driver, offer, executorMetadata);
                     offerUsed = true;
                 } else if (cluster.shouldGetRepairStatusOnExecutor(executorID)) {
-                    submitRepairStatus(marker, driver, offer, executorMetadata);
+                    submitRepairStatus(marker, driver, offer, executorMetadata, KeyspaceJobType.REPAIR, REPAIR_STATUS_SUFFIX);
+                    offerUsed = true;
+                } else if (cluster.shouldGetCleanupStatusOnExecutor(executorID)) {
+                    submitRepairStatus(marker, driver, offer, executorMetadata, KeyspaceJobType.CLEANUP, CLEANUP_STATUS_SUFFIX);
                     offerUsed = true;
                 } else if (cluster.shouldStartRepairOnExecutor(executorID)) {
-                    submitStartRepair(marker, driver, offer, executorMetadata);
+                    submitStartKeyspaceJob(marker, driver, offer, executorMetadata, KeyspaceJobType.REPAIR, REPAIR_SUFFIX);
+                    offerUsed = true;
+                } else if (cluster.shouldStartCleanupOnExecutor(executorID)) {
+                    submitStartKeyspaceJob(marker, driver, offer, executorMetadata, KeyspaceJobType.CLEANUP, CLEANUP_SUFFIX);
                     offerUsed = true;
                 }
             }
@@ -304,10 +312,12 @@ public final class CassandraScheduler implements Scheduler {
             driver.declineOffer(offer.getId());
     }
 
-    private void submitRepairStatus(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata) {
-        TaskID taskId = cluster.createTaskId(executorMetadata, REPAIR_STATUS_SUFFIX);
+    private void submitRepairStatus(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata,
+                                    KeyspaceJobType keyspaceJobType, String suffix) {
+        TaskID taskId = cluster.createTaskId(executorMetadata, suffix);
         TaskDetails taskDetails = TaskDetails.newBuilder()
-                .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_REPAIR_STATUS)
+                .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_KEYSPACE_JOB_STATUS)
+                .setCassandraNodeKeyspaceJobStatusTask(CassandraNodeKeyspaceJobStatusTask.newBuilder().setType(keyspaceJobType))
                 .build();
         TaskInfo task = TaskInfo.newBuilder()
                 .setName(taskId.getValue())
@@ -325,11 +335,13 @@ public final class CassandraScheduler implements Scheduler {
         driver.launchTasks(Collections.singletonList(offer.getId()), Collections.singletonList(task));
     }
 
-    private void submitStartRepair(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata) {
-        TaskID taskId = cluster.createTaskId(executorMetadata, REPAIR_SUFFIX);
+    private void submitStartKeyspaceJob(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata,
+                                        KeyspaceJobType keyspaceJobType, String suffix) {
+        TaskID taskId = cluster.createTaskId(executorMetadata, suffix);
         TaskDetails taskDetails = TaskDetails.newBuilder()
-                .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_REPAIR)
-                .setCassandraNodeRepairTask(CassandraNodeRepairTask.newBuilder()
+                .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_KEYSPACE_JOB)
+                .setCassandraNodeKeyspaceJobTask(CassandraNodeKeyspaceJobTask.newBuilder()
+                        .setType(keyspaceJobType)
                         .setJmx(jmxConnect(executorMetadata)))
                 .build();
         TaskInfo task = TaskInfo.newBuilder()

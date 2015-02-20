@@ -13,32 +13,42 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
+import io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class NodeCleanupJob extends AbstractKeyspacesJob {
     private static final Logger LOGGER = LoggerFactory.getLogger(NodeCleanupJob.class);
 
-    private final Map<String, CompactionManager.AllSSTableOpStatus> keyspaceStatus = new HashMap<>();
-
     public NodeCleanupJob() {
+    }
+
+    @Override
+    public CassandraTaskProtos.KeyspaceJobType getType() {
+        return CassandraTaskProtos.KeyspaceJobType.CLEANUP;
     }
 
     public boolean start(JmxConnect jmxConnect) {
         if (!super.start(jmxConnect))
             return false;
 
-        LOGGER.info("Initiated cleanup job for keyspaces {}", keyspaces);
+        LOGGER.info("Initiated cleanup job for keyspaces {}", getKeyspaces());
 
         return true;
     }
 
+    @Override
+    public void startNextKeyspace() {
+        throw new UnsupportedOperationException();
+    }
+
     public void cleanupBlocking() {
-        for (String keyspace : keyspaces) {
+        while (true) {
+            String keyspace = nextKeyspace();
+            if (keyspace == null)
+                break;
+
             int statusOrdinal = 0;
             try {
                 statusOrdinal = jmxConnect.getStorageServiceProxy().forceKeyspaceCleanup(keyspace);
@@ -46,18 +56,14 @@ public class NodeCleanupJob extends AbstractKeyspacesJob {
                 LOGGER.error("Cleanup for keyspace " + keyspace + " failed", e);
             }
             CompactionManager.AllSSTableOpStatus status = CompactionManager.AllSSTableOpStatus.values()[statusOrdinal];
-            keyspaceStatus.put(keyspace, status);
+            keyspaceFinished(status.name(), keyspace);
             LOGGER.info("Cleanup for keyspace {} finished with status {}", keyspace, status);
         }
         finished();
     }
 
-    private void finished() {
-
-        // TODO inform scheduler
-
-        long duration = System.currentTimeMillis() - startTimestamp;
-        LOGGER.info("Status job finished in {} seconds : {}", duration / 1000L, keyspaceStatus);
+    protected void finished() {
+        super.finished();
     }
 
 }

@@ -17,10 +17,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos;
-import io.mesosphere.mesos.frameworks.cassandra.state.CassandraCluster;
-import io.mesosphere.mesos.frameworks.cassandra.state.ClusterJob;
-import io.mesosphere.mesos.frameworks.cassandra.state.ExecutorMetadata;
-import io.mesosphere.mesos.frameworks.cassandra.state.RepairJob;
+import io.mesosphere.mesos.frameworks.cassandra.state.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +32,7 @@ import java.util.Map;
 
 @Path("/")
 public final class ApiController {
-    private static final Logger LOGGER = LoggerFactory.getLogger(io.mesosphere.mesos.frameworks.cassandra.ApiController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApiController.class);
 
     @GET
     @Path("/")
@@ -217,6 +214,84 @@ public final class ApiController {
         return Response.ok(sw.toString(), "application/json").build();
     }
 
+    // cleanup stuff
+
+    @GET
+    @Path("/cleanup/start")
+    @Produces("application/json")
+    public Response cleanupStart() {
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            boolean started = CassandraCluster.singleton().cleanupStart();
+            json.writeBooleanField("started", started);
+
+            json.writeEndObject();
+            json.close();
+        } catch (Exception e) {
+            LOGGER.error("Failed to build JSON response", e);
+            return Response.serverError().build();
+        }
+        return Response.ok(sw.toString(), "application/json").build();
+    }
+
+    @GET
+    @Path("/cleanup/status")
+    @Produces("application/json")
+    public Response cleanupStatus() {
+        StringWriter sw = new StringWriter();
+        try {
+
+            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
+
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            CleanupJob cleanupJob = CassandraCluster.singleton().currentClusterJob(CleanupJob.class);
+            json.writeBooleanField("running", cleanupJob != null);
+            writeClusterJob(json, "cleanup", cleanupJob);
+
+            json.writeEndObject();
+            json.close();
+        } catch (Exception e) {
+            LOGGER.error("Failed to build JSON response", e);
+            return Response.serverError().build();
+        }
+        return Response.ok(sw.toString(), "application/json").build();
+    }
+
+    @GET
+    @Path("/cleanup/last")
+    @Produces("application/json")
+    public Response lastCleanup() {
+        StringWriter sw = new StringWriter();
+        try {
+
+            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
+
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            CleanupJob cleanupJob = CassandraCluster.singleton().lastCompletedJob(CleanupJob.class);
+            json.writeBooleanField("present", cleanupJob != null);
+            writeClusterJob(json, "cleanup", cleanupJob);
+
+            json.writeEndObject();
+            json.close();
+        } catch (Exception e) {
+            LOGGER.error("Failed to build JSON response", e);
+            return Response.serverError().build();
+        }
+        return Response.ok(sw.toString(), "application/json").build();
+    }
 
     // repair stuff
 
@@ -254,7 +329,7 @@ public final class ApiController {
             json.setPrettyPrinter(new DefaultPrettyPrinter());
             json.writeStartObject();
 
-            boolean aborted = CassandraCluster.singleton().repairAbort();
+            boolean aborted = CassandraCluster.singleton().abortClusterJob(RepairJob.class);
             json.writeBooleanField("aborted", aborted);
 
             json.writeEndObject();
@@ -280,9 +355,9 @@ public final class ApiController {
             json.setPrettyPrinter(new DefaultPrettyPrinter());
             json.writeStartObject();
 
-            RepairJob repairJob = CassandraCluster.singleton().getCurrentRepair();
+            RepairJob repairJob = CassandraCluster.singleton().currentClusterJob(RepairJob.class);
             json.writeBooleanField("running", repairJob != null);
-            writeRepairJob(json, repairJob);
+            writeClusterJob(json, "repair", repairJob);
 
             json.writeEndObject();
             json.close();
@@ -307,9 +382,9 @@ public final class ApiController {
             json.setPrettyPrinter(new DefaultPrettyPrinter());
             json.writeStartObject();
 
-            RepairJob repairJob = CassandraCluster.singleton().getLastRepair();
+            RepairJob repairJob = CassandraCluster.singleton().lastCompletedJob(RepairJob.class);
             json.writeBooleanField("present", repairJob != null);
-            writeRepairJob(json, repairJob);
+            writeClusterJob(json, "repair", repairJob);
 
             json.writeEndObject();
             json.close();
@@ -320,19 +395,19 @@ public final class ApiController {
         return Response.ok(sw.toString(), "application/json").build();
     }
 
-    private void writeRepairJob(JsonGenerator json, RepairJob repairJob) throws IOException {
-        if (repairJob != null) {
-            json.writeObjectFieldStart("repair_job");
+    private void writeClusterJob(JsonGenerator json, String type, ClusterJob<CassandraTaskProtos.KeyspaceJobStatus> clusterJob) throws IOException {
+        if (clusterJob != null) {
+            json.writeObjectFieldStart(type + "_job");
 
-            json.writeNumberField("started", repairJob.getStartedTimestamp());
-            if (repairJob.getFinishedTimestamp() != null)
-                json.writeNumberField("finished", repairJob.getFinishedTimestamp());
+            json.writeNumberField("started", clusterJob.getStartedTimestamp());
+            if (clusterJob.getFinishedTimestamp() != null)
+                json.writeNumberField("finished", clusterJob.getFinishedTimestamp());
             else
                 json.writeNullField("finished");
-            json.writeBooleanField("aborted", repairJob.isAborted());
+            json.writeBooleanField("aborted", clusterJob.isAborted());
 
-            json.writeArrayFieldStart("repaired_nodes");
-            for (Map.Entry<String, CassandraTaskProtos.CassandraNodeRepairStatus> ipToStatus : repairJob.getRepairedNodes().entrySet()) {
+            json.writeArrayFieldStart("processed_nodes");
+            for (Map.Entry<String, CassandraTaskProtos.KeyspaceJobStatus> ipToStatus : clusterJob.getProcessedNodes().entrySet()) {
                 json.writeObjectFieldStart(ipToStatus.getKey());
 
                 json.writeBooleanField("running", ipToStatus.getValue().getRunning());
@@ -341,11 +416,11 @@ public final class ApiController {
                     json.writeString(ks);
                 json.writeEndArray();
 
-                json.writeObjectFieldStart("repaired_keyspaces");
-                for (CassandraTaskProtos.KeyspaceRepairStatus keyspaceRepairStatus : ipToStatus.getValue().getRepairedKeyspacesList()) {
-                    json.writeObjectFieldStart(keyspaceRepairStatus.getKeyspace());
-                    json.writeStringField("status", keyspaceRepairStatus.getStatus());
-                    json.writeNumberField("duration_millis", keyspaceRepairStatus.getDuration());
+                json.writeObjectFieldStart("processed_keyspaces");
+                for (CassandraTaskProtos.JobKeyspaceStatus jobKeyspaceStatus : ipToStatus.getValue().getProcessedKeyspacesList()) {
+                    json.writeObjectFieldStart(jobKeyspaceStatus.getKeyspace());
+                    json.writeStringField("status", jobKeyspaceStatus.getStatus());
+                    json.writeNumberField("duration_millis", jobKeyspaceStatus.getDuration());
                     json.writeEndObject();
                 }
                 json.writeEndObject();
@@ -354,10 +429,10 @@ public final class ApiController {
             }
             json.writeEndArray();
 
-            json.writeStringField("current_node", repairJob.getCurrentNodeIp());
+            json.writeStringField("current_node", clusterJob.getCurrentNodeIp());
 
             json.writeArrayFieldStart("remaining_nodes");
-            for (String ip : repairJob.getRemainingNodeIps())
+            for (String ip : clusterJob.getRemainingNodeIps())
                 json.writeString(ip);
             json.writeEndArray();
 

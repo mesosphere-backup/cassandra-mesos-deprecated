@@ -20,9 +20,8 @@ import com.google.common.io.Files;
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.Yaml;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.mesosphere.mesos.frameworks.cassandra.jmx.*;
 import io.mesosphere.mesos.frameworks.cassandra.jmx.JmxConnect;
-import io.mesosphere.mesos.frameworks.cassandra.jmx.NodeRepairJob;
-import io.mesosphere.mesos.frameworks.cassandra.jmx.Nodetool;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
@@ -43,6 +42,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -63,7 +63,7 @@ public final class CassandraExecutor implements Executor {
     private volatile Process process;
     private volatile TaskID serverTaskID;
     private volatile Boolean lastKnownStatus;
-    private final AtomicReference<NodeRepairJob> repair = new AtomicReference<>();
+    private final AtomicReference<AbstractKeyspacesJob> keyspacesJob = new AtomicReference<>();
 
     @Override
     public void registered(final ExecutorDriver driver, final ExecutorInfo executorInfo, final FrameworkInfo frameworkInfo, final SlaveInfo slaveInfo) {
@@ -132,42 +132,11 @@ public final class CassandraExecutor implements Executor {
                     }
                     driver.sendStatusUpdate(taskStatus(task, healthCheck.getHealthy() ? TaskState.TASK_FINISHED : TaskState.TASK_ERROR, healthCheckDetails));
                     break;
-                case CASSANDRA_NODE_REPAIR:
-                    CassandraNodeRepairTask repairTask = taskDetails.getCassandraNodeRepairTask();
-                    NodeRepairJob currentRepair = repair.get();
-                    if (currentRepair == null || currentRepair.isFinished()) {
-                        repair.set(currentRepair = new NodeRepairJob());
-                        if (currentRepair.start(new JmxConnect(repairTask.getJmx())))
-                            currentRepair.repairNextKeyspace();
-                        else {
-                            currentRepair.close();
-                            repair.set(null);
-                        }
-                    }
-                case CASSANDRA_NODE_REPAIR_STATUS:
-                    currentRepair = repair.get();
-                    CassandraNodeRepairStatus.Builder repairStatus = CassandraNodeRepairStatus.newBuilder()
-                            .setRunning(currentRepair != null && !currentRepair.isFinished());
-                    if (currentRepair != null) {
-                        repairStatus.addAllRemainingKeyspaces(currentRepair.getRemainingKeyspaces())
-                                .addAllRepairedKeyspaces(currentRepair.getKeyspaceStatus().values())
-                                .setStarted(currentRepair.getStartTimestamp())
-                                .setFinished(currentRepair.getFinishedTimestamp());
-                    }
-                    SlaveStatusDetails repairDetails = SlaveStatusDetails.newBuilder()
-                            .setRepairStatus(repairStatus.build())
-                            .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.REPAIR_STATUS)
-                            .build();
-                    driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED, repairDetails));
+                case CASSANDRA_NODE_KEYSPACE_JOB:
+                    onKeyspaceJob(driver, task, taskDetails.getCassandraNodeKeyspaceJobTask());
                     break;
-                case CASSANDRA_NODE_CLEANUP:
-                    // TODO implement
-                case CASSANDRA_NODE_CLEANUP_STATUS:
-                    // TODO implement
-                    SlaveStatusDetails cleanupDetails = SlaveStatusDetails.newBuilder()
-                            .setCleanupStatus(CassandraNodeCleanupStatus.getDefaultInstance())
-                            .build();
-                    driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED, cleanupDetails));
+                case CASSANDRA_NODE_KEYSPACE_JOB_STATUS:
+                    onKeyspaceJobStatus(driver, task, taskDetails.getCassandraNodeKeyspaceJobStatusTask());
                     break;
             }
         } catch (InvalidProtocolBufferException e) {
@@ -197,6 +166,61 @@ public final class CassandraExecutor implements Executor {
             driver.sendStatusUpdate(taskStatus);
         }
         LOGGER.debug(taskIdMarker, "< launchTask(driver : {}, task : {})", driver, protoToString(task));
+    }
+
+    private void onKeyspaceJobStatus(ExecutorDriver driver, TaskInfo task, CassandraNodeKeyspaceJobStatusTask keyspaceJobStatusTask) {
+        onKeyspaceJobStatus(driver, task, keyspaceJobStatusTask.getType());
+    }
+
+    private void onKeyspaceJobStatus(ExecutorDriver driver, TaskInfo task, KeyspaceJobType type) {
+        KeyspaceJobStatus.Builder status = KeyspaceJobStatus.newBuilder()
+                .setType(type);
+
+        AbstractKeyspacesJob currentJob = keyspacesJob.get();
+        if (currentJob == null || currentJob.getType() != type) {
+            status.setRunning(false)
+                    .addAllRemainingKeyspaces(Collections.<String>emptyList())
+                    .addAllProcessedKeyspaces(Collections.<JobKeyspaceStatus>emptyList());
+        } else {
+            status.setRunning(!currentJob.isFinished())
+                    .addAllRemainingKeyspaces(currentJob.getRemainingKeyspaces())
+                    .addAllProcessedKeyspaces(currentJob.getKeyspaceStatus().values())
+                    .setStarted(currentJob.getStartTimestamp())
+                    .setFinished(currentJob.getFinishedTimestamp());
+        }
+
+        SlaveStatusDetails repairDetails = SlaveStatusDetails.newBuilder()
+                .setKeyspaceJobStatus(status.build())
+                .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.REPAIR_STATUS)
+                .build();
+        driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED, repairDetails));
+    }
+
+    private void onKeyspaceJob(ExecutorDriver driver, TaskInfo task, CassandraNodeKeyspaceJobTask keyspaceJobTask) {
+        AbstractKeyspacesJob currentJob = keyspacesJob.get();
+        if (currentJob == null || currentJob.isFinished()) {
+            currentJob = null;
+
+            switch (keyspaceJobTask.getType()) {
+                case REPAIR:
+                    currentJob = new NodeRepairJob();
+                    break;
+                case CLEANUP:
+                    currentJob = new NodeCleanupJob();
+                    break;
+            }
+
+            if (currentJob.start(new JmxConnect(keyspaceJobTask.getJmx()))) {
+                currentJob.startNextKeyspace();
+                keyspacesJob.set(currentJob);
+            }
+            else {
+                currentJob.close();
+                keyspacesJob.set(null);
+            }
+
+            onKeyspaceJobStatus(driver, task, keyspaceJobTask.getType());
+        }
     }
 
     @Override

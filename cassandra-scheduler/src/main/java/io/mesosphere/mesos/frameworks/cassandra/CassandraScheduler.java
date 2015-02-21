@@ -284,7 +284,7 @@ public final class CassandraScheduler implements Scheduler {
                             .setCassandraNodeRunTask(
                                 CassandraNodeRunTask.newBuilder()
                                     //TODO(BenWhitehead) Cleanup path handling to make more maintainable across different versions of cassandra
-                                    .addAllCommand(newArrayList("apache-cassandra-2.1.2/bin/cassandra", "-p", "cassandra.pid"))
+                                    .addAllCommand(newArrayList("apache-cassandra-" + cassandraVersion + "/bin/cassandra", "-p", "cassandra.pid"))
                                     .setTaskConfig(taskConfig)
                                     .setVersion(cassandraVersion)
                                     .setTaskEnv(taskEnv(

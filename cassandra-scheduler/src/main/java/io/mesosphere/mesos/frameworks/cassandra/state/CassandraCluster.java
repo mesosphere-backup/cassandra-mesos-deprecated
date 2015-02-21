@@ -311,20 +311,41 @@ public final class CassandraCluster {
     public int updateNodeCount(int nodeCount) {
         if (nodeCount < seedNodeCount)
             return this.nodeCount;
+
+        if (nodeCount < this.nodeCount)
+            return this.nodeCount;
+
         this.nodeCount = nodeCount;
         return nodeCount;
     }
 
+    public void nodeLaunched(ExecutorMetadata executorMetadata) {
+        executorMetadata.setRunning();
+
+        nodeRunStateUpdate();
+    }
+
     // cluster jobs
 
+    public boolean clusterJobStart(ClusterJob clusterJob) {
+        if (clusterJob == null)
+            return false;
+        if (!currentClusterJob.compareAndSet(null, clusterJob))
+            return false;
+        clusterJob.started();
+        return true;
+    }
+
+    @SuppressWarnings("unchecked")
     public <J extends ClusterJob> J currentClusterJob() {
         return (J) currentClusterJob.get();
     }
 
+    @SuppressWarnings("unchecked")
     public <J extends ClusterJob> J currentClusterJob(Class<J> type) {
         ClusterJob current = currentClusterJob.get();
         return current != null && type.isAssignableFrom(current.getClass())
-            ? (J)current : null;
+                ? (J) current : null;
     }
 
     public <J extends ClusterJob> void clusterJobFinished(J job) {
@@ -334,6 +355,7 @@ public final class CassandraCluster {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public <J extends ClusterJob> J lastCompletedJob(Class<J> type) {
         return (J) lastCompletedJobs.get(type.getSimpleName());
     }
@@ -348,8 +370,8 @@ public final class CassandraCluster {
 
     // cleanup
 
-    public boolean cleanupStart() {
-        return currentClusterJob.compareAndSet(null, new CleanupJob(this));
+    public boolean cleanupStart(Set<Protos.ExecutorID> restriction) {
+        return clusterJobStart(new CleanupJob(this, restriction));
     }
 
     public boolean shouldStartCleanupOnExecutor(Protos.ExecutorID executorID) {
@@ -371,7 +393,7 @@ public final class CassandraCluster {
     // repair
 
     public boolean repairStart() {
-        return currentClusterJob.compareAndSet(null, new RepairJob(this));
+        return clusterJobStart(new RepairJob(this));
     }
 
     public boolean shouldStartRepairOnExecutor(Protos.ExecutorID executorID) {

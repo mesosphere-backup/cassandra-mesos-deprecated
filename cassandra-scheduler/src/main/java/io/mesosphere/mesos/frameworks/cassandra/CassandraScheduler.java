@@ -282,9 +282,7 @@ public final class CassandraScheduler implements Scheduler {
                 } else if (executorMetadata.isLaunched()) {
                     // TODO this state is reached after the C* daemon has been launched but before we recognize it as running.
 
-                    executorMetadata.setRunning();
-
-                    cluster.nodeRunStateUpdate();
+                    cluster.nodeLaunched(executorMetadata);
                 }
             }
 

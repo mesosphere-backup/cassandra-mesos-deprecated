@@ -40,10 +40,16 @@ public final class ApiController {
     public String helloWorld() {
         return "<a href=\"all-nodes\">All nodes</a> <br/>" +
                 "<a href=\"seed-nodes\">List of seed nodes</a> <br/>" +
+                "<br/>" +
                 "<a href=\"repair/start\">Start repair</a> <br/>" +
                 "<a href=\"repair/status\">Current repair status</a> <br/>" +
                 "<a href=\"repair/last\">Last repair</a> <br/>" +
-                "<a href=\"repair/abort\">Abort current repair</a> <br/>";
+                "<a href=\"repair/abort\">Abort current repair</a> <br/>" +
+                "<br/>" +
+                "<a href=\"cleanup/start\">Start cleanup</a> <br/>" +
+                "<a href=\"cleanup/status\">Current cleanup status</a> <br/>" +
+                "<a href=\"cleanup/last\">Last cleanup</a> <br/>" +
+                "<a href=\"cleanup/abort\">Abort current cleanup</a> <br/>";
     }
 
     @GET
@@ -146,6 +152,12 @@ public final class ApiController {
                 else
                     json.writeNullField("last_repair");
 
+                long lc = executorMetadata.getLastCleanup();
+                if (lc > 0)
+                    json.writeNumberField("last_cleanup", lc);
+                else
+                    json.writeNullField("last_cleanup");
+
                 CassandraTaskProtos.CassandraNodeHealthCheckDetails hcd = executorMetadata.getLastHealthCheckDetails();
                 if (hcd != null) {
                     json.writeObjectFieldStart("health_check_details");
@@ -227,7 +239,7 @@ public final class ApiController {
             json.setPrettyPrinter(new DefaultPrettyPrinter());
             json.writeStartObject();
 
-            boolean started = CassandraCluster.singleton().cleanupStart();
+            boolean started = CassandraCluster.singleton().cleanupStart(null);
             json.writeBooleanField("started", started);
 
             json.writeEndObject();

@@ -19,10 +19,7 @@ import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 
 import static io.mesosphere.mesos.util.ProtoUtils.protoToString;
@@ -37,6 +34,7 @@ public abstract class ClusterJob<S> {
 
     private final ConcurrentMap<Protos.ExecutorID, ExecutorMetadata> remainingNodes;
     private final Map<String, S> processedNodes = Maps.newConcurrentMap();
+    private final Set<Protos.ExecutorID> restriction;
     private volatile ExecutorMetadata currentNode;
 
     private final long startedTimestamp = System.currentTimeMillis();
@@ -45,12 +43,16 @@ public abstract class ClusterJob<S> {
 
     private volatile boolean abort;
 
-    public ClusterJob(CassandraCluster cassandraCluster) {
+    public ClusterJob(CassandraCluster cassandraCluster, Set<Protos.ExecutorID> restriction) {
         this.cassandraCluster = cassandraCluster;
 
         remainingNodes = Maps.newConcurrentMap();
         remainingNodes.putAll(cassandraCluster.executorMetadataMap);
 
+        this.restriction = restriction;
+    }
+
+    public void started() {
         LOGGER.info("Created {}", this.getClass().getSimpleName());
     }
 
@@ -109,6 +111,9 @@ public abstract class ClusterJob<S> {
                 shutdown();
                 return false;
             }
+
+            if (restriction != null && !restriction.contains(executorID))
+                return false;
 
             ExecutorMetadata candidate = remainingNodeForExecutor(executorID);
 

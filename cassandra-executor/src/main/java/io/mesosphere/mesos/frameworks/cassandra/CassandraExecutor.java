@@ -189,9 +189,18 @@ public final class CassandraExecutor implements Executor {
                     .setFinished(currentJob.getFinishedTimestamp());
         }
 
+        SlaveStatusDetails.StatusDetailsType sdType = null;
+        switch (type) {
+            case CLEANUP:
+                sdType = SlaveStatusDetails.StatusDetailsType.CLEANUP_STATUS;
+                break;
+            case REPAIR:
+                sdType = SlaveStatusDetails.StatusDetailsType.REPAIR_STATUS;
+                break;
+        }
         SlaveStatusDetails repairDetails = SlaveStatusDetails.newBuilder()
                 .setKeyspaceJobStatus(status.build())
-                .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.REPAIR_STATUS)
+                .setStatusDetailsType(sdType)
                 .build();
         driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED, repairDetails));
     }

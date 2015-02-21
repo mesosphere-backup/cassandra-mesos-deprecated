@@ -18,7 +18,7 @@ package io.mesosphere.mesos.frameworks.cassandra.state;
  */
 public class RestartJob extends ClusterJob {
     public RestartJob(CassandraCluster cassandraCluster) {
-        super(cassandraCluster);
+        super(cassandraCluster, null);
     }
 
     // TODO implement

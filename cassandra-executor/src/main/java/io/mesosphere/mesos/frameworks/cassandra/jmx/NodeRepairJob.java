@@ -54,6 +54,8 @@ public class NodeRepairJob extends AbstractKeyspacesJob implements NotificationL
             if (keyspace == null)
                 return;
 
+            LOGGER.info("Starting repair on keyspace {}", keyspace);
+
             // equivalent to 'nodetool repair' WITHOUT --partitioner-range, --full, --in-local-dc, --sequential
             int commandNo = jmxConnect.getStorageServiceProxy().forceRepairAsync(keyspace, false, false, false, false);
             if (commandNo == 0) {

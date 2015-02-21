@@ -15,8 +15,11 @@ package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos;
 import org.apache.cassandra.db.compaction.CompactionManager;
+import org.omg.PortableInterceptor.SUCCESSFUL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 public class NodeCleanupJob extends AbstractKeyspacesJob {
     private static final Logger LOGGER = LoggerFactory.getLogger(NodeCleanupJob.class);
@@ -40,26 +43,37 @@ public class NodeCleanupJob extends AbstractKeyspacesJob {
 
     @Override
     public void startNextKeyspace() {
-        throw new UnsupportedOperationException();
-    }
+        final String keyspace = super.nextKeyspace();
+        if (keyspace == null)
+            return;
 
-    public void cleanupBlocking() {
-        while (true) {
-            String keyspace = nextKeyspace();
-            if (keyspace == null)
-                break;
-
-            int statusOrdinal = 0;
-            try {
-                statusOrdinal = jmxConnect.getStorageServiceProxy().forceKeyspaceCleanup(keyspace);
-            } catch (Exception e) {
-                LOGGER.error("Cleanup for keyspace " + keyspace + " failed", e);
+        new Thread("Cleanup " + keyspace) {
+            @Override
+            public void run() {
+                try {
+                    LOGGER.info("Starting cleanup on keyspace {}", keyspace);
+                    keyspaceStarted();
+                    List<String> cfNames = jmxConnect.getColumnFamilyNames(keyspace);
+                    for (String cfName : cfNames) {
+                        int status = jmxConnect.getStorageServiceProxy().forceKeyspaceCleanup(keyspace, cfName);
+                        CompactionManager.AllSSTableOpStatus s = CompactionManager.AllSSTableOpStatus.SUCCESSFUL;
+                        for (CompactionManager.AllSSTableOpStatus st : CompactionManager.AllSSTableOpStatus.values()) {
+                            if (st.statusCode == status)
+                                s = st;
+                        }
+                        LOGGER.info("Cleanup of {}.{} returned with {}", keyspace, cfName, s);
+                    }
+                    keyspaceFinished("SUCCESS", keyspace);
+                } catch (Exception e) {
+                    LOGGER.error("Failed to cleanup keyspace " + keyspace, e);
+                    keyspaceFinished("FAILURE", keyspace);
+                } finally {
+                    startNextKeyspace();
+                }
             }
-            CompactionManager.AllSSTableOpStatus status = CompactionManager.AllSSTableOpStatus.values()[statusOrdinal];
-            keyspaceFinished(status.name(), keyspace);
-            LOGGER.info("Cleanup for keyspace {} finished with status {}", keyspace, status);
-        }
-        finished();
+        }.start();
+
+        LOGGER.info("Submitted cleanup for keyspace {}", keyspace);
     }
 
     protected void finished() {

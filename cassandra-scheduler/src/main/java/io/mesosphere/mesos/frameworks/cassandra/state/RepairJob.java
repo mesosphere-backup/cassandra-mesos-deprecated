@@ -20,7 +20,7 @@ public final class RepairJob extends ClusterJob<CassandraTaskProtos.KeyspaceJobS
     private static final long REPAIR_STATUS_INVERVAL = 10000L;
 
     RepairJob(CassandraCluster cassandraCluster) {
-        super(cassandraCluster);
+        super(cassandraCluster, null);
     }
 
     @Override

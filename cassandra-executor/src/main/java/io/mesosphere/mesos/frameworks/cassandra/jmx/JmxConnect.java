@@ -14,6 +14,7 @@
 package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos;
+import org.apache.cassandra.db.ColumnFamilyStoreMBean;
 import org.apache.cassandra.db.HintedHandOffManager;
 import org.apache.cassandra.db.HintedHandOffManagerMBean;
 import org.apache.cassandra.db.compaction.CompactionManager;
@@ -29,6 +30,7 @@ import org.apache.cassandra.streaming.StreamManagerMBean;
 
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
+import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
@@ -38,8 +40,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.RuntimeMXBean;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -253,4 +254,20 @@ public class JmxConnect implements Closeable {
         return hhProxy;
     }
 
+    public List<String> getColumnFamilyNames(String keyspace) {
+        try {
+            ObjectName query = new ObjectName("org.apache.cassandra.db:type=ColumnFamilies,keyspace=" + keyspace + ",*");
+            Set<ObjectName> cfObjects = mbeanServerConn.queryNames(query, null);
+            List<String> r = new ArrayList<>();
+            for(ObjectName n : cfObjects)
+            {
+                String cfName = n.getKeyProperty("columnfamily");
+                r.add(cfName);
+            }
+            return r;
+        } catch (Exception e) {
+            throw new JmxRuntimeException("Failed to get column family names for keyspace " + keyspace, e);
+        }
+    }
 }
+

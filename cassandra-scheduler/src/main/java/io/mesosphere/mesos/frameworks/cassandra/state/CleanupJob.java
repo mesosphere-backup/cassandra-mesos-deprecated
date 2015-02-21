@@ -13,24 +13,17 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.state;
 
-import com.google.common.collect.Maps;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos;
 import org.apache.mesos.Protos;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import static io.mesosphere.mesos.util.ProtoUtils.protoToString;
+import java.util.Set;
 
 public final class CleanupJob extends ClusterJob<CassandraTaskProtos.KeyspaceJobStatus> {
 
     private static final long CLEANUP_STATUS_INVERVAL = 10000L;
 
-    CleanupJob(CassandraCluster cassandraCluster) {
-        super(cassandraCluster);
+    CleanupJob(CassandraCluster cassandraCluster, Set<Protos.ExecutorID> restriction) {
+        super(cassandraCluster, restriction);
     }
 
     @Override

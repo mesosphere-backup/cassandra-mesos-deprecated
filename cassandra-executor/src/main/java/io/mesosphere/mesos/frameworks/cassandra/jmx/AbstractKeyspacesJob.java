@@ -89,7 +89,7 @@ public abstract class AbstractKeyspacesJob implements Closeable {
     protected void finished() {
         finishedTimestamp = System.currentTimeMillis();
         long duration = System.currentTimeMillis() - startTimestamp;
-        LOGGER.info("{} finished in {} seconds : {}", duration / 1000L, getClass().getSimpleName(), keyspaceStatus);
+        LOGGER.info("{} finished in {} seconds : {}", getClass().getSimpleName(), duration / 1000L, keyspaceStatus);
     }
 
     protected List<String> getKeyspaces() {

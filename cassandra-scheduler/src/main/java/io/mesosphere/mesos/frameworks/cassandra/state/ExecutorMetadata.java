@@ -37,6 +37,7 @@ public class ExecutorMetadata {
     private volatile CassandraTaskProtos.CassandraNodeHealthCheckDetails lastHealthCheckDetails;
 
     private volatile long lastRepair;
+    private volatile long lastCleanup;
 
     private Protos.TaskID serverTaskId;
     private Protos.ExecutorInfo executorInfo;
@@ -183,6 +184,14 @@ public class ExecutorMetadata {
 
     public void setRunning() {
         stateChange(ExecutorStatus.LAUNCHED, ExecutorStatus.RUNNING);
+    }
+
+    public void cleanupDone() {
+        lastCleanup = System.currentTimeMillis();
+    }
+
+    public long getLastCleanup() {
+        return lastCleanup;
     }
 
     public boolean shouldTriggerLaunch() {

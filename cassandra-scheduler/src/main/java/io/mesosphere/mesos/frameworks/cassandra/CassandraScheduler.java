@@ -293,16 +293,16 @@ public final class CassandraScheduler implements Scheduler {
                     submitHealthCheck(marker, driver, offer, executorMetadata);
                     offerUsed = true;
                 } else if (cluster.shouldGetRepairStatusOnExecutor(executorID)) {
-                    submitRepairStatus(marker, driver, offer, executorMetadata, KeyspaceJobType.REPAIR, REPAIR_STATUS_SUFFIX);
-                    offerUsed = true;
-                } else if (cluster.shouldGetCleanupStatusOnExecutor(executorID)) {
-                    submitRepairStatus(marker, driver, offer, executorMetadata, KeyspaceJobType.CLEANUP, CLEANUP_STATUS_SUFFIX);
+                    submitKeyspaceJobStatus(marker, driver, offer, executorMetadata, KeyspaceJobType.REPAIR, REPAIR_STATUS_SUFFIX);
                     offerUsed = true;
                 } else if (cluster.shouldStartRepairOnExecutor(executorID)) {
-                    submitStartKeyspaceJob(marker, driver, offer, executorMetadata, KeyspaceJobType.REPAIR, REPAIR_SUFFIX);
+                    submitKeyspaceJobStart(marker, driver, offer, executorMetadata, KeyspaceJobType.REPAIR, REPAIR_SUFFIX);
+                    offerUsed = true;
+                } else if (cluster.shouldGetCleanupStatusOnExecutor(executorID)) {
+                    submitKeyspaceJobStatus(marker, driver, offer, executorMetadata, KeyspaceJobType.CLEANUP, CLEANUP_STATUS_SUFFIX);
                     offerUsed = true;
                 } else if (cluster.shouldStartCleanupOnExecutor(executorID)) {
-                    submitStartKeyspaceJob(marker, driver, offer, executorMetadata, KeyspaceJobType.CLEANUP, CLEANUP_SUFFIX);
+                    submitKeyspaceJobStart(marker, driver, offer, executorMetadata, KeyspaceJobType.CLEANUP, CLEANUP_SUFFIX);
                     offerUsed = true;
                 }
             }
@@ -312,8 +312,8 @@ public final class CassandraScheduler implements Scheduler {
             driver.declineOffer(offer.getId());
     }
 
-    private void submitRepairStatus(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata,
-                                    KeyspaceJobType keyspaceJobType, String suffix) {
+    private void submitKeyspaceJobStatus(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata,
+                                         KeyspaceJobType keyspaceJobType, String suffix) {
         TaskID taskId = cluster.createTaskId(executorMetadata, suffix);
         TaskDetails taskDetails = TaskDetails.newBuilder()
                 .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_KEYSPACE_JOB_STATUS)
@@ -331,11 +331,11 @@ public final class CassandraScheduler implements Scheduler {
                 ))
                 .setExecutor(executorMetadata.getExecutorInfo())
                 .build();
-        LOGGER.debug(marker, "Launching CASSANDRA_NODE_REPAIR_STATUS task", protoToString(task));
+        LOGGER.debug(marker, "Launching CASSANDRA_NODE_KEYSPACE_JOB_STATUS task for {} : {}", keyspaceJobType, protoToString(task));
         driver.launchTasks(Collections.singletonList(offer.getId()), Collections.singletonList(task));
     }
 
-    private void submitStartKeyspaceJob(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata,
+    private void submitKeyspaceJobStart(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata,
                                         KeyspaceJobType keyspaceJobType, String suffix) {
         TaskID taskId = cluster.createTaskId(executorMetadata, suffix);
         TaskDetails taskDetails = TaskDetails.newBuilder()
@@ -356,9 +356,8 @@ public final class CassandraScheduler implements Scheduler {
                 ))
                 .setExecutor(executorMetadata.getExecutorInfo())
                 .build();
-        LOGGER.debug(marker, "Launching CASSANDRA_NODE_REPAIR task", protoToString(task));
+        LOGGER.debug(marker, "Launching CASSANDRA_NODE_KEYSPACE_JOB task for {}: {}", keyspaceJobType, protoToString(task));
         driver.launchTasks(Collections.singletonList(offer.getId()), Collections.singletonList(task));
-
     }
 
     private void submitHealthCheck(Marker marker, SchedulerDriver driver, Offer offer, ExecutorMetadata executorMetadata) {

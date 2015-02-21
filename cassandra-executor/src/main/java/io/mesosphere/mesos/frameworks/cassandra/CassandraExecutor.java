@@ -237,6 +237,7 @@ public final class CassandraExecutor implements Executor {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static void modifyCassandraYaml(Marker taskIdMarker, CassandraNodeRunTask cassandraNodeTask) throws IOException {
         LOGGER.info(taskIdMarker, "Building cassandra.yaml");
 

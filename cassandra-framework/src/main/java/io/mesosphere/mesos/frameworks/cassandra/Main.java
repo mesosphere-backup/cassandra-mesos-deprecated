@@ -64,7 +64,7 @@ public final class Main {
         final long      resourceDiskMegabytes   = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_DISK_MB").or("2048"));
         final long      healthCheckIntervalSec  = Long.parseLong(       Env.option("CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS").or("60"));
         final long      bootstrapGraceTimeSec   = Long.parseLong(       Env.option("CASSANDRA_BOOTSTRAP_GRACE_SECONDS").or("5"));
-        final String    cassandraVersion        =                       Env.option("CASSANDRA_VERSION").or("2.1.2");
+        final String    cassandraVersion        =                       "2.1.2"; // TODO Env.option("CASSANDRA_VERSION").or("2.1.2");
         final String    frameworkName           = frameworkName(        Env.option("CASSANDRA_CLUSTER_NAME"));
 
         final FrameworkInfo.Builder frameworkBuilder =

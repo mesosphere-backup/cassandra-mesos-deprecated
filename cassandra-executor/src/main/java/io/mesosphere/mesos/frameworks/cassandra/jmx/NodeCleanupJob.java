@@ -15,7 +15,6 @@ package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos;
 import org.apache.cassandra.db.compaction.CompactionManager;
-import org.omg.PortableInterceptor.SUCCESSFUL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

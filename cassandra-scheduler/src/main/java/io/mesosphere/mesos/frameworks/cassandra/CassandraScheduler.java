@@ -53,8 +53,8 @@ public final class CassandraScheduler implements Scheduler {
     // see: http://www.datastax.com/documentation/cassandra/2.1/cassandra/security/secureFireWall_r.html
     private static final Map<String, Long> defaultCassandraPortMappings = unmodifiableHashMap(
         tuple2("storage_port", 7000L),
-        tuple2("storage_port_ssl", 7001L),
-        tuple2("jmx", 7199L),
+        tuple2("ssl_storage_port", 7001L),
+        tuple2("jmx_port", 7199L),
         tuple2("native_transport_port", 9042L),
         tuple2("rpc_port", 9160L)
     );
@@ -67,6 +67,8 @@ public final class CassandraScheduler implements Scheduler {
     private final Clock clock;
     @NotNull
     private final String frameworkName;
+    @NotNull
+    private final String cassandraVersion;
     @NotNull
     private String httpServerBaseUrl;
     private final int numberOfNodes;
@@ -89,6 +91,7 @@ public final class CassandraScheduler implements Scheduler {
     public CassandraScheduler(
         @NotNull final Clock clock,
         @NotNull final String frameworkName,
+        @NotNull final String cassandraVersion,
         @NotNull final String httpServerBaseUrl,
         final int numberOfNodes,
         final double cpuCores,
@@ -98,6 +101,7 @@ public final class CassandraScheduler implements Scheduler {
     ) {
         this.clock = clock;
         this.frameworkName = frameworkName;
+        this.cassandraVersion = cassandraVersion;
         this.httpServerBaseUrl = httpServerBaseUrl;
         this.numberOfNodes = numberOfNodes;
         this.cpuCores = cpuCores;
@@ -264,37 +268,34 @@ public final class CassandraScheduler implements Scheduler {
 
                     final SlaveMetadata metadata = executorMetadata.get(executorID);
                     if (metadata != null) {
-                        final String cassandraYaml = CassandraYaml.defaultCassandraYaml()
-                            .setClusterName(frameworkName)
-                            .setRpcAddress(metadata.getIp())
-                            .setListenAddress(metadata.getIp())
-                            .setStoragePort(defaultCassandraPortMappings.get("storage_port"))
-                            .setStoragePortSsl(defaultCassandraPortMappings.get("storage_port_ssl"))
-                            .setNativeTransportPort(defaultCassandraPortMappings.get("native_transport_port"))
-                            .setRpcPort(defaultCassandraPortMappings.get("rpc_port"))
-                            .setSeeds(newArrayList(from(executorMetadata.values()).transform(toIp)))
-                            .dump();
+                        final TaskConfig taskConfig = TaskConfig.newBuilder()
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("cluster_name").setStringValue(frameworkName))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("broadcast_address").setStringValue(metadata.getIp()))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("rpc_address").setStringValue(metadata.getIp()))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("listen_address").setStringValue(metadata.getIp()))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("storage_port").setLongValue(defaultCassandraPortMappings.get("storage_port")))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("ssl_storage_port").setLongValue(defaultCassandraPortMappings.get("ssl_storage_port")))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("native_transport_port").setLongValue(defaultCassandraPortMappings.get("native_transport_port")))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("rpc_port").setLongValue(defaultCassandraPortMappings.get("rpc_port")))
+                                .addVariables(TaskConfig.Entry.newBuilder().setName("seeds").setStringValue(Joiner.on(',').join(newArrayList(from(executorMetadata.values()).transform(toIp)))))
+                                .build();
                         final TaskDetails taskDetails = TaskDetails.newBuilder()
                             .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_RUN)
                             .setCassandraNodeRunTask(
                                 CassandraNodeRunTask.newBuilder()
                                     //TODO(BenWhitehead) Cleanup path handling to make more maintainable across different versions of cassandra
-                                    .addAllCommand(newArrayList("apache-cassandra-2.1.2/bin/cassandra", "-p", "cassandra.pid"))
-                                    .addTaskFiles(
-                                        TaskFile.newBuilder()
-                                            //TODO(BenWhitehead) Cleanup path handling to make more maintainable across different versions of cassandra
-                                            .setOutputPath("apache-cassandra-2.1.2/conf/cassandra.yaml")
-                                            .setData(ByteString.copyFromUtf8(cassandraYaml))
-                                    )
-                                .setTaskEnv(taskEnv(
-                                    // see conf/cassandra-env.sh in the cassandra distribution for details
-                                    // about these variables.
-                                    tuple2("JMX_PORT", String.valueOf(defaultCassandraPortMappings.get("jmx_port"))),
-                                    tuple2("MAX_HEAP_SIZE", memMb + "m"),
-                                    // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
-                                    // times. If in doubt, and if you do not particularly want to tweak, go with
-                                    // 100 MB per physical CPU core.
-                                    tuple2("HEAP_NEWSIZE", (int) (cpuCores * 100) + "m")
+                                    .addAllCommand(newArrayList("apache-cassandra-" + cassandraVersion + "/bin/cassandra", "-p", "cassandra.pid"))
+                                    .setTaskConfig(taskConfig)
+                                    .setVersion(cassandraVersion)
+                                    .setTaskEnv(taskEnv(
+                                        // see conf/cassandra-env.sh in the cassandra distribution for details
+                                        // about these variables.
+                                        tuple2("JMX_PORT", String.valueOf(defaultCassandraPortMappings.get("jmx_port"))),
+                                        tuple2("MAX_HEAP_SIZE", memMb + "m"),
+                                        // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
+                                        // times. If in doubt, and if you do not particularly want to tweak, go with
+                                        // 100 MB per physical CPU core.
+                                        tuple2("HEAP_NEWSIZE", (int) (cpuCores * 100) + "m")
                                 ))
                             )
                             .build();
@@ -322,7 +323,7 @@ public final class CassandraScheduler implements Scheduler {
                         .setTaskType(TaskDetails.TaskType.CASSANDRA_NODE_HEALTH_CHECK)
                         .setCassandraNodeHealthCheckTask(
                             CassandraNodeHealthCheckTask.newBuilder()
-                                .setJmxPort(defaultCassandraPortMappings.get("jmx"))
+                                .setJmxPort(defaultCassandraPortMappings.get("jmx_port"))
                                 .build()
                         )
                         .build();
@@ -415,7 +416,7 @@ public final class CassandraScheduler implements Scheduler {
 
     @NotNull
     @SafeVarargs
-    private final TaskEnv taskEnv(@NotNull final Tuple2<String, String>... tuples) {
+    private static TaskEnv taskEnv(@NotNull final Tuple2<String, String>... tuples) {
         return TaskEnv.newBuilder()
             .addAllVariables(from(newArrayList(tuples)).transform(tupleToTaskEnvEntry))
             .build();
@@ -423,7 +424,7 @@ public final class CassandraScheduler implements Scheduler {
 
     @NotNull
     private String getUrlForResource(@NotNull final String resourceName) {
-        return (httpServerBaseUrl + "/" + resourceName).replaceAll("(?<!:)/+", "/");
+        return (httpServerBaseUrl + '/' + resourceName).replaceAll("(?<!:)/+", "/");
     }
 
     @NotNull

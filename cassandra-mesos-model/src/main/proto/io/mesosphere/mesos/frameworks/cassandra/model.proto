@@ -17,20 +17,24 @@ option java_outer_classname = "CassandraTaskProtos";
 
 message TaskDetails {
     required TaskType taskType = 1;
-    optional SlaveMetadataTask slaveMetadataTask = 2;
+    optional CassandraNodeRolloutTask cassandraNodeRolloutTask = 2;
     optional CassandraNodeRunTask cassandraNodeRunTask = 3;
     optional CassandraNodeShutdownTask cassandraNodeShutdownTask = 4;
     optional CassandraNodeHealthCheckTask cassandraNodeHealthCheckTask = 5;
+    optional CassandraNodeKeyspaceJobTask cassandraNodeKeyspaceJobTask = 6;
+    optional CassandraNodeKeyspaceJobStatusTask cassandraNodeKeyspaceJobStatusTask = 7;
 
     enum TaskType {
-        SLAVE_METADATA = 1;
+        CASSANDRA_NODE_ROLLOUT = 1;
         CASSANDRA_NODE_RUN = 2;
         CASSANDRA_NODE_SHUTDOWN = 3;
         CASSANDRA_NODE_HEALTH_CHECK = 4;
+        CASSANDRA_NODE_KEYSPACE_JOB = 5;
+        CASSANDRA_NODE_KEYSPACE_JOB_STATUS = 6;
     }
 }
 
-message SlaveMetadataTask {
+message CassandraNodeRolloutTask {
 }
 
 message CassandraNodeRunTask {
@@ -45,9 +49,24 @@ message CassandraNodeShutdownTask {
 }
 
 message CassandraNodeHealthCheckTask {
+    required JmxConnect jmx = 1;
+}
+
+message CassandraNodeKeyspaceJobTask {
+    required JmxConnect jmx = 1;
+    required KeyspaceJobType type = 2;
+}
+
+message CassandraNodeKeyspaceJobStatusTask {
+    required KeyspaceJobType type = 2;
+}
+
+message JmxConnect {
     // this is an int64 so that it generates a long field which is the type mesos uses when expressing ranges
     // port resources are expressed as ranges
     required int64 jmxPort = 1;
+    required string ip = 2;
+    // TODO add JMX auth params
 }
 
 /**
@@ -83,20 +102,19 @@ message TaskEnv {
 
 message SlaveStatusDetails {
     required StatusDetailsType statusDetailsType = 1;
-    optional SlaveMetadata slaveMetadata = 2;
-    optional SlaveErrorDetails slaveErrorDetails = 3;
-    optional CassandraNodeHealthCheckDetails cassandraNodeHealthCheckDetails = 4;
+    optional SlaveErrorDetails slaveErrorDetails = 2;
+    optional CassandraNodeHealthCheckDetails cassandraNodeHealthCheckDetails = 3;
+    optional KeyspaceJobStatus keyspaceJobStatus = 4;
 
     enum StatusDetailsType {
         NULL_DETAILS = 1;
-        SLAVE_METADATA = 2;
-        ERROR_DETAILS = 3;
-        HEALTH_CHECK_DETAILS = 4;
+        ROLLED_OUT_DETAILS = 2;
+        RUN_DETAILS = 3;
+        ERROR_DETAILS = 4;
+        HEALTH_CHECK_DETAILS = 5;
+        REPAIR_STATUS = 6;
+        CLEANUP_STATUS = 7;
     }
-}
-
-message SlaveMetadata {
-    optional string ip = 1;
 }
 
 message SlaveErrorDetails {
@@ -104,9 +122,30 @@ message SlaveErrorDetails {
     optional string details = 2;
 }
 
+enum KeyspaceJobType {
+    REPAIR = 1;
+    CLEANUP = 2;
+}
+
+message KeyspaceJobStatus {
+    required KeyspaceJobType type = 1;
+    required bool running = 2;
+    repeated JobKeyspaceStatus processedKeyspaces = 3;
+    repeated string remainingKeyspaces = 4;
+    optional int64 started = 5;
+    optional int64 finished = 6;
+}
+
+message JobKeyspaceStatus {
+    required string keyspace = 1;
+    required string status = 2;
+    required int64 duration = 3;
+}
+
 message CassandraNodeHealthCheckDetails {
     required bool healthy = 1;
     optional string msg = 2;
+    optional CassandraNodeInfo info = 3;
 }
 
 message CassandraNodeInfo {

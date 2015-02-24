@@ -9,7 +9,7 @@ function main {(
     export CASSANDRA_CLUSTER_NAME=dev-cluster
     export MESOS_ZK=zk://localhost:2181/mesos
     export EXECUTOR_FILE_PATH=$(ls $(pwd)/cassandra-executor/target/cassandra-executor-*-jar-with-dependencies.jar)
-    export JDK_FILE_PATH=$(pwd)/target/framework-package/jdk.tar.gz
+    export JRE_FILE_PATH=$(pwd)/target/framework-package/jre.tar.gz
     export CASSANDRA_FILE_PATH=$(pwd)/target/framework-package/cassandra.tar.gz
     cd cassandra-framework
     mvn exec:java -Dexec.mainClass="io.mesosphere.mesos.frameworks.cassandra.Main"

@@ -10,7 +10,6 @@ import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import io.mesosphere.mesos.util.Clock;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
-import org.apache.mesos.state.State;
 import org.jetbrains.annotations.NotNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -75,17 +74,7 @@ public final class CassandraCluster {
     @NotNull
     private final Clock clock;
     @NotNull
-    private final String frameworkName;
-    @NotNull
-    private final String cassandraVersion;
-    @NotNull
     private final String httpServerBaseUrl;
-    private final int numberOfNodes;
-    private final double cpuCores;
-    private final long memMb;
-    private final long diskMb;
-    @NotNull
-    private final Duration healthCheckInterval;
 
     @NotNull
     private final ExecutorCounter execCounter;
@@ -93,31 +82,23 @@ public final class CassandraCluster {
     private final PersistedCassandraClusterState clusterState;
     @NotNull
     private final PersistedCassandraClusterHealthCheckHistory healthCheckHistory;
+    @NotNull
+    private final PersistedCassandraFrameworkConfiguration configuration;
 
     public CassandraCluster(
         @NotNull final Clock clock,
-        @NotNull final String frameworkName,
-        @NotNull final State state,
-        @NotNull final String cassandraVersion,
         @NotNull final String httpServerBaseUrl,
-        final int numberOfNodes,
-        final double cpuCores,
-        final long memMb,
-        final long diskMb,
-        final long healthCheckIntervalSeconds
+        @NotNull final ExecutorCounter execCounter,
+        @NotNull final PersistedCassandraClusterState clusterState,
+        @NotNull final PersistedCassandraClusterHealthCheckHistory healthCheckHistory,
+        @NotNull final PersistedCassandraFrameworkConfiguration configuration
     ) {
         this.clock = clock;
-        this.frameworkName = frameworkName;
-        this.cassandraVersion = cassandraVersion;
-        this.numberOfNodes = numberOfNodes;
-        this.cpuCores = cpuCores;
-        this.memMb = memMb;
-        this.diskMb = diskMb;
         this.httpServerBaseUrl = httpServerBaseUrl;
-        healthCheckInterval = Duration.standardSeconds(healthCheckIntervalSeconds);
-        execCounter = new ExecutorCounter(state, 0L);
-        clusterState = new PersistedCassandraClusterState(state);
-        healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);
+        this.execCounter = execCounter;
+        this.clusterState = clusterState;
+        this.healthCheckHistory = healthCheckHistory;
+        this.configuration = configuration;
     }
 
     public void removeTask(@NotNull final String taskId) {
@@ -249,7 +230,13 @@ public final class CassandraCluster {
                 node.setMetadataTask(metadataTask);
                 cassandraNodeTasks.add(metadataTask);
             } else if (!node.hasServerTask()) {
-                final List<String> errors = hasResources(offer, cpuCores, memMb, diskMb, defaultCassandraPortMappings);
+                final List<String> errors = hasResources(
+                    offer,
+                    configuration.cpuCores(),
+                    configuration.memMb(),
+                    configuration.diskMb(),
+                    defaultCassandraPortMappings
+                );
                 if (!errors.isEmpty()) {
                     LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
                 } else {
@@ -295,7 +282,7 @@ public final class CassandraCluster {
         );
         if (previousHealthCheckTime.isPresent()) {
             final Duration duration = new Duration(new Instant(previousHealthCheckTime.get()), clock.now());
-            return duration.isLongerThan(healthCheckInterval);
+            return duration.isLongerThan(configuration.healthCheckInterval());
         } else {
             return true;
         }
@@ -308,14 +295,14 @@ public final class CassandraCluster {
                 .filter(cassandraNodeHasExecutor())
                 .filter(cassandraNodeHostnameEq(offer.getHostname()));
         if (filter.isEmpty()) {
-            return frameworkName + ".node." + execCounter.getAndIncrement() + ".executor";
+            return configuration.frameworkName() + ".node." + execCounter.getAndIncrement() + ".executor";
         } else {
             return filter.get(0).getCassandraNodeExecutor().getExecutorId();
         }
     }
 
     private boolean launchNode() {
-        return clusterState.nodes().size() < numberOfNodes;
+        return clusterState.nodes().size() < configuration.numberOfNodes();
     }
 
     @NotNull
@@ -330,7 +317,7 @@ public final class CassandraCluster {
         @NotNull final ExecutorMetadata metadata
     ) {
         final TaskConfig taskConfig = TaskConfig.newBuilder()
-            .addVariables(configValue("cluster_name", frameworkName))
+            .addVariables(configValue("cluster_name", configuration.frameworkName()))
             .addVariables(configValue("broadcast_address", metadata.getIp()))
             .addVariables(configValue("rpc_address", metadata.getIp()))
             .addVariables(configValue("listen_address", metadata.getIp()))
@@ -345,18 +332,18 @@ public final class CassandraCluster {
             .setCassandraServerRunTask(
                 CassandraServerRunTask.newBuilder()
                     //TODO(BenWhitehead) Cleanup path handling to make more maintainable across different versions of cassandra
-                    .addAllCommand(newArrayList("apache-cassandra-" + cassandraVersion + "/bin/cassandra", "-p", "cassandra.pid"))
+                    .addAllCommand(newArrayList("apache-cassandra-" + configuration.cassandraVersion() + "/bin/cassandra", "-p", "cassandra.pid"))
                     .setTaskConfig(taskConfig)
-                    .setVersion(cassandraVersion)
+                    .setVersion(configuration.cassandraVersion())
                     .setTaskEnv(taskEnv(
                         // see conf/cassandra-env.sh in the cassandra distribution for details
                         // about these variables.
                         tuple2("JMX_PORT", String.valueOf(defaultCassandraPortMappings.get("jmx_port"))),
-                        tuple2("MAX_HEAP_SIZE", memMb + "m"),
+                        tuple2("MAX_HEAP_SIZE", configuration.memMb() + "m"),
                         // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
                         // times. If in doubt, and if you do not particularly want to tweak, go with
                         // 100 MB per physical CPU core.
-                        tuple2("HEAP_NEWSIZE", (int) (cpuCores * 100) + "m")
+                        tuple2("HEAP_NEWSIZE", (int) (configuration.cpuCores() * 100) + "m")
                     ))
             )
             .build();
@@ -364,9 +351,9 @@ public final class CassandraCluster {
         return CassandraNodeTask.newBuilder()
             .setTaskId(taskId)
             .setExecutorId(executorId)
-            .setCpuCores(cpuCores)
-            .setMemMb(memMb)
-            .setDiskMb(diskMb)
+            .setCpuCores(configuration.cpuCores())
+            .setMemMb(configuration.memMb())
+            .setDiskMb(configuration.diskMb())
             .addAllPorts(defaultCassandraPortMappings.values())
             .setTaskDetails(taskDetails)
             .build();
@@ -383,7 +370,7 @@ public final class CassandraCluster {
     private CassandraNodeExecutor getCassandraNodeExecutorSupplier(@NotNull final String executorId) {
         return CassandraNodeExecutor.newBuilder()
             .setExecutorId(executorId)
-            .setSource(frameworkName)
+            .setSource(configuration.frameworkName())
             .setCpuCores(0.1)
             .setMemMb(16)
             .setDiskMb(16)

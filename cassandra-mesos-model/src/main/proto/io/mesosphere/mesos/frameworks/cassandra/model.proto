@@ -15,6 +15,17 @@ package io.mesosphere.mesos.frameworks.cassandra;
 
 option java_outer_classname = "CassandraFrameworkProtos";
 
+message CassandraFrameworkConfiguration {
+    optional string frameworkId = 1;
+    optional string frameworkName = 2;
+    optional string cassandraVersion = 3;
+    optional int32 numberOfNodes = 4;
+    optional double cpuCores = 5;
+    optional int64 memMb = 6;
+    optional int64 diskMb = 7;
+    optional int64 healthCheckIntervalSeconds = 8;
+}
+
 message CassandraClusterState {
     repeated CassandraNode nodes = 1;
     repeated ExecutorMetadata executorMetadata = 2;

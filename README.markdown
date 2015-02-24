@@ -9,6 +9,15 @@ All configuration is handled through environment variables (this lends itself we
 
 The following environment variables can be used to configure how the framework will operate.
 ```bash
+# name of the cassandra cluster, this will be part of the framework name in Mesos
+CASSANDRA_CLUSTER_NAME=dev-cluster
+
+# Mesos ZooKeeper URL to locate leading master
+MESOS_ZK=zk://localhost:2181/mesos
+
+# ZooKeeper URL to be used to storm framework state
+CASSANDRA_ZK=zk://localhost:2181/cassandra-mesos
+
 # The number of nodes in the ring (default 3)
 CASSANDRA_NODE_COUNT=3
 
@@ -23,6 +32,9 @@ CASSANDRA_RESOURCE_DISK_MB=2048
 
 # The number of seconds between each health check of the cassandra node (default 60)
 CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS=60
+
+# The number of seconds that should be used as the mesos framework timeout (default 604800 seconds / 7 days)
+CASSANDRA_FAILOVER_TIMEOUT_SECONDS=604800
 
 ```
 
@@ -117,9 +129,6 @@ Run `dev-run.bash` to startup the framework. You should then be able to see task
 #### Configuration
 The following environment variables (with example values) should be specified for local development:
 ```bash
-# name of the cassandra cluster, this will be part of the framework name in Mesos
-CASSANDRA_CLUSTER_NAME=dev-cluster
-
 # The port the http server used for serving assets to tasks should use.
 # In normal operations this dynamic port will be provided by Marathon as part of the task that
 # will run the framework

@@ -43,7 +43,7 @@ public abstract class StatePersistedObject<A> {
     }
 
     @NotNull
-    public A get() {
+    public final A get() {
         if (parsedValue == null) {
             parsedValue = parseValue();
         }
@@ -56,13 +56,19 @@ public abstract class StatePersistedObject<A> {
         if (value.length > 0) {
             retVal = deserializer.apply(value);
         } else {
-            retVal = defaultValue;
+            final A newValue = defaultValue;
+            var = store(newValue);
+            retVal = newValue;
         }
         return retVal;
     }
 
-    public void setValue(@NotNull final A newValue) {
-        var = await(state.store(var.mutate(serializer.apply(newValue))));
+    protected final void setValue(@NotNull final A newValue) {
+        var = store(newValue);
         parsedValue = newValue;
+    }
+
+    private Variable store(final A newValue) {
+        return await(state.store(var.mutate(serializer.apply(newValue))));
     }
 }

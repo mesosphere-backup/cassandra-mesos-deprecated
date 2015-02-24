@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
+import java.util.Collections;
 import java.util.List;
 
 import static com.google.common.collect.FluentIterable.from;
@@ -48,20 +49,29 @@ public final class CassandraScheduler implements Scheduler {
     };
 
     @NotNull
+    private final PersistedCassandraFrameworkConfiguration configuration;
+    @NotNull
     private final CassandraCluster cassandraCluster;
 
-    public CassandraScheduler(@NotNull final CassandraCluster cassandraCluster) {
+    public CassandraScheduler(
+        @NotNull final PersistedCassandraFrameworkConfiguration configuration,
+        @NotNull final CassandraCluster cassandraCluster
+    ) {
+        this.configuration = configuration;
         this.cassandraCluster = cassandraCluster;
     }
 
     @Override
     public void registered(final SchedulerDriver driver, final FrameworkID frameworkId, final MasterInfo masterInfo) {
-        LOGGER.debug("registered(driver : {}, frameworkId : {}, masterInfo : {})", driver, protoToString(frameworkId), protoToString(masterInfo));
+        LOGGER.debug("> registered(driver : {}, frameworkId : {}, masterInfo : {})", driver, protoToString(frameworkId), protoToString(masterInfo));
+        configuration.frameworkId(frameworkId.getValue());
+        LOGGER.debug("< registered(driver : {}, frameworkId : {}, masterInfo : {})", driver, protoToString(frameworkId), protoToString(masterInfo));
     }
 
     @Override
     public void reregistered(final SchedulerDriver driver, final MasterInfo masterInfo) {
         LOGGER.debug("reregistered(driver : {}, masterInfo : {})", driver, protoToString(masterInfo));
+        driver.reconcileTasks(Collections.<TaskStatus>emptySet());
     }
 
     @Override

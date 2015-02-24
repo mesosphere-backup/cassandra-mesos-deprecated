@@ -11,20 +11,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.mesosphere.mesos.frameworks.cassandra;
+package io.mesosphere.mesos.frameworks.cassandra.state;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-
-@Path("/")
-public final class ApiController {
-
-    @GET
-    @Path("/hi")
-    @Produces("text/plain")
-    public String hi() {
-        return "Hello World";
+/**
+ * Upgrade C* software.
+ */
+public class UpgradeJob extends RestartJob {
+    public UpgradeJob(CassandraCluster cassandraCluster) {
+        super(cassandraCluster);
     }
 
+    // TODO implement
 }

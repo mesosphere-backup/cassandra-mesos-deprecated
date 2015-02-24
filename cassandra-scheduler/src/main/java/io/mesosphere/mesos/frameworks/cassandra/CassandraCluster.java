@@ -133,7 +133,8 @@ public final class CassandraCluster {
                 @Override
                 public CassandraNode.Builder apply(final CassandraNode.Builder input) {
                     if (input.hasCassandraNodeExecutor() && input.getCassandraNodeExecutor().getExecutorId().equals(executorId)) {
-                        return input.clearMetadataTask();
+                        return input.clearMetadataTask()
+                            .clearServerTask();
                     }
                     return input;
                 }

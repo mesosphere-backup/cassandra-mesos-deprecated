@@ -65,13 +65,16 @@ message RepairScheduledTask {
 
 message CassandraNode {
     required string hostname = 1;
-    repeated DataVolume dataVolumes = 2;
-    optional CassandraNodeExecutor cassandraNodeExecutor = 3;
+    required string ip = 2;
+    required JmxConnect jmxConnect = 3;
 
-    optional CassandraNodeTask metadataTask = 4;
-    optional CassandraNodeTask serverTask = 5;
+    repeated DataVolume dataVolumes = 4;
+    optional CassandraNodeExecutor cassandraNodeExecutor = 5;
 
-    repeated HealthCheckDetails healthCheckHistory = 6;
+    optional CassandraNodeTask metadataTask = 6;
+    optional CassandraNodeTask serverTask = 7;
+
+    repeated HealthCheckDetails healthCheckHistory = 8;
 }
 message DataVolume {
     required string path = 1;
@@ -156,9 +159,7 @@ message CleanupTask {
 }
 
 message JmxConnect {
-    // this is an int64 so that it generates a long field which is the type mesos uses when expressing ranges
-    // port resources are expressed as ranges
-    required int64 jmxPort = 1;
+    required int32 jmxPort = 1;
     required string ip = 2;
     // TODO add JMX auth params
 }

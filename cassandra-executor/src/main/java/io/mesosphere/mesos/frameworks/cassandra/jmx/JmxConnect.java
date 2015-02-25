@@ -100,7 +100,7 @@ public class JmxConnect implements Closeable {
     }
 
     public JmxConnect(CassandraFrameworkProtos.JmxConnect jmxInfo) {
-        this(jmxInfo.getIp(), (int) jmxInfo.getJmxPort() & 0xffff);
+        this(jmxInfo.getIp(), jmxInfo.getJmxPort());
     }
 
     @Override

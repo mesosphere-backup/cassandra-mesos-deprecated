@@ -23,7 +23,7 @@
             <maxFileSize>10MB</maxFileSize>
         </triggeringPolicy>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - {%marker} %msg%n</pattern>
+            <pattern>%date %-5level [%thread] %logger{36} - {%marker} %msg%n</pattern>
         </encoder>
     </appender>
 

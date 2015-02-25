@@ -54,4 +54,11 @@ final class PersistedCassandraClusterHealthCheckHistory extends StatePersistedOb
                 .build()
         );
     }
+
+    public CassandraFrameworkProtos.HealthCheckHistoryEntry last(String executorId) {
+        List<CassandraFrameworkProtos.HealthCheckHistoryEntry> list = get().getEntriesList();
+        return list != null && !list.isEmpty() ?
+                list.get(list.size()-1) :
+                null;
+    }
 }

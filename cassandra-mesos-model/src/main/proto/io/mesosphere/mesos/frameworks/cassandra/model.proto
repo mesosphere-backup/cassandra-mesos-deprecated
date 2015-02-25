@@ -24,6 +24,13 @@ message CassandraFrameworkConfiguration {
     optional int64 memMb = 6;
     optional int64 diskMb = 7;
     optional int64 healthCheckIntervalSeconds = 8;
+    optional int64 bootstrapGraceTimeSeconds = 9;
+    repeated PortMapping portMapping = 10;
+}
+
+message PortMapping {
+    required string name = 1;
+    required int32 port = 2;
 }
 
 message CassandraClusterState {

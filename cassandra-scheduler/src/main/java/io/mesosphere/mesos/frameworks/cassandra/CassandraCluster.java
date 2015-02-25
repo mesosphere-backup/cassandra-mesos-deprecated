@@ -36,7 +36,6 @@ import static io.mesosphere.mesos.util.CassandraFrameworkProtosUtils.*;
 import static io.mesosphere.mesos.util.Functions.*;
 import static io.mesosphere.mesos.util.ProtoUtils.*;
 import static io.mesosphere.mesos.util.Tuple2.tuple2;
-import static java.util.Collections.unmodifiableList;
 
 /**
  * The processing model that is used by Mesos is that of an actor system.
@@ -211,8 +210,7 @@ public final class CassandraCluster {
         return newArrayList(from(clusterState.executorMetadata()).transform(CassandraFrameworkProtosUtils.executorMetadataToIp()));
     }
 
-    @NotNull
-    public Optional<Tuple2<CassandraNodeExecutor, List<CassandraNodeTask>>> getTasksForOffer(@NotNull final Protos.Offer offer) {
+    public CassandraNodeExecutor getTasksForOffer(@NotNull final Protos.Offer offer, List<CassandraNodeTask> launchTasks, List<TaskDetails> submitTasks) {
         final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname());
         LOGGER.debug(marker, "> getTasksForOffer(offer : {})", protoToString(offer));
 
@@ -224,7 +222,6 @@ public final class CassandraCluster {
         if (nodeOption.isPresent()) {
             final CassandraNode.Builder node = CassandraNode.newBuilder(nodeOption.get());
 
-            final List<CassandraNodeTask> cassandraNodeTasks = newArrayList();
             if (!node.hasCassandraNodeExecutor()) {
                 final String executorId = getExecutorIdForOffer(offer);
                 final CassandraNodeExecutor executor = getCassandraNodeExecutorSupplier(executorId);
@@ -233,10 +230,13 @@ public final class CassandraCluster {
 
             final CassandraNodeExecutor executor = node.getCassandraNodeExecutor();
             final String executorId = executor.getExecutorId();
-            if (!node.hasMetadataTask()) {
+            final Optional<ExecutorMetadata> maybeMetadata = getExecutorMetadata(executorId);
+            if (!node.hasMetadataTask() || !maybeMetadata.isPresent()) {
+                // TODO add some grace time between two metadata-tasks (at least one minute to allow downloading, etc)
+
                 final CassandraNodeTask metadataTask = getMetadataTask(executorId);
                 node.setMetadataTask(metadataTask);
-                cassandraNodeTasks.add(metadataTask);
+                launchTasks.add(metadataTask);
             } else if (!node.hasServerTask()) {
                 final List<String> errors = hasResources(
                     offer,
@@ -249,33 +249,36 @@ public final class CassandraCluster {
                     LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
                 } else {
                     final String taskId = executorId + ".server";
-                    final Optional<ExecutorMetadata> maybeMetadata = getExecutorMetadata(executorId);
                     if (maybeMetadata.isPresent()) {
                         final ExecutorMetadata metadata = maybeMetadata.get();
                         final CassandraNodeTask task = getServerTask(executorId, taskId, metadata, node.getJmxConnect());
                         node.setServerTask(task);
-                        cassandraNodeTasks.add(task);
+                        launchTasks.add(task);
                     }
                 }
             } else if (shouldRunHealthCheck(executorId)) {
-                final String taskId = node.getCassandraNodeExecutor().getExecutorId() + ".healthcheck";
-                final CassandraNodeTask task = getHealthCheckTask(executorId, taskId);
-                cassandraNodeTasks.add(task);
+                // TODO if a health check response is 'super-lost' then issue a health-check via SchedulerDriver.launchTasks() and check the result
+                // We have to recover state based on that response.
+                if (false) {
+                    final String taskId = node.getCassandraNodeExecutor().getExecutorId() + ".healthcheck";
+                    launchTasks.add(getHealthCheckTask(executorId, taskId));
+                } else {
+                    submitTasks.add(getHealthCheckTaskDetails());
+                }
             }
-            final List<CassandraNodeTask> tasks = unmodifiableList(cassandraNodeTasks);
-            LOGGER.trace(marker, "< getTasksForOffer(offer : {}) = {}", protoToString(offer), protoToString(tasks));
             final CassandraNode built = node.build();
             clusterState.addOrSetNode(built);
-            final Tuple2<CassandraNodeExecutor, List<CassandraNodeTask>> retVal = tuple2(built.getCassandraNodeExecutor(), tasks);
-            return Optional.of(retVal);
+
+            LOGGER.trace(marker, "< getTasksForOffer(offer : {}) = {}, {}", protoToString(offer), protoToString(launchTasks), protoToString(submitTasks));
+            return built.getCassandraNodeExecutor();
         } else if (launchNode()) {
             clusterState.nodes(append(
                     clusterState.nodes(),
                     buildCassandraNode(offer)
             ));
-            return Optional.absent();
+            return null;
         } else {
-            return Optional.absent();
+            return null;
         }
     }
 
@@ -295,8 +298,8 @@ public final class CassandraCluster {
 
             return builder.setIp(ia.getHostAddress())
                     .setJmxConnect(JmxConnect.newBuilder()
-                            .setIp("127.0.0.1")
-                            .setJmxPort(jmxPort)
+                                    .setIp("127.0.0.1")
+                                    .setJmxPort(jmxPort)
                             // TODO JMX auth parameters go here
                     )
                     .build();
@@ -429,19 +432,22 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private static CassandraNodeTask getHealthCheckTask(@NotNull final String executorId, @NotNull final String taskId) {
-        final TaskDetails taskDetails = TaskDetails.newBuilder()
-            .setTaskType(TaskDetails.TaskType.HEALTH_CHECK)
-            .setHealthCheckTask(HealthCheckTask.getDefaultInstance())
-            .build();
+    private static CassandraNodeTask getHealthCheckTask(@NotNull final String executorId, final String taskId) {
         return CassandraNodeTask.newBuilder()
             .setTaskId(taskId)
             .setExecutorId(executorId)
             .setCpuCores(0.1)
             .setMemMb(16)
             .setDiskMb(16)
-            .setTaskDetails(taskDetails)
+            .setTaskDetails(getHealthCheckTaskDetails())
             .build();
+    }
+
+    private static TaskDetails getHealthCheckTaskDetails() {
+        return TaskDetails.newBuilder()
+                .setTaskType(TaskDetails.TaskType.HEALTH_CHECK)
+                .setHealthCheckTask(HealthCheckTask.getDefaultInstance())
+                .build();
     }
 
     @NotNull

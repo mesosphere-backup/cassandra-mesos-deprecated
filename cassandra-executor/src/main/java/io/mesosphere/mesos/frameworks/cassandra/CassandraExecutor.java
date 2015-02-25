@@ -67,6 +67,9 @@ public final class CassandraExecutor implements Executor {
     private volatile Process process;
     private volatile JmxConnect jmxConnect;
 
+    private ExecutorID serverExecutorId;
+    private TaskID serverTaskId;
+
     private final AtomicReference<NodeRepairJob> repair = new AtomicReference<>();
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
@@ -108,6 +111,8 @@ public final class CassandraExecutor implements Executor {
                     safeShutdown();
                     final Process cassandraProcess = launchCassandraNodeTask(taskIdMarker, taskDetails.getCassandraServerRunTask());
                     process = cassandraProcess;
+                    serverExecutorId = task.getExecutor().getExecutorId();
+                    serverTaskId = task.getTaskId();
                     jmxConnect = new JmxConnect(taskDetails.getCassandraServerRunTask().getJmx());
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_STARTING));
                     // TODO(BenWhitehead) this should really come from the first successful health check, but stubbed for now.
@@ -201,6 +206,49 @@ public final class CassandraExecutor implements Executor {
     @Override
     public void frameworkMessage(final ExecutorDriver driver, final byte[] data) {
         LOGGER.debug("frameworkMessage(driver : {}, data : {})", driver, data);
+
+        try {
+            TaskDetails taskDetails = TaskDetails.parseFrom(data);
+
+            switch (taskDetails.getTaskType()) {
+                case HEALTH_CHECK:
+                    final HealthCheckTask healthCheckTask = taskDetails.getHealthCheckTask();
+                    LOGGER.info("Received healthCheckTask: {}", protoToString(healthCheckTask));
+                    final HealthCheckDetails healthCheck = performHealthCheck();
+                    final SlaveStatusDetails healthCheckDetails = SlaveStatusDetails.newBuilder()
+                            .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.HEALTH_CHECK_DETAILS)
+                            .setHealthCheckDetails(healthCheck)
+                            .build();
+                    driver.sendFrameworkMessage(healthCheckDetails.toByteArray());
+                    break;
+                case REPAIR_STATUS:
+                    NodeRepairJob currentRepair = repair.get();
+                    RepairStatus.Builder repairStatus = RepairStatus.newBuilder()
+                            .setRunning(currentRepair != null && !currentRepair.isFinished());
+                    if (currentRepair != null) {
+                        repairStatus.addAllRemainingKeyspaces(currentRepair.getRemainingKeyspaces())
+                                .addAllRepairedKeyspaces(currentRepair.getKeyspaceStatus().values())
+                                .setStarted(currentRepair.getStartTimestamp())
+                                .setFinished(currentRepair.getFinishedTimestamp());
+                    }
+                    SlaveStatusDetails repairDetails = SlaveStatusDetails.newBuilder()
+                            .setRepairStatus(repairStatus.build())
+                            .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.REPAIR_STATUS)
+                            .build();
+                    driver.sendFrameworkMessage(repairDetails.toByteArray());
+                    break;
+                case CLEANUP_STATUS:
+                    // TODO implement
+                    SlaveStatusDetails cleanupDetails = SlaveStatusDetails.newBuilder()
+                            .setCleanupStatus(CleanupStatus.getDefaultInstance())
+                            .build();
+                    driver.sendFrameworkMessage(cleanupDetails.toByteArray());
+                    break;
+            }
+        } catch (Exception e) {
+            final String msg = "Error handling framework message due to exception.";
+            LOGGER.error(msg, e);
+        }
     }
 
     @Override
@@ -214,7 +262,7 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
-    private ExecutorMetadata collectSlaveMetadata(@NotNull final String executorId) throws UnknownHostException {
+    private static ExecutorMetadata collectSlaveMetadata(@NotNull final String executorId) throws UnknownHostException {
         return ExecutorMetadata.newBuilder()
             .setExecutorId(executorId)
             .setIp(getHostAddress())
@@ -451,9 +499,16 @@ public final class CassandraExecutor implements Executor {
         @NotNull final TaskState state,
         @NotNull final SlaveStatusDetails details
     ) {
+        return taskStatus(taskInfo.getExecutor().getExecutorId(), taskInfo.getTaskId(), state, details);
+    }
+
+    @NotNull
+    private static TaskStatus taskStatus(
+            @NotNull final ExecutorID executorId,
+            @NotNull final TaskID taskId, TaskState state, SlaveStatusDetails details) {
         return TaskStatus.newBuilder()
-            .setExecutorId(taskInfo.getExecutor().getExecutorId())
-            .setTaskId(taskInfo.getTaskId())
+            .setExecutorId(executorId)
+            .setTaskId(taskId)
             .setState(state)
             .setSource(TaskStatus.Source.SOURCE_EXECUTOR)
             .setData(ByteString.copyFrom(details.toByteArray()))
@@ -469,14 +524,10 @@ public final class CassandraExecutor implements Executor {
 
     @NotNull
     private static String processBuilderToString(@NotNull final ProcessBuilder builder) {
-        final StringBuilder sb = new StringBuilder("ProcessBuilder{\n");
-        sb.append("directory() = ").append(builder.directory());
-        sb.append(",\n");
-        sb.append("command() = ").append(Joiner.on(" ").join(builder.command()));
-        sb.append(",\n");
-        sb.append("environment() = ").append(Joiner.on("\n").withKeyValueSeparator("->").join(builder.environment()));
-        sb.append("\n}");
-        return sb.toString();
+        return "ProcessBuilder{\n" +
+                "directory() = " + builder.directory() + ",\n" +
+                "command() = " + Joiner.on(" ").join(builder.command()) + ",\n" +
+                "environment() = " + Joiner.on("\n").withKeyValueSeparator("->").join(builder.environment()) + "\n}";
     }
 
     private static class TaskStateChange implements Runnable {

@@ -12,11 +12,13 @@
     "MESOS_ZK": "zk://localhost:2181/mesos",
     "JAVA_OPTS": "-Xms256m -Xmx256m",
     "CASSANDRA_CLUSTER_NAME": "dev-test",
+    "CASSANDRA_ZK": "zk://localhost:2181/cassandra-mesos",
     "CASSANDRA_NODE_COUNT": "3",
     "CASSANDRA_RESOURCE_CPU_CORES": "2.0",
     "CASSANDRA_RESOURCE_MEM_MB": "2048",
     "CASSANDRA_RESOURCE_DISK_MB": "2048",
-    "CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS": "60"
+    "CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS": "60",
+    "CASSANDRA_ZK_TIMEOUT_MS": "10000"
   },
   "cmd": "$(pwd)/jdk*/bin/java $JAVA_OPTS -classpath cassandra-framework.jar io.mesosphere.mesos.frameworks.cassandra.Main"
 }

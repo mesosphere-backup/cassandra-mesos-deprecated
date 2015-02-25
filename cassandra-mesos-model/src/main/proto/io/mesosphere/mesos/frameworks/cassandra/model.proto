@@ -13,53 +13,146 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra;
 
-option java_outer_classname = "CassandraTaskProtos";
+option java_outer_classname = "CassandraFrameworkProtos";
 
-message TaskDetails {
-    required TaskType taskType = 1;
-    optional SlaveMetadataTask slaveMetadataTask = 2;
-    optional CassandraNodeRunTask cassandraNodeRunTask = 3;
-    optional CassandraNodeShutdownTask cassandraNodeShutdownTask = 4;
-    optional CassandraNodeHealthCheckTask cassandraNodeHealthCheckTask = 5;
-    optional CassandraNodeRepairTask cassandraNodeRepairTask = 6;
-    optional CassandraNodeCleanupTask cassandraNodeCleanupTask = 7;
+message CassandraFrameworkConfiguration {
+    optional string frameworkId = 1;
+    optional string frameworkName = 2;
+    optional string cassandraVersion = 3;
+    optional int32 numberOfNodes = 4;
+    optional double cpuCores = 5;
+    optional int64 memMb = 6;
+    optional int64 diskMb = 7;
+    optional int64 healthCheckIntervalSeconds = 8;
+}
 
-    enum TaskType {
-        SLAVE_METADATA = 1;
-        CASSANDRA_NODE_RUN = 2;
-        CASSANDRA_NODE_SHUTDOWN = 3;
-        CASSANDRA_NODE_HEALTH_CHECK = 4;
-        CASSANDRA_NODE_REPAIR = 5;
-        CASSANDRA_NODE_REPAIR_STATUS = 6;
-        CASSANDRA_NODE_CLEANUP = 7;
-        CASSANDRA_NODE_CLEANUP_STATUS = 8;
+message CassandraClusterState {
+    repeated CassandraNode nodes = 1;
+    repeated ExecutorMetadata executorMetadata = 2;
+}
+
+message CassandraClusterHealthCheckHistory {
+    repeated HealthCheckHistoryEntry entries = 1;
+}
+
+message HealthCheckHistoryEntry {
+    required string executorId = 1;
+    required int64 timestamp = 2;
+    required HealthCheckDetails details = 3;
+}
+
+message CassandraClusterScheduledTasksState {
+    repeated ScheduledTask tasks = 1;
+}
+
+message ScheduledTask {
+    required int64 scheduledTime = 1;
+    required ScheduledTaskType taskType = 2;
+
+    enum ScheduledTaskType {
+        CLEANUP = 1;
+        REPAIR = 2;
     }
 }
 
-message SlaveMetadataTask {
+message CleanupScheduledTask {
+
 }
 
-message CassandraNodeRunTask {
+message RepairScheduledTask {
+
+}
+
+message CassandraNode {
+    required string hostname = 1;
+    repeated DataVolume dataVolumes = 2;
+    optional CassandraNodeExecutor cassandraNodeExecutor = 3;
+
+    optional CassandraNodeTask metadataTask = 4;
+    optional CassandraNodeTask serverTask = 5;
+
+    repeated HealthCheckDetails healthCheckHistory = 6;
+}
+message DataVolume {
+    required string path = 1;
+    required int64 sizeMb = 2;
+}
+message CassandraNodeExecutor {
+    required string executorId = 1;
+    required string source = 2;
+    required double cpuCores = 3;
+    required int64 memMb = 4;
+    required int64 diskMb = 5;
+    repeated int64 ports = 6;
+
+    required string command = 7;
+    repeated string commandArgs = 8;
+
+    optional TaskEnv taskEnv = 9;
+
+    repeated URI resource = 10;
+}
+message URI {
+    required string value = 1;
+    optional bool executable = 2;
+    optional bool extract = 3;
+}
+
+message CassandraNodeTask {
+    required string taskId = 1;
+    required string executorId = 2;
+    required double cpuCores = 3;
+    required int64 memMb = 4;
+    required int64 diskMb = 5;
+    repeated int64 ports = 6;
+
+    optional TaskDetails taskDetails = 7;
+}
+
+message TaskDetails {
+    required TaskType taskType = 1;
+    optional ExecutorMetadataTask executorMetadataTask = 2;
+    optional CassandraServerRunTask cassandraServerRunTask = 3;
+    optional CassandraServerShutdownTask cassandraServerShutdownTask = 4;
+    optional HealthCheckTask healthCheckTask = 5;
+    optional RepairTask repairTask = 6;
+    optional CleanupTask rleanupTask = 7;
+
+    enum TaskType {
+        EXECUTOR_METADATA = 1;
+        CASSANDRA_SERVER_RUN = 2;
+        CASSANDRA_SERVER_SHUTDOWN = 3;
+        HEALTH_CHECK = 4;
+        REPAIR = 5;
+        REPAIR_STATUS = 6;
+        CLEANUP = 7;
+        CLEANUP_STATUS = 8;
+    }
+}
+
+message ExecutorMetadataTask {
+    required string executorId = 1;
+}
+
+message CassandraServerRunTask {
     required string version = 1;
     repeated string command = 2;
     optional TaskEnv taskEnv = 3;
-    required TaskConfig taskConfig = 4;
-    repeated TaskFile taskFiles = 5;
+    repeated TaskFile taskFiles = 4;
+    required TaskConfig taskConfig = 5;
+    required JmxConnect jmx = 6;
 }
 
-message CassandraNodeShutdownTask {
+message CassandraServerShutdownTask {
 }
 
-message CassandraNodeHealthCheckTask {
-    required JmxConnect jmx = 1;
+message HealthCheckTask {
 }
 
-message CassandraNodeRepairTask {
-    required JmxConnect jmx = 1;
+message RepairTask {
 }
 
-message CassandraNodeCleanupTask {
-    required JmxConnect jmx = 1;
+message CleanupTask {
 }
 
 message JmxConnect {
@@ -103,15 +196,15 @@ message TaskEnv {
 
 message SlaveStatusDetails {
     required StatusDetailsType statusDetailsType = 1;
-    optional SlaveMetadata slaveMetadata = 2;
+    optional ExecutorMetadata executorMetadata = 2;
     optional SlaveErrorDetails slaveErrorDetails = 3;
-    optional CassandraNodeHealthCheckDetails cassandraNodeHealthCheckDetails = 4;
-    optional CassandraNodeRepairStatus repairStatus = 5;
-    optional CassandraNodeCleanupStatus cleanupStatus = 6;
+    optional HealthCheckDetails healthCheckDetails = 4;
+    optional RepairStatus repairStatus = 5;
+    optional CleanupStatus cleanupStatus = 6;
 
     enum StatusDetailsType {
         NULL_DETAILS = 1;
-        SLAVE_METADATA = 2;
+        EXECUTOR_METADATA = 2;
         ERROR_DETAILS = 3;
         HEALTH_CHECK_DETAILS = 4;
         REPAIR_STATUS = 5;
@@ -119,8 +212,9 @@ message SlaveStatusDetails {
     }
 }
 
-message SlaveMetadata {
-    optional string ip = 1;
+message ExecutorMetadata {
+    required string executorId = 1;
+    optional string ip = 2;
 }
 
 message SlaveErrorDetails {
@@ -128,7 +222,7 @@ message SlaveErrorDetails {
     optional string details = 2;
 }
 
-message CassandraNodeRepairStatus {
+message RepairStatus {
     required bool running = 1;
     repeated KeyspaceRepairStatus repairedKeyspaces = 2;
     repeated string remainingKeyspaces = 3;
@@ -142,16 +236,16 @@ message KeyspaceRepairStatus {
     required int64 duration = 3;
 }
 
-message CassandraNodeCleanupStatus {
+message CleanupStatus {
 }
 
-message CassandraNodeHealthCheckDetails {
+message HealthCheckDetails {
     required bool healthy = 1;
     optional string msg = 2;
-    optional CassandraNodeInfo info = 3;
+    optional NodeInfo info = 3;
 }
 
-message CassandraNodeInfo {
+message NodeInfo {
     // extracted this information because it could be meaningful outside of a health-check
     optional string clusterName = 1;
     optional string operationMode = 2;

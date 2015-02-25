@@ -38,11 +38,9 @@ function copy {(
     cp ${PROJECT_DIR}/cassandra-executor/target/cassandra-executor-*-jar-with-dependencies.jar ${TARGET_DIR}/cassandra-executor.jar
 )}
 
-
 function preparePackage {(
 
     download
-
     copy
 )}
 

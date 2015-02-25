@@ -19,13 +19,20 @@ import com.google.common.collect.Maps;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
+
+import static com.google.common.collect.Lists.newArrayList;
 
 public final class Functions {
 
     private Functions() {}
+
+    public static final Comparator<Long> naturalLongComparator = new Comparator<Long>() {
+        @Override
+        public int compare(final Long o1, final Long o2) {
+            return Long.compare(o1, o2);
+        }
+    };
 
     @NotNull
     public static <A> Optional<A> headOption(@NotNull final Iterable<A> iterable) {
@@ -48,6 +55,14 @@ public final class Functions {
     }
 
     @NotNull
+    public static <A> List<A> append(@NotNull final List<A> list, @NotNull final A item) {
+        final List<A> as = newArrayList();
+        as.addAll(list);
+        as.add(item);
+        return as;
+    }
+
+    @NotNull
     public static Function<String, Protos.CommandInfo.URI> extract() {
         return CommandInfoUri.INSTANCE_EXTRACT;
     }
@@ -55,6 +70,10 @@ public final class Functions {
     @NotNull
     public static Function<String, Protos.CommandInfo.URI> doNotExtract() {
         return CommandInfoUri.INSTANCE;
+    }
+
+    public static abstract class ContinuingTransform<A> implements Function<A, A> {
+        public abstract A apply(final A input);
     }
 
     private static final class CommandInfoUri implements Function<String, Protos.CommandInfo.URI> {

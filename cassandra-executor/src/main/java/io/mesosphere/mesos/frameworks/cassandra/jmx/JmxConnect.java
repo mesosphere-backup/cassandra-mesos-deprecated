@@ -13,7 +13,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
-import io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos;
+import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.cassandra.db.HintedHandOffManager;
 import org.apache.cassandra.db.HintedHandOffManagerMBean;
 import org.apache.cassandra.db.compaction.CompactionManager;
@@ -99,7 +99,7 @@ public class JmxConnect implements Closeable {
         this(host, port, null, null);
     }
 
-    public JmxConnect(CassandraTaskProtos.JmxConnect jmxInfo) {
+    public JmxConnect(CassandraFrameworkProtos.JmxConnect jmxInfo) {
         this(jmxInfo.getIp(), (int) jmxInfo.getJmxPort() & 0xffff);
     }
 

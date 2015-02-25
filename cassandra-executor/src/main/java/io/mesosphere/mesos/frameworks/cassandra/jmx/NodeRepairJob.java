@@ -13,7 +13,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
-import io.mesosphere.mesos.frameworks.cassandra.CassandraTaskProtos;
+import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.cassandra.service.ActiveRepairService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +29,7 @@ public class NodeRepairJob extends AbstractKeyspacesJob implements NotificationL
     private static final Logger LOGGER = LoggerFactory.getLogger(NodeRepairJob.class);
 
     private final Map<Integer, String> commandToKeyspace = new HashMap<>();
-    private final Map<String, CassandraTaskProtos.KeyspaceRepairStatus> keyspaceStatus = new HashMap<>();
+    private final Map<String, CassandraFrameworkProtos.KeyspaceRepairStatus> keyspaceStatus = new HashMap<>();
     private long finishedTimestamp;
 
     private volatile long keyspaceStartedAt;
@@ -60,7 +60,7 @@ public class NodeRepairJob extends AbstractKeyspacesJob implements NotificationL
         return keyspaces;
     }
 
-    public Map<String, CassandraTaskProtos.KeyspaceRepairStatus> getKeyspaceStatus() {
+    public Map<String, CassandraFrameworkProtos.KeyspaceRepairStatus> getKeyspaceStatus() {
         return keyspaceStatus;
     }
 
@@ -122,7 +122,7 @@ public class NodeRepairJob extends AbstractKeyspacesJob implements NotificationL
 
                 // TODO possible race if this notification is received _before_ commandToKeyspace.put() is executed in repairNextKeyspace()
 
-                keyspaceStatus.put(keyspace, CassandraTaskProtos.KeyspaceRepairStatus.newBuilder()
+                keyspaceStatus.put(keyspace, CassandraFrameworkProtos.KeyspaceRepairStatus.newBuilder()
                         .setDuration(System.currentTimeMillis() - keyspaceStartedAt)
                         .setStatus(status.name())
                         .setKeyspace(keyspace)

@@ -34,7 +34,7 @@ public final class ApiController {
     @Path("/")
     @Produces("text/html")
     public String indexPage() {
-        return "<a href=\"all-nodes\">All nodes</a> <br/>" +
+        return "<a href=\"status\">All nodes</a> <br/>" +
                 "<a href=\"seed-nodes\">List of seed nodes</a> <br/>" +
                 "<a href=\"repair/start\">Start repair</a> <br/>" +
                 "<a href=\"repair/status\">Current repair status</a> <br/>" +

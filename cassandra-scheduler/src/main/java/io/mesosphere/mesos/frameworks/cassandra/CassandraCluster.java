@@ -227,7 +227,7 @@ public final class CassandraCluster {
                     details.getMsg()
                     );
                 // TODO: This needs to be smarter, right not it assumes that as soon as it's unhealth it's dead
-                removeTask(nodeOpt.get().getServerTask().getTaskId());
+                //removeTask(nodeOpt.get().getServerTask().getTaskId());
             }
         }
         healthCheckHistory.record(
@@ -465,7 +465,7 @@ public final class CassandraCluster {
             .setMemMb(16)
             .setDiskMb(16)
             .setCommand(javaExec)
-//            .addCommandArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
+            .addCommandArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
             .addCommandArgs("-XX:+PrintCommandLineFlags")
             .addCommandArgs("$JAVA_OPTS")
             .addCommandArgs("-classpath")

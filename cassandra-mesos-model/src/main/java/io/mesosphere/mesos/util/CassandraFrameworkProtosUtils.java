@@ -120,7 +120,7 @@ public final class CassandraFrameworkProtosUtils {
         return URI.newBuilder().setValue(urlForResource).setExtract(extract).build();
     }
 
-    public static TaskConfig.Entry configValue(final String name, final Long value) {
+    public static TaskConfig.Entry configValue(final String name, final Integer value) {
         return TaskConfig.Entry.newBuilder().setName(name).setLongValue(value).build();
     }
 

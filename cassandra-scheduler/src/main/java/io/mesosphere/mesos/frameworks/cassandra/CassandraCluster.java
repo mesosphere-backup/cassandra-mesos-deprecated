@@ -393,8 +393,8 @@ public final class CassandraCluster {
             .addCommandArgs("io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor")
             .setTaskEnv(taskEnvFromMap(executorEnv))
             .addAllResource(newArrayList(
-                resourceUri(getUrlForResource("/jdk.tar.gz"), true),
-                resourceUri(getUrlForResource("/cassandra.tar.gz"), true),
+                resourceUri(getUrlForResource("/jre-" + osName + ".tar.gz"), true),
+                resourceUri(getUrlForResource("/apache-cassandra-" + configuration.cassandraVersion() + "-bin.tar.gz"), true),
                 resourceUri(getUrlForResource("/cassandra-executor.jar"), false)
             ))
             .build();

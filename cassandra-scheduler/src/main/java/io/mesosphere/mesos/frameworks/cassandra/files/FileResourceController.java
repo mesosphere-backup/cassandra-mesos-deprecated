@@ -67,8 +67,11 @@ public final class FileResourceController {
     }
 
     @GET
-    @Path("/jre-{osname}.tar.gz")
-    public Response jreTar(@PathParam("osname") String osname) {
+    @Path("/jre-{version}-{osname}.tar.gz")
+    public Response jreTar(@PathParam("version") String version, @PathParam("osname") String osname) {
+        // version is currently unused
+        // But we might need that parameter not too far away in the future since C* 3.x probably requires Java 8,
+        // while older versions still require Java 7.
         return handleRequest(jreTarFile, "application/x-gzip", "jre.tar.gz");
     }
 

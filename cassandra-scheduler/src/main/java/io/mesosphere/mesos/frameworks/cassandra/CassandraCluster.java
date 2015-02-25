@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 
 import static com.google.common.base.Predicates.not;
 import static com.google.common.collect.FluentIterable.from;
@@ -58,6 +59,7 @@ public final class CassandraCluster {
 
     private static final Joiner JOINER = Joiner.on("','");
     private static final Joiner SEEDS_FORMAT_JOINER = Joiner.on(',');
+    private static final Pattern URL_FOR_RESOURCE_REPLACE = Pattern.compile("(?<!:)/+");
 
     // see: http://www.datastax.com/documentation/cassandra/2.1/cassandra/security/secureFireWall_r.html
     private static final Map<String, Long> defaultCassandraPortMappings = unmodifiableHashMap(
@@ -69,7 +71,7 @@ public final class CassandraCluster {
     );
 
     private static final Map<String, String> executorEnv = unmodifiableHashMap(
-        tuple2("JAVA_OPTS", "-Xms256m -Xmx256m")
+            tuple2("JAVA_OPTS", "-Xms256m -Xmx256m")
     );
 
     @NotNull
@@ -309,7 +311,7 @@ public final class CassandraCluster {
 
     @NotNull
     private String getUrlForResource(@NotNull final String resourceName) {
-        return (httpServerBaseUrl + "/" + resourceName).replaceAll("(?<!:)/+", "/");
+        return URL_FOR_RESOURCE_REPLACE.matcher((httpServerBaseUrl + '/' + resourceName)).replaceAll("/");
     }
 
     @NotNull
@@ -393,9 +395,9 @@ public final class CassandraCluster {
             .addCommandArgs("io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor")
             .setTaskEnv(taskEnvFromMap(executorEnv))
             .addAllResource(newArrayList(
-                resourceUri(getUrlForResource("/jre-" + osName + ".tar.gz"), true),
-                resourceUri(getUrlForResource("/apache-cassandra-" + configuration.cassandraVersion() + "-bin.tar.gz"), true),
-                resourceUri(getUrlForResource("/cassandra-executor.jar"), false)
+                    resourceUri(getUrlForResource("/jre-" + osName + ".tar.gz"), true),
+                    resourceUri(getUrlForResource("/apache-cassandra-" + configuration.cassandraVersion() + "-bin.tar.gz"), true),
+                    resourceUri(getUrlForResource("/cassandra-executor.jar"), false)
             ))
             .build();
     }

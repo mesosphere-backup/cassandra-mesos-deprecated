@@ -17,10 +17,12 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         @NotNull final String frameworkName,
         @NotNull final String cassandraVersion,
         final int numberOfNodes,
+        final int numberOfSeeds,
         final double cpuCores,
         final long memMb,
         final long diskMb,
-        final long healthCheckIntervalSeconds
+        final long healthCheckIntervalSeconds,
+        final long bootstrapGraceTimeSec
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -32,10 +34,12 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setFrameworkName(frameworkName)
                         .setCassandraVersion(cassandraVersion)
                         .setNumberOfNodes(numberOfNodes)
+                        .setNumberOfSeeds(numberOfSeeds)
                         .setCpuCores(cpuCores)
                         .setMemMb(memMb)
                         .setDiskMb(diskMb)
                         .setHealthCheckIntervalSeconds(healthCheckIntervalSeconds)
+                        .setBootstrapGraceTimeSeconds(bootstrapGraceTimeSec)
                         .build();
                 }
             },

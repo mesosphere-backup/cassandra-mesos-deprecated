@@ -76,7 +76,7 @@ public final class CassandraCluster {
     );
 
     private static final Map<String, String> executorEnv = unmodifiableHashMap(
-            tuple2("JAVA_OPTS", "-Xms256m -Xmx256m")
+        tuple2("JAVA_OPTS", "-Xms256m -Xmx256m")
     );
 
     @NotNull
@@ -249,72 +249,84 @@ public final class CassandraCluster {
         LOGGER.debug(marker, "> getTasksForOffer(offer : {})", protoToString(offer));
 
         final Optional<CassandraNode> nodeOption = headOption(
-            from(clusterState.nodes())
-                .filter(cassandraNodeHostnameEq(offer.getHostname()))
+                from(clusterState.nodes())
+                        .filter(cassandraNodeHostnameEq(offer.getHostname()))
         );
 
-        if (nodeOption.isPresent()) {
-            final CassandraNode.Builder node = CassandraNode.newBuilder(nodeOption.get());
+        CassandraNode.Builder node;
+        if (!nodeOption.isPresent()) {
+            if (!launchNode())
+                return null;
 
-            if (!node.hasCassandraNodeExecutor()) {
-                final String executorId = getExecutorIdForOffer(offer);
-                final CassandraNodeExecutor executor = getCassandraNodeExecutorSupplier(executorId);
-                node.setCassandraNodeExecutor(executor);
-            }
+            CassandraNode newNode = buildCassandraNode(offer);
+            clusterState.nodes(append(
+                    clusterState.nodes(),
+                    newNode
+            ));
+            node = CassandraNode.newBuilder(newNode);
+        }
+        else
+            node = CassandraNode.newBuilder(nodeOption.get());
 
-            final CassandraNodeExecutor executor = node.getCassandraNodeExecutor();
-            final String executorId = executor.getExecutorId();
+        if (!node.hasCassandraNodeExecutor()) {
+            final String executorId = getExecutorIdForOffer(offer);
+            final CassandraNodeExecutor executor = getCassandraNodeExecutorSupplier(executorId);
+            node.setCassandraNodeExecutor(executor);
+        }
+
+        final CassandraNodeExecutor executor = node.getCassandraNodeExecutor();
+        final String executorId = executor.getExecutorId();
+        if (!node.hasMetadataTask()) {
+            // TODO add some grace time between two metadata-tasks (at least one minute to allow downloading, etc)
+
+            final CassandraNodeTask metadataTask = getMetadataTask(executorId);
+            node.setMetadataTask(metadataTask);
+            launchTasks.add(metadataTask);
+        } else {
             final Optional<ExecutorMetadata> maybeMetadata = getExecutorMetadata(executorId);
-            if (!node.hasMetadataTask() || !maybeMetadata.isPresent()) {
-                // TODO add some grace time between two metadata-tasks (at least one minute to allow downloading, etc)
-
-                final CassandraNodeTask metadataTask = getMetadataTask(executorId);
-                node.setMetadataTask(metadataTask);
-                launchTasks.add(metadataTask);
-            } else if (!node.hasServerTask()) {
-                CassandraFrameworkConfiguration config = configuration.get();
-                final List<String> errors = hasResources(
-                    offer,
-                    config.getCpuCores(),
-                    config.getMemMb(),
-                    config.getDiskMb(),
-                    portMappings(config)
-                );
-                if (!errors.isEmpty()) {
-                    LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
-                } else {
-                    final String taskId = executorId + ".server";
-                    if (maybeMetadata.isPresent()) {
+            if (maybeMetadata.isPresent()) {
+                if (!node.hasServerTask()) {
+                    CassandraFrameworkConfiguration config = configuration.get();
+                    final List<String> errors = hasResources(
+                            offer,
+                            config.getCpuCores(),
+                            config.getMemMb(),
+                            config.getDiskMb(),
+                            portMappings(config)
+                    );
+                    if (!errors.isEmpty()) {
+                        LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
+                    } else {
+                        final String taskId = executorId + ".server";
                         final ExecutorMetadata metadata = maybeMetadata.get();
                         final CassandraNodeTask task = getServerTask(executorId, taskId, metadata, node);
                         node.setServerTask(task);
                         launchTasks.add(task);
                     }
-                }
-            } else if (shouldRunHealthCheck(executorId)) {
-                // TODO if a health check response is 'super-lost' then issue a health-check via SchedulerDriver.launchTasks() and check the result
-                // We have to recover state based on that response.
-                if (false) {
-                    final String taskId = node.getCassandraNodeExecutor().getExecutorId() + ".healthcheck";
-                    launchTasks.add(getHealthCheckTask(executorId, taskId));
+                } else if (shouldRunHealthCheck(executorId)) {
+                    // TODO if a health check response is 'super-lost' then issue a health-check via SchedulerDriver.launchTasks() and check the result
+                    // We have to recover state based on that response.
+                    if (false) {
+                        final String taskId = node.getCassandraNodeExecutor().getExecutorId() + ".healthcheck";
+                        launchTasks.add(getHealthCheckTask(executorId, taskId));
+                    } else {
+                        submitTasks.add(getHealthCheckTaskDetails());
+                    }
                 } else {
-                    submitTasks.add(getHealthCheckTaskDetails());
+                    return null;
                 }
             }
-            final CassandraNode built = node.build();
-            clusterState.addOrSetNode(built);
-
-            LOGGER.trace(marker, "< getTasksForOffer(offer : {}) = {}, {}", protoToString(offer), protoToString(launchTasks), protoToString(submitTasks));
-            return built.getCassandraNodeExecutor();
-        } else if (launchNode()) {
-            clusterState.nodes(append(
-                    clusterState.nodes(),
-                    buildCassandraNode(offer)
-            ));
-            return null;
-        } else {
-            return null;
         }
+
+        if (submitTasks.isEmpty() && launchTasks.isEmpty())
+            // nothing to do
+            return null;
+
+        final CassandraNode built = node.build();
+        clusterState.addOrSetNode(built);
+
+        LOGGER.trace(marker, "< getTasksForOffer(offer : {}) = {}, {}", protoToString(offer), protoToString(launchTasks), protoToString(submitTasks));
+        return built.getCassandraNodeExecutor();
     }
 
     private CassandraNode buildCassandraNode(Protos.Offer offer) {
@@ -347,10 +359,10 @@ public final class CassandraCluster {
         return getPortMapping(configuration.get(), name);
     }
 
-    private Map<String, Long> portMappings(CassandraFrameworkConfiguration config) {
+    private static Map<String, Long> portMappings(CassandraFrameworkConfiguration config) {
         Map<String, Long> r = new HashMap<>();
         for (String name : defaultPortMappings.keySet()) {
-            r.put(name, Long.valueOf(getPortMapping(config, name)));
+            r.put(name, (long) getPortMapping(config, name));
         }
         return r;
     }

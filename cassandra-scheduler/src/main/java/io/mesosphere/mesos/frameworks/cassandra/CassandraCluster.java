@@ -289,7 +289,7 @@ public final class CassandraCluster {
         final CassandraNodeExecutor executor = node.getCassandraNodeExecutor();
         final String executorId = executor.getExecutorId();
         if (!node.hasMetadataTask()) {
-            final CassandraNodeTask metadataTask = getMetadataTask(executorId);
+            final CassandraNodeTask metadataTask = getMetadataTask(executorId, node.getIp());
             node.setMetadataTask(metadataTask);
             launchTasks.add(metadataTask);
         } else {
@@ -305,19 +305,26 @@ public final class CassandraCluster {
                         // when starting a non-seed node also check if at least one seed node is running
                         // (otherwise that node will fail to start)
                         boolean anySeedRunning = false;
+                        boolean anyNodeInfluencingTopology = false;
                         for (CassandraNode cassandraNode : clusterState.nodes()) {
-                            if (cassandraNode.getSeed() && cassandraNode.hasServerTask()) {
+                            if (cassandraNode.hasServerTask()) {
                                 HealthCheckHistoryEntry lastHC = lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                                if (cassandraNode.getSeed()) {
+                                    anySeedRunning = true;
+                                }
                                 if (lastHC != null && lastHC.getDetails() != null && lastHC.getDetails().getInfo() != null
                                         && lastHC.getDetails().getHealthy()
                                         && lastHC.getDetails().getInfo().getJoined()
-                                        && "RUNNING".equals(lastHC.getDetails().getInfo().getOperationMode())) {
-                                    anySeedRunning = true;
-                                    break;
+                                        && !"NORMAL".equals(lastHC.getDetails().getInfo().getOperationMode())) {
+                                    LOGGER.debug("Cannot start server task because of operation mode '{}' on node '{}'", lastHC.getDetails().getInfo().getOperationMode(), cassandraNode.getHostname());
+                                    anyNodeInfluencingTopology = true;
                                 }
                             }
                         }
                         if (!anySeedRunning) {
+                            LOGGER.debug("Cannot start server task because no seed node is running");
+                        }
+                        if (anyNodeInfluencingTopology) {
                             return null;
                         }
                     }
@@ -518,7 +525,7 @@ public final class CassandraCluster {
             .setMemMb(16)
             .setDiskMb(16)
             .setCommand(javaExec)
-            .addCommandArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
+            //.addCommandArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
             .addCommandArgs("-XX:+PrintCommandLineFlags")
             .addCommandArgs("$JAVA_OPTS")
             .addCommandArgs("-classpath")
@@ -554,12 +561,13 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private CassandraNodeTask getMetadataTask(@NotNull final String executorId) {
+    private CassandraNodeTask getMetadataTask(@NotNull final String executorId, String ip) {
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setTaskType(TaskDetails.TaskType.EXECUTOR_METADATA)
             .setExecutorMetadataTask(
-                ExecutorMetadataTask.newBuilder()
-                    .setExecutorId(executorId)
+                    ExecutorMetadataTask.newBuilder()
+                            .setExecutorId(executorId)
+                            .setIp(ip)
             )
             .build();
         return CassandraNodeTask.newBuilder()
@@ -607,4 +615,12 @@ public final class CassandraCluster {
         return errors;
     }
 
+    public int updateNodeCount(int nodeCount) {
+        try {
+            configuration.numberOfNodes(nodeCount);
+        } catch (IllegalArgumentException e) {
+            LOGGER.info("Cannout update number-of-nodes", e);
+        }
+        return configuration.numberOfNodes();
+    }
 }

@@ -120,9 +120,9 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         // one seed has started up
         //
 
-        cluster.recordHealthCheck(executorMetadata1.getExecutorId(), healthCheckDetailsSuccess("RUNNING", true));
+        cluster.recordHealthCheck(executorMetadata1.getExecutorId(), healthCheckDetailsSuccess("NORMAL", true));
         assertTrue(cluster.lastHealthCheck(executorMetadata1.getExecutorId()).getDetails().getHealthy());
-        assertEquals("RUNNING", cluster.lastHealthCheck(executorMetadata1.getExecutorId()).getDetails().getInfo().getOperationMode());
+        assertEquals("NORMAL", cluster.lastHealthCheck(executorMetadata1.getExecutorId()).getDetails().getInfo().getOperationMode());
         cluster.recordHealthCheck(executorMetadata2.getExecutorId(), healthCheckDetailsFailed());
         assertFalse(cluster.lastHealthCheck(executorMetadata2.getExecutorId()).getDetails().getHealthy());
         // node#3 can start now
@@ -149,12 +149,12 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         launchServer(cluster, slave1);
         launchServer(cluster, slave2);
 
-        cluster.recordHealthCheck(executorMetadata1.getExecutorId(), healthCheckDetailsSuccess("RUNNING", true));
-        cluster.recordHealthCheck(executorMetadata2.getExecutorId(), healthCheckDetailsSuccess("RUNNING", true));
+        cluster.recordHealthCheck(executorMetadata1.getExecutorId(), healthCheckDetailsSuccess("NORMAL", true));
+        cluster.recordHealthCheck(executorMetadata2.getExecutorId(), healthCheckDetailsSuccess("NORMAL", true));
 
         launchServer(cluster, slave3);
 
-        cluster.recordHealthCheck(executorMetadata3.getExecutorId(), healthCheckDetailsSuccess("RUNNING", true));
+        cluster.recordHealthCheck(executorMetadata3.getExecutorId(), healthCheckDetailsSuccess("NORMAL", true));
 
         // cluster now up with 3 running nodes
 

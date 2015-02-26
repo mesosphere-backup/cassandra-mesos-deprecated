@@ -92,8 +92,7 @@ public final class CassandraExecutor implements Executor {
             LOGGER.debug(taskIdMarker, "received taskDetails: {}", protoToString(taskDetails));
             switch (taskDetails.getTaskType()) {
                 case EXECUTOR_METADATA:
-                    final ExecutorMetadataTask executorMetadataTask = taskDetails.getExecutorMetadataTask();
-                    final ExecutorMetadata slaveMetadata = collectSlaveMetadata(executorMetadataTask.getExecutorId());
+                    final ExecutorMetadata slaveMetadata = collectSlaveMetadata(taskDetails.getExecutorMetadataTask());
                     final SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
                         .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.EXECUTOR_METADATA)
                         .setExecutorMetadata(slaveMetadata)
@@ -251,10 +250,10 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
-    private static ExecutorMetadata collectSlaveMetadata(@NotNull final String executorId) throws UnknownHostException {
+    private static ExecutorMetadata collectSlaveMetadata(@NotNull final ExecutorMetadataTask executorMetadata) throws UnknownHostException {
         return ExecutorMetadata.newBuilder()
-            .setExecutorId(executorId)
-            .setIp(getHostAddress())
+            .setExecutorId(executorMetadata.getExecutorId())
+            .setIp(executorMetadata.getIp())
             .build();
     }
 
@@ -275,11 +274,6 @@ public final class CassandraExecutor implements Executor {
             }
             process = null;
         }
-    }
-
-    private static String getHostAddress() throws UnknownHostException {
-        // TODO: what to do on multihomed hosts?
-        return InetAddress.getLocalHost().getHostAddress(); //TODO(BenWhitehead): This resolution may have to be more sophisticated
     }
 
     @NotNull
@@ -438,7 +432,6 @@ public final class CassandraExecutor implements Executor {
                 .setRpcServerRunning(rpcServerRunning)
                 .setUptimeMillis(nodetool.getUptimeInMillis())
                 .setVersion(nodetool.getVersion())
-                .setHostId(nodetool.getHostID())
                 .setClusterName(nodetool.getClusterName());
 
         if (valid) {
@@ -446,7 +439,8 @@ public final class CassandraExecutor implements Executor {
             builder.setEndpoint(endpoint)
                     .setTokenCount(nodetool.getTokenCount())
                     .setDataCenter(nodetool.getDataCenter(endpoint))
-                    .setRack(nodetool.getRack(endpoint));
+                    .setRack(nodetool.getRack(endpoint))
+                    .setHostId(nodetool.getHostID());
         }
 
         return builder.build();

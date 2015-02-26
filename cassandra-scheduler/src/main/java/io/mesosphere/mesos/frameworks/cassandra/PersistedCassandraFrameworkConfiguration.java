@@ -69,9 +69,9 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
 
     public void frameworkId(@NotNull final String frameworkId) {
         setValue(
-            CassandraFrameworkConfiguration.newBuilder(get())
-                .setFrameworkId(frameworkId)
-                .build()
+                CassandraFrameworkConfiguration.newBuilder(get())
+                        .setFrameworkId(frameworkId)
+                        .build()
         );
     }
 
@@ -92,6 +92,27 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         return Duration.standardSeconds(get().getHealthCheckIntervalSeconds());
     }
 
+    public void healthCheckInterval(Duration interval) {
+        setValue(
+                CassandraFrameworkConfiguration.newBuilder(get())
+                        .setHealthCheckIntervalSeconds(interval.getStandardSeconds())
+                        .build()
+        );
+    }
+
+    @NotNull
+    public Duration bootstrapGraceTimeSeconds() {
+        return Duration.standardSeconds(get().getBootstrapGraceTimeSeconds());
+    }
+
+    public void bootstrapGraceTimeSeconds(Duration interval) {
+        setValue(
+                CassandraFrameworkConfiguration.newBuilder(get())
+                        .setBootstrapGraceTimeSeconds(interval.getStandardSeconds())
+                        .build()
+        );
+    }
+
     @NotNull
     public String frameworkName() {
         return get().getFrameworkName();
@@ -101,8 +122,34 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         return get().getNumberOfNodes();
     }
 
+    public void numberOfNodes(int numberOfNodes) {
+        CassandraFrameworkConfiguration config = get();
+        if (numberOfNodes <= 0 || config.getNumberOfSeeds() > numberOfNodes || numberOfNodes < config.getNumberOfNodes())
+            throw new IllegalArgumentException("Cannot set number of nodes to " + numberOfNodes + ", current #nodes=" + config.getNumberOfNodes() + " #seeds=" + config.getNumberOfSeeds());
+
+        setValue(
+                CassandraFrameworkConfiguration.newBuilder(config)
+                        .setNumberOfNodes(numberOfNodes)
+                        .build()
+        );
+    }
+
     public int numberOfSeeds() {
         return get().getNumberOfSeeds();
+    }
+
+    public void numberOfSeeds(int seedCount) {
+        CassandraFrameworkConfiguration config = get();
+        if (seedCount <= 0 || seedCount > config.getNumberOfNodes())
+            throw new IllegalArgumentException("Cannot set number of seeds to " + seedCount + ", current #nodes=" + config.getNumberOfNodes() + " #seeds=" + config.getNumberOfSeeds());
+
+        // TODO changing the number of seeds requires rewriting cassandra.yaml (without restart)
+
+        setValue(
+                CassandraFrameworkConfiguration.newBuilder(config)
+                        .setNumberOfSeeds(seedCount)
+                        .build()
+        );
     }
 
     @NotNull

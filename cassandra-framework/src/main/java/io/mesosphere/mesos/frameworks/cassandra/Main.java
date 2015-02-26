@@ -107,6 +107,9 @@ public final class Main {
             matcher.group(2)
         );
 
+        if (seedCount > executorCount || seedCount <= 0 || executorCount <= 0)
+            throw new IllegalArgumentException("number of nodes (" + executorCount + ") and/or number of seeds (" + seedCount + ") invalid");
+
         final PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
             state,
             frameworkName,
@@ -119,6 +122,8 @@ public final class Main {
             healthCheckIntervalSec,
             bootstrapGraceTimeSec
         );
+        configuration.numberOfNodes(executorCount);
+        configuration.numberOfSeeds(seedCount);
         final ExecutorCounter executorCounter = new ExecutorCounter(state, 0L);
         final PersistedCassandraClusterState persistedCassandraClusterState = new PersistedCassandraClusterState(state);
         final PersistedCassandraClusterHealthCheckHistory persistedCassandraClusterHealthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);

@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -48,14 +49,16 @@ public final class ApiController {
     public Response seedNodes() {
         StringWriter sw = new StringWriter();
         try {
+            CassandraCluster cluster = CassandraCluster.singleton();
+            CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration();
+
             JsonFactory factory = new JsonFactory();
             JsonGenerator json = factory.createGenerator(sw);
             json.setPrettyPrinter(new DefaultPrettyPrinter());
             json.writeStartObject();
 
-// TODO
-//            json.writeNumberField("native_port", CassandraCluster.singleton().getNativePort());
-//            json.writeNumberField("rpc_port", CassandraCluster.singleton().getRpcPort());
+            json.writeNumberField("native_port", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_NATIVE));
+            json.writeNumberField("rpc_port", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_RPC));
 
             writeSeedIps(json);
 
@@ -79,7 +82,7 @@ public final class ApiController {
     @GET
     @Path("/status")
     @Produces("application/json")
-    public Response allNodes() {
+    public Response status() {
         StringWriter sw = new StringWriter();
         try {
             CassandraCluster cluster = CassandraCluster.singleton();
@@ -99,6 +102,7 @@ public final class ApiController {
 // TODO          json.writeStringField("cluster_name", configuration.getFrameworkId());
             json.writeStringField("cassandra_version", configuration.getCassandraVersion());
             json.writeNumberField("target_node_count", configuration.getNumberOfNodes());
+            json.writeNumberField("seed_node_count", configuration.getNumberOfSeeds());
 
 // TODO            json.writeNumberField("seed_node_count", cluster.getSeedNodeCount());
 
@@ -121,7 +125,7 @@ public final class ApiController {
             json.writeNumberField("health_check_interval_seconds", configuration.getHealthCheckIntervalSeconds());
 
             json.writeObjectFieldStart("node_bootstrap");
-            json.writeNumberField("bootstrap_grace_time_millis", configuration.getBootstrapGraceTimeSeconds());
+            json.writeNumberField("bootstrap_grace_time_seconds", configuration.getBootstrapGraceTimeSeconds());
 // TODO            json.writeBooleanField("could_add_node", cluster.canAddNode());
 //            json.writeNumberField("next_possible_node_launch", cluster.getNextNodeLaunchTime());
             json.writeEndObject();
@@ -210,33 +214,33 @@ public final class ApiController {
     }
 
     // cluster scaling
-//
-//    @GET
-//    @Path("/scale/nodes")
-//    @Produces("application/json")
-//    public Response updateNodeCount(@QueryParam("nodes") int nodeCount) {
-//        StringWriter sw = new StringWriter();
-//        try {
-//            JsonFactory factory = new JsonFactory();
-//            JsonGenerator json = factory.createGenerator(sw);
-//            json.setPrettyPrinter(new DefaultPrettyPrinter());
-//            json.writeStartObject();
-//
-//            CassandraCluster cluster = CassandraCluster.singleton();
-//            json.writeNumberField("old_node_count", cluster.getNodeCount());
-//            json.writeNumberField("seed_node_count", cluster.getSeedNodeCount());
-//            int newCount = cluster.updateNodeCount(nodeCount);
-//            json.writeBooleanField("applied", newCount == nodeCount);
-//            json.writeNumberField("new_node_count", newCount);
-//
-//            json.writeEndObject();
-//            json.close();
-//        } catch (Exception e) {
-//            LOGGER.error("Failed to build JSON response", e);
-//            return Response.serverError().build();
-//        }
-//        return Response.ok(sw.toString(), "application/json").build();
-//    }
+
+    @GET
+    @Path("/scale/nodes")
+    @Produces("application/json")
+    public Response updateNodeCount(@QueryParam("nodes") int nodeCount) {
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            CassandraCluster cluster = CassandraCluster.singleton();
+            json.writeNumberField("old_node_count", cluster.getConfiguration().getNumberOfNodes());
+            json.writeNumberField("seed_node_count", cluster.getConfiguration().getNumberOfSeeds());
+            int newCount = cluster.updateNodeCount(nodeCount);
+            json.writeBooleanField("applied", newCount == nodeCount);
+            json.writeNumberField("new_node_count", newCount);
+
+            json.writeEndObject();
+            json.close();
+        } catch (Exception e) {
+            LOGGER.error("Failed to build JSON response", e);
+            return Response.serverError().build();
+        }
+        return Response.ok(sw.toString(), "application/json").build();
+    }
 
 
     // repair stuff

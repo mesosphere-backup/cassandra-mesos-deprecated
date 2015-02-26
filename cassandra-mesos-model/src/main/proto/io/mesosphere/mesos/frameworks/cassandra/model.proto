@@ -145,6 +145,7 @@ message TaskDetails {
 
 message ExecutorMetadataTask {
     required string executorId = 1;
+    required string ip = 2;
 }
 
 message CassandraServerRunTask {

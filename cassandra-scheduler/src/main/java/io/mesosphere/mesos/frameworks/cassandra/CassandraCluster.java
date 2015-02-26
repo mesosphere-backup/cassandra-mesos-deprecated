@@ -145,6 +145,9 @@ public final class CassandraCluster {
                 @Override
                 public CassandraNode.Builder apply(final CassandraNode.Builder input) {
                     if (input.hasMetadataTask() && input.getMetadataTask().getTaskId().equals(taskId)) {
+                        // TODO shouldn't we also assume that the server task is no longer running ??
+                        // TODO do we need to remove the executor metadata ??
+                        removeExecutorMetadata(input.getMetadataTask().getExecutorId());
                         return input.clearMetadataTask();
                     }
                     return input;
@@ -170,7 +173,8 @@ public final class CassandraCluster {
                 @Override
                 public CassandraNode.Builder apply(final CassandraNode.Builder input) {
                     if (input.hasCassandraNodeExecutor() && input.getCassandraNodeExecutor().getExecutorId().equals(executorId)) {
-                        return input.clearMetadataTask()
+                        return input
+                            .clearMetadataTask()
                             .clearServerTask();
                     }
                     return input;
@@ -198,7 +202,7 @@ public final class CassandraCluster {
         ));
     }
 
-    public void removeExecutorMetadata(@NotNull final String executorId) {
+    void removeExecutorMetadata(@NotNull final String executorId) {
         final FluentIterable<ExecutorMetadata> update = from(clusterState.executorMetadata())
             .filter(not(new Predicate<ExecutorMetadata>() {
                 @Override
@@ -256,10 +260,7 @@ public final class CassandraCluster {
         final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname());
         LOGGER.debug(marker, "> getTasksForOffer(offer : {})", protoToString(offer));
 
-        final Optional<CassandraNode> nodeOption = headOption(
-                from(clusterState.nodes())
-                        .filter(cassandraNodeHostnameEq(offer.getHostname()))
-        );
+        final Optional<CassandraNode> nodeOption = cassandraNodeForHostname(offer.getHostname());
 
         CassandraNode.Builder node;
         if (!nodeOption.isPresent()) {
@@ -362,6 +363,14 @@ public final class CassandraCluster {
 
         LOGGER.trace(marker, "< getTasksForOffer(offer : {}) = {}, {}", protoToString(offer), protoToString(launchTasks), protoToString(submitTasks));
         return built.getCassandraNodeExecutor();
+    }
+
+    @NotNull
+    public Optional<CassandraNode> cassandraNodeForHostname(String hostname) {
+        return headOption(
+                from(clusterState.nodes())
+                        .filter(cassandraNodeHostnameEq(hostname))
+        );
     }
 
     private CassandraNode buildCassandraNode(Protos.Offer offer, boolean seed) {

@@ -1,56 +1,32 @@
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.mesosphere.mesos.frameworks.cassandra;
 
-import io.mesosphere.mesos.util.SystemClock;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
-import org.apache.mesos.state.InMemoryState;
-import org.apache.mesos.state.State;
 import org.junit.Test;
 
 import java.util.*;
 
 import static org.junit.Assert.*;
 
-public class CassandraClusterStateTest {
-
-    State state;
-
-    private final Protos.FrameworkID frameworkId = Protos.FrameworkID.newBuilder().setValue(randomID()).build();
+public class CassandraClusterStateTest extends AbstractSchedulerTest {
 
     @Test
     public void testLaunchNewCluster() {
 
-        // start with clean state
-        state = new InMemoryState();
-
-        PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
-                state,
-                "test-cluster",
-                "2.1.2",
-                3, // node count
-                2, // seed count
-                2, // CPUs
-                4096, // memMb
-                4096, // diskMb
-                10, // health-check
-                10 // bootstrap-grace-time
-        );
-
-        PersistedCassandraClusterHealthCheckHistory healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);
-        PersistedCassandraClusterState clusterState = new PersistedCassandraClusterState(state);
-
-        CassandraCluster cluster = new CassandraCluster(new SystemClock(),
-                "http://127.0.0.1:65535",
-                new ExecutorCounter(state, 0L),
-                clusterState,
-                healthCheckHistory,
-                configuration);
-
-        // our slaves
-
-        Tuple2<Protos.SlaveID, String> slave1 = Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.1.1.1");
-        Tuple2<Protos.SlaveID, String> slave2 = Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.2.2.2");
-        Tuple2<Protos.SlaveID, String> slave3 = Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.3.3.3");
+        cleanState();
 
         // rollout slave #1
 
@@ -151,29 +127,42 @@ public class CassandraClusterStateTest {
         assertFalse(cluster.lastHealthCheck(executorMetadata2.getExecutorId()).getDetails().getHealthy());
         // node#3 can start now
         launchServer(cluster, slave3);
-        
+
     }
 
-    private static CassandraFrameworkProtos.HealthCheckDetails healthCheckDetailsFailed() {
-        return CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
-                .setHealthy(false)
-                .setMsg("foo bar")
-                .build();
-    }
+    @Test
+    public void testServerTaskRemove() {
 
-    private static CassandraFrameworkProtos.HealthCheckDetails healthCheckDetailsSuccess(String operationMode, boolean joined) {
-        return CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
-                .setHealthy(true)
-                .setInfo(CassandraFrameworkProtos.NodeInfo.newBuilder()
-                    .setClusterName("cluster-name")
-                        .setDataCenter("dc")
-                        .setRack("rac")
-                        .setJoined(joined)
-                        .setOperationMode(operationMode)
-                        .setUptimeMillis(1234)
-                        .setVersion("2.1.2")
-                )
-                .build();
+        cleanState();
+
+        // rollout slaves
+        CassandraFrameworkProtos.ExecutorMetadata executorMetadata1 = launchExecutor(cluster, slave1, 1);
+        CassandraFrameworkProtos.ExecutorMetadata executorMetadata2 = launchExecutor(cluster, slave2, 2);
+        CassandraFrameworkProtos.ExecutorMetadata executorMetadata3 = launchExecutor(cluster, slave3, 3);
+
+        cluster.addExecutorMetadata(executorMetadata1);
+        cluster.addExecutorMetadata(executorMetadata2);
+        cluster.addExecutorMetadata(executorMetadata3);
+
+        // launch servers
+
+        launchServer(cluster, slave1);
+        launchServer(cluster, slave2);
+
+        cluster.recordHealthCheck(executorMetadata1.getExecutorId(), healthCheckDetailsSuccess("RUNNING", true));
+        cluster.recordHealthCheck(executorMetadata2.getExecutorId(), healthCheckDetailsSuccess("RUNNING", true));
+
+        launchServer(cluster, slave3);
+
+        cluster.recordHealthCheck(executorMetadata3.getExecutorId(), healthCheckDetailsSuccess("RUNNING", true));
+
+        // cluster now up with 3 running nodes
+
+        // server-task no longer running
+        cluster.removeTask(cluster.cassandraNodeForHostname(slave1._2).get().getServerTask().getTaskId());
+
+        // server-task cannot start again
+        launchServer(cluster, slave1);
     }
 
     private CassandraFrameworkProtos.ExecutorMetadata launchServer(CassandraCluster cluster, Tuple2<Protos.SlaveID, String> slave) {
@@ -222,38 +211,5 @@ public class CassandraClusterStateTest {
                 .setExecutorId(executorID)
                 .setIp(slave1._2)
                 .build();
-    }
-
-    private Protos.Offer createOffer(Tuple2<Protos.SlaveID, String> slave) {
-        Protos.Offer.Builder builder = Protos.Offer.newBuilder()
-                .setFrameworkId(frameworkId)
-                .setHostname(slave._2)
-                .setId(Protos.OfferID.newBuilder().setValue(randomID()))
-                .setSlaveId(slave._1);
-
-        builder.addResources(Protos.Resource.newBuilder()
-                .setName("cpus")
-                .setType(Protos.Value.Type.SCALAR)
-                .setScalar(Protos.Value.Scalar.newBuilder().setValue(8d)));
-        builder.addResources(Protos.Resource.newBuilder()
-                .setName("mem")
-                .setType(Protos.Value.Type.SCALAR)
-                .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)));
-        builder.addResources(Protos.Resource.newBuilder()
-                .setName("disk")
-                .setType(Protos.Value.Type.SCALAR)
-                .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)));
-        builder.addResources(Protos.Resource.newBuilder()
-                .setName("ports")
-                .setType(Protos.Value.Type.RANGES)
-                .setRanges(Protos.Value.Ranges.newBuilder()
-                        .addRange(Protos.Value.Range.newBuilder().setBegin(7000).setEnd(10000)))
-                );
-
-        return builder.build();
-    }
-
-    private static String randomID() {
-        return UUID.randomUUID().toString();
     }
 }

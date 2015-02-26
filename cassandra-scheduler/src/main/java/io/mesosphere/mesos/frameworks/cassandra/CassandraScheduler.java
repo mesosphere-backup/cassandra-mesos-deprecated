@@ -18,6 +18,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -62,20 +63,24 @@ public final class CassandraScheduler implements Scheduler {
 
     @Override
     public void registered(final SchedulerDriver driver, final FrameworkID frameworkId, final MasterInfo masterInfo) {
-        LOGGER.debug("> registered(driver : {}, frameworkId : {}, masterInfo : {})", driver, protoToString(frameworkId), protoToString(masterInfo));
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("> registered(driver : {}, frameworkId : {}, masterInfo : {})", driver, protoToString(frameworkId), protoToString(masterInfo));
         configuration.frameworkId(frameworkId.getValue());
-        LOGGER.debug("< registered(driver : {}, frameworkId : {}, masterInfo : {})", driver, protoToString(frameworkId), protoToString(masterInfo));
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("< registered(driver : {}, frameworkId : {}, masterInfo : {})", driver, protoToString(frameworkId), protoToString(masterInfo));
     }
 
     @Override
     public void reregistered(final SchedulerDriver driver, final MasterInfo masterInfo) {
-        LOGGER.debug("reregistered(driver : {}, masterInfo : {})", driver, protoToString(masterInfo));
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("reregistered(driver : {}, masterInfo : {})", driver, protoToString(masterInfo));
         driver.reconcileTasks(Collections.<TaskStatus>emptySet());
     }
 
     @Override
     public void resourceOffers(final SchedulerDriver driver, final List<Offer> offers) {
-        LOGGER.debug("> resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("> resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
         for (final Offer offer : offers) {
             final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname());
             final boolean offerUsed = evaluateOffer(driver, MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname()), offer);
@@ -84,18 +89,21 @@ public final class CassandraScheduler implements Scheduler {
                 driver.declineOffer(offer.getId());
             }
         }
-        LOGGER.trace("< resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
+        if (LOGGER.isTraceEnabled())
+            LOGGER.trace("< resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
     }
 
     @Override
     public void offerRescinded(final SchedulerDriver driver, final OfferID offerId) {
-        LOGGER.debug("offerRescinded(driver : {}, offerId : {})", driver, protoToString(offerId));
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("offerRescinded(driver : {}, offerId : {})", driver, protoToString(offerId));
     }
 
     @Override
     public void statusUpdate(final SchedulerDriver driver, final TaskStatus status) {
         final Marker taskIdMarker = MarkerFactory.getMarker("taskId:" + status.getTaskId().getValue());
-        LOGGER.debug(taskIdMarker, "> statusUpdate(driver : {}, status : {})", driver, protoToString(status));
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug(taskIdMarker, "> statusUpdate(driver : {}, status : {})", driver, protoToString(status));
         try {
             final ExecutorID executorId = status.getExecutorId();
             final TaskID taskId = status.getTaskId();
@@ -151,8 +159,6 @@ public final class CassandraScheduler implements Scheduler {
                         executorLost(driver, executorIdForTask, status.getSlaveId(), status.getState().ordinal());
                     } else {
                         cassandraCluster.removeTask(taskId.getValue());
-                        if (isExecutorTask(taskId))
-                            cassandraCluster.removeExecutorMetadata(executorId.getValue());
                         switch (statusDetails.getStatusDetailsType()) {
                             case NULL_DETAILS:
                                 break;
@@ -176,7 +182,8 @@ public final class CassandraScheduler implements Scheduler {
             final String msg = "Error deserializing task status data to type: " + SlaveStatusDetails.class.getName();
             LOGGER.error(msg, e);
         }
-        LOGGER.trace(taskIdMarker, "< statusUpdate(driver : {}, status : {})", driver, protoToString(status));
+        if (LOGGER.isTraceEnabled())
+            LOGGER.trace(taskIdMarker, "< statusUpdate(driver : {}, status : {})", driver, protoToString(status));
     }
 
     private static boolean isExecutorTask(TaskID taskId) {
@@ -185,7 +192,8 @@ public final class CassandraScheduler implements Scheduler {
 
     @Override
     public void frameworkMessage(final SchedulerDriver driver, final ExecutorID executorId, final SlaveID slaveId, final byte[] data) {
-        LOGGER.debug("frameworkMessage(driver : {}, executorId : {}, slaveId : {}, data : {})", driver, protoToString(executorId), protoToString(slaveId), protoToString(data));
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("frameworkMessage(driver : {}, executorId : {}, slaveId : {}, data : {})", driver, protoToString(executorId), protoToString(slaveId), protoToString(data));
 
         try {
             SlaveStatusDetails statusDetails = SlaveStatusDetails.parseFrom(data);
@@ -206,12 +214,14 @@ public final class CassandraScheduler implements Scheduler {
 
     @Override
     public void disconnected(final SchedulerDriver driver) {
-        LOGGER.debug("disconnected(driver : {})", driver);
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("disconnected(driver : {})", driver);
     }
 
     @Override
     public void slaveLost(final SchedulerDriver driver, final SlaveID slaveId) {
-        LOGGER.debug("slaveLost(driver : {}, slaveId : {})", driver, protoToString(slaveId));
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("slaveLost(driver : {}, slaveId : {})", driver, protoToString(slaveId));
     }
 
     @Override
@@ -219,7 +229,8 @@ public final class CassandraScheduler implements Scheduler {
         final Marker executorIdMarker = MarkerFactory.getMarker("executorId:" + executorId.getValue());
         // this method will never be called by mesos until MESOS-313 is fixed
         // https://issues.apache.org/jira/browse/MESOS-313
-        LOGGER.debug(executorIdMarker, "executorLost(driver : {}, executorId : {}, slaveId : {}, status : {})", driver, protoToString(executorId), protoToString(slaveId), protoToString(status));
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug(executorIdMarker, "executorLost(driver : {}, executorId : {}, slaveId : {}, status : {})", driver, protoToString(executorId), protoToString(slaveId), protoToString(status));
         cassandraCluster.removeExecutor(executorId.getValue());
     }
 
@@ -324,5 +335,4 @@ public final class CassandraScheduler implements Scheduler {
         }
         return builder.build();
     }
-
 }

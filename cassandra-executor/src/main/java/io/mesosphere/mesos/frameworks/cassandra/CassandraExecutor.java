@@ -46,9 +46,6 @@ import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
@@ -67,11 +64,7 @@ public final class CassandraExecutor implements Executor {
     private volatile Process process;
     private volatile JmxConnect jmxConnect;
 
-    private ExecutorID serverExecutorId;
-    private TaskID serverTaskId;
-
     private final AtomicReference<NodeRepairJob> repair = new AtomicReference<>();
-    private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
     @Override
     public void registered(final ExecutorDriver driver, final ExecutorInfo executorInfo, final FrameworkInfo frameworkInfo, final SlaveInfo slaveInfo) {
@@ -111,8 +104,6 @@ public final class CassandraExecutor implements Executor {
                     safeShutdown();
                     final Process cassandraProcess = launchCassandraNodeTask(taskIdMarker, taskDetails.getCassandraServerRunTask());
                     process = cassandraProcess;
-                    serverExecutorId = task.getExecutor().getExecutorId();
-                    serverTaskId = task.getTaskId();
                     jmxConnect = new JmxConnect(taskDetails.getCassandraServerRunTask().getJmx());
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_STARTING));
                     break;

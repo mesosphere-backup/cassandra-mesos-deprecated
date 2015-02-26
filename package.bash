@@ -34,6 +34,7 @@ function download {(
 
 function copy {(
 
+    mkdir -p ${TARGET_DIR}
     cp ${PROJECT_DIR}/cassandra-framework/target/cassandra-framework-*-jar-with-dependencies.jar ${TARGET_DIR}/cassandra-framework.jar
     cp ${PROJECT_DIR}/cassandra-executor/target/cassandra-executor-*-jar-with-dependencies.jar ${TARGET_DIR}/cassandra-executor.jar
 )}

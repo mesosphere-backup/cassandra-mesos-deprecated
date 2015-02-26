@@ -115,8 +115,6 @@ public final class CassandraExecutor implements Executor {
                     serverTaskId = task.getTaskId();
                     jmxConnect = new JmxConnect(taskDetails.getCassandraServerRunTask().getJmx());
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_STARTING));
-                    // TODO(BenWhitehead) this should really come from the first successful health check, but stubbed for now.
-                    scheduledExecutorService.schedule(new TaskStateChange(driver, task, TaskState.TASK_RUNNING), 15, TimeUnit.SECONDS);
                     break;
                 case CASSANDRA_SERVER_SHUTDOWN:
                     safeShutdown();

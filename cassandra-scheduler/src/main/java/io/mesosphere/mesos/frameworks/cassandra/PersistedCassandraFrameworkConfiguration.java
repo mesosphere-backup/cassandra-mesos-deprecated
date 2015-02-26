@@ -101,6 +101,10 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         return get().getNumberOfNodes();
     }
 
+    public int numberOfSeeds() {
+        return get().getNumberOfSeeds();
+    }
+
     @NotNull
     public String cassandraVersion() {
         return get().getCassandraVersion();

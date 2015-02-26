@@ -9,6 +9,7 @@ import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import io.mesosphere.mesos.util.Clock;
+import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 import org.joda.time.Duration;
@@ -241,7 +242,14 @@ public final class CassandraCluster {
 
     @NotNull
     public List<String> getSeedNodes() {
-        return newArrayList(from(clusterState.executorMetadata()).transform(CassandraFrameworkProtosUtils.executorMetadataToIp()));
+        return newArrayList(from(clusterState.nodes())
+                .filter(new Predicate<CassandraNode>() {
+                    @Override
+                    public boolean apply(CassandraNode v) {
+                        return v.getSeed();
+                    }
+                })
+                .transform(CassandraFrameworkProtosUtils.cassandraNodeToIp()));
     }
 
     public CassandraNodeExecutor getTasksForOffer(@NotNull final Protos.Offer offer, List<CassandraNodeTask> launchTasks, List<TaskDetails> submitTasks) {
@@ -255,10 +263,13 @@ public final class CassandraCluster {
 
         CassandraNode.Builder node;
         if (!nodeOption.isPresent()) {
-            if (!launchNode())
+            Tuple2<Integer, Integer> nodeCounts = clusterState.nodeCounts();
+            if (nodeCounts._1 >= configuration.numberOfNodes())
+                // number of C* cluster nodes already present
                 return null;
 
-            CassandraNode newNode = buildCassandraNode(offer);
+            boolean buildSeedNode = nodeCounts._2 < configuration.numberOfSeeds();
+            CassandraNode newNode = buildCassandraNode(offer, buildSeedNode);
             clusterState.nodes(append(
                     clusterState.nodes(),
                     newNode
@@ -277,8 +288,6 @@ public final class CassandraCluster {
         final CassandraNodeExecutor executor = node.getCassandraNodeExecutor();
         final String executorId = executor.getExecutorId();
         if (!node.hasMetadataTask()) {
-            // TODO add some grace time between two metadata-tasks (at least one minute to allow downloading, etc)
-
             final CassandraNodeTask metadataTask = getMetadataTask(executorId);
             node.setMetadataTask(metadataTask);
             launchTasks.add(metadataTask);
@@ -286,6 +295,32 @@ public final class CassandraCluster {
             final Optional<ExecutorMetadata> maybeMetadata = getExecutorMetadata(executorId);
             if (maybeMetadata.isPresent()) {
                 if (!node.hasServerTask()) {
+                    if (clusterState.nodeCounts()._2 < configuration.numberOfSeeds()) {
+                        // we do not have enough nodes to fulfil seed node requirement
+                        return null;
+                    }
+
+                    if (!node.getSeed()) {
+                        // when starting a non-seed node also check if at least one seed node is running
+                        // (otherwise that node will fail to start)
+                        boolean anySeedRunning = false;
+                        for (CassandraNode cassandraNode : clusterState.nodes()) {
+                            if (cassandraNode.getSeed() && cassandraNode.hasServerTask()) {
+                                HealthCheckHistoryEntry lastHC = lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                                if (lastHC != null && lastHC.getDetails() != null && lastHC.getDetails().getInfo() != null
+                                        && lastHC.getDetails().getHealthy()
+                                        && lastHC.getDetails().getInfo().getJoined()
+                                        && "RUNNING".equals(lastHC.getDetails().getInfo().getOperationMode())) {
+                                    anySeedRunning = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!anySeedRunning) {
+                            return null;
+                        }
+                    }
+
                     CassandraFrameworkConfiguration config = configuration.get();
                     final List<String> errors = hasResources(
                             offer,
@@ -329,9 +364,10 @@ public final class CassandraCluster {
         return built.getCassandraNodeExecutor();
     }
 
-    private CassandraNode buildCassandraNode(Protos.Offer offer) {
+    private CassandraNode buildCassandraNode(Protos.Offer offer, boolean seed) {
         CassandraNode.Builder builder = CassandraNode.newBuilder()
-                .setHostname(offer.getHostname());
+                .setHostname(offer.getHostname())
+                .setSeed(seed);
         try {
             InetAddress ia = InetAddress.getByName(offer.getHostname());
 
@@ -395,10 +431,6 @@ public final class CassandraCluster {
         }
     }
 
-    private boolean launchNode() {
-        return clusterState.nodes().size() < configuration.numberOfNodes();
-    }
-
     @NotNull
     private String getUrlForResource(@NotNull final String resourceName) {
         return URL_FOR_RESOURCE_REPLACE.matcher((httpServerBaseUrl + '/' + resourceName)).replaceAll("/");
@@ -446,6 +478,7 @@ public final class CassandraCluster {
 
         return CassandraNodeTask.newBuilder()
             .setTaskId(taskId)
+            .setSubmittedTimestamp(clock.now().getMillis())
             .setExecutorId(executorId)
             .setCpuCores(configuration.cpuCores())
             .setMemMb(configuration.memMb())
@@ -492,9 +525,10 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private static CassandraNodeTask getHealthCheckTask(@NotNull final String executorId, final String taskId) {
+    private CassandraNodeTask getHealthCheckTask(@NotNull final String executorId, final String taskId) {
         return CassandraNodeTask.newBuilder()
             .setTaskId(taskId)
+            .setSubmittedTimestamp(clock.now().getMillis())
             .setExecutorId(executorId)
             .setCpuCores(0.1)
             .setMemMb(16)
@@ -511,7 +545,7 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private static CassandraNodeTask getMetadataTask(@NotNull final String executorId) {
+    private CassandraNodeTask getMetadataTask(@NotNull final String executorId) {
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setTaskType(TaskDetails.TaskType.EXECUTOR_METADATA)
             .setExecutorMetadataTask(
@@ -521,6 +555,7 @@ public final class CassandraCluster {
             .build();
         return CassandraNodeTask.newBuilder()
             .setTaskId(executorId)
+            .setSubmittedTimestamp(clock.now().getMillis())
             .setExecutorId(executorId)
             .setCpuCores(0.1)
             .setMemMb(16)

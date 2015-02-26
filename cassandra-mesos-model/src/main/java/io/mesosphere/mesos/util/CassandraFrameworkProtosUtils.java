@@ -33,6 +33,11 @@ public final class CassandraFrameworkProtosUtils {
     }
 
     @NotNull
+    public static Function<CassandraNode, String> cassandraNodeToIp() {
+        return CassandraNodeToIp.INSTANCE;
+    }
+
+    @NotNull
     public static Function<CassandraFrameworkProtos.CassandraNode, CassandraFrameworkProtos.CassandraNode.Builder> cassandraNodeToBuilder() {
         return CassandraNodeToBuilder.INSTANCE;
     }
@@ -141,6 +146,15 @@ public final class CassandraFrameworkProtosUtils {
 
         @Override
         public String apply(final ExecutorMetadata input) {
+            return input.getIp();
+        }
+    }
+
+    private static final class CassandraNodeToIp implements Function<CassandraNode, String> {
+        private static final CassandraNodeToIp INSTANCE = new CassandraNodeToIp();
+
+        @Override
+        public String apply(final CassandraNode input) {
             return input.getIp();
         }
     }

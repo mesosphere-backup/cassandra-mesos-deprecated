@@ -41,7 +41,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.List;
@@ -250,7 +249,7 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
-    private static ExecutorMetadata collectSlaveMetadata(@NotNull final ExecutorMetadataTask executorMetadata) throws UnknownHostException {
+    private static ExecutorMetadata collectSlaveMetadata(@NotNull final ExecutorMetadataTask executorMetadata) {
         return ExecutorMetadata.newBuilder()
             .setExecutorId(executorMetadata.getExecutorId())
             .setIp(executorMetadata.getIp())
@@ -512,48 +511,4 @@ public final class CassandraExecutor implements Executor {
                 "command() = " + Joiner.on(" ").join(builder.command()) + ",\n" +
                 "environment() = " + Joiner.on("\n").withKeyValueSeparator("->").join(builder.environment()) + "\n}";
     }
-
-    private static class TaskStateChange implements Runnable {
-        @NotNull
-        private final ExecutorDriver driver;
-        @NotNull
-        private final TaskInfo task;
-        @NotNull
-        private final TaskState state;
-
-        public TaskStateChange(@NotNull final ExecutorDriver driver, @NotNull final TaskInfo task, @NotNull final TaskState state) {
-            this.driver = driver;
-            this.task = task;
-            this.state = state;
-        }
-
-        @Override
-        public void run() {
-            LOGGER.debug("Sending {} for {}", state, protoToString(task.getTaskId()));
-            driver.sendStatusUpdate(taskStatus(task, state));
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            final TaskStateChange that = (TaskStateChange) o;
-
-            if (!driver.equals(that.driver)) return false;
-            if (state != that.state) return false;
-            if (!task.equals(that.task)) return false;
-
-            return true;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = driver.hashCode();
-            result = 31 * result + task.hashCode();
-            result = 31 * result + state.hashCode();
-            return result;
-        }
-    }
-
 }

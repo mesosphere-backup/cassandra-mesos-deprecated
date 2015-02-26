@@ -9,7 +9,6 @@ import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import io.mesosphere.mesos.util.Clock;
-import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 import org.joda.time.Duration;
@@ -287,7 +286,7 @@ public final class CassandraCluster {
                     final String taskId = executorId + ".server";
                     if (maybeMetadata.isPresent()) {
                         final ExecutorMetadata metadata = maybeMetadata.get();
-                        final CassandraNodeTask task = getServerTask(executorId, taskId, metadata, node.getJmxConnect());
+                        final CassandraNodeTask task = getServerTask(executorId, taskId, metadata, node);
                         node.setServerTask(task);
                         launchTasks.add(task);
                     }
@@ -398,7 +397,7 @@ public final class CassandraCluster {
             @NotNull final String executorId,
             @NotNull final String taskId,
             @NotNull final ExecutorMetadata metadata,
-            @NotNull final JmxConnect jmxConnect) {
+            @NotNull final CassandraNode.Builder node) {
         CassandraFrameworkConfiguration config = configuration.get();
         final TaskConfig taskConfig = TaskConfig.newBuilder()
             .addVariables(configValue("cluster_name", config.getFrameworkName()))
@@ -422,14 +421,14 @@ public final class CassandraCluster {
                             .setTaskEnv(taskEnv(
                                     // see conf/cassandra-env.sh in the cassandra distribution for details
                                     // about these variables.
-                                    tuple2("JMX_PORT", String.valueOf(getPortMapping(config, PORT_JMX))),
+                                    tuple2("JMX_PORT", String.valueOf(node.getJmxConnect().getJmxPort())),
                                     tuple2("MAX_HEAP_SIZE", config.getMemMb() + "m"),
                                     // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
                                     // times. If in doubt, and if you do not particularly want to tweak, go with
                                     // 100 MB per physical CPU core.
                                     tuple2("HEAP_NEWSIZE", (int) (config.getCpuCores() * 100) + "m")
                             ))
-                            .setJmx(jmxConnect)
+                            .setJmx(node.getJmxConnect())
             )
                 .build();
 

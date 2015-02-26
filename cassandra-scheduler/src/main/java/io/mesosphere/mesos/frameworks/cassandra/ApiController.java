@@ -130,6 +130,11 @@ public final class ApiController {
             for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
                 json.writeStartObject();
 
+                writeTask(json, "server_task", cassandraNode.getServerTask());
+                writeTask(json, "metadata_task", cassandraNode.getMetadataTask());
+                json.writeBooleanField("has_node_executor", cassandraNode.hasCassandraNodeExecutor());
+// TODO                cassandraNode.getDataVolumesList();
+
                 json.writeStringField("executor_id", cassandraNode.getCassandraNodeExecutor().getExecutorId());
                 json.writeStringField("ip", cassandraNode.getIp());
                 json.writeStringField("hostname", cassandraNode.getHostname());
@@ -187,6 +192,21 @@ public final class ApiController {
         }
 
         return Response.ok(sw.toString(), "application/json").build();
+    }
+
+    private static void writeTask(JsonGenerator json, String name, CassandraFrameworkProtos.CassandraNodeTask task) throws IOException {
+        if (task != null && task.hasTaskId()) {
+            json.writeObjectFieldStart(name);
+            json.writeStringField("type", task.getTaskDetails().getTaskType().toString());
+            json.writeNumberField("cpu_cores", task.getCpuCores());
+            json.writeNumberField("disk_mb", task.getDiskMb());
+            json.writeNumberField("mem_mb", task.getMemMb());
+            json.writeStringField("executor_id", task.getExecutorId());
+            json.writeStringField("task_id", task.getTaskId());
+            json.writeEndObject();
+        }
+        else
+            json.writeNullField(name);
     }
 
     // cluster scaling

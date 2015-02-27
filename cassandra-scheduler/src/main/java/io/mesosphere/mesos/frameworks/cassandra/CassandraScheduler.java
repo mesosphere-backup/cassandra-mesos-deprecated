@@ -280,7 +280,6 @@ public final class CassandraScheduler implements Scheduler {
             );
         }
         return builder.build();
-
     }
 
 }

@@ -158,7 +158,7 @@ public final class CassandraScheduler implements Scheduler {
                                 LOGGER.error(taskIdMarker, protoToString(statusDetails.getSlaveErrorDetails()));
                                 break;
                             case HEALTH_CHECK_DETAILS:
-                                final CassandraNodeHealthCheckDetails healthCheckDetails = statusDetails.getCassandraNodeHealthCheckDetails();
+                                final HealthCheckDetails healthCheckDetails = statusDetails.getHealthCheckDetails();
                                 cassandraCluster.recordHealthCheck(executorId.getValue(), healthCheckDetails);
                                 break;
                         }
@@ -280,7 +280,6 @@ public final class CassandraScheduler implements Scheduler {
             );
         }
         return builder.build();
-
     }
 
 }

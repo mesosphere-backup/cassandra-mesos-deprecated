@@ -13,6 +13,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra;
 
+import ch.qos.logback.classic.LoggerContext;
 import com.google.common.base.Joiner;
 import com.google.common.io.Files;
 
@@ -20,6 +21,7 @@ import com.fasterxml.jackson.dataformat.yaml.snakeyaml.Yaml;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.frameworks.cassandra.jmx.JmxConnect;
+import io.mesosphere.mesos.frameworks.cassandra.jmx.NodeRepairJob;
 import io.mesosphere.mesos.frameworks.cassandra.jmx.Nodetool;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
@@ -55,8 +57,17 @@ import static io.mesosphere.mesos.util.ProtoUtils.protoToString;
 public final class CassandraExecutor implements Executor {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraExecutor.class);
 
-    private final AtomicReference<Process> process = new AtomicReference<>(null);
+    static {
+        // don't let logback load classes ...
+        // logback loads classes mentioned in stack traces...
+        // this may involve C* node classes - and that may cause strange exceptions hiding the original cause
+        ((LoggerContext)LoggerFactory.getILoggerFactory()).setPackagingDataEnabled(false);
+    }
 
+    private volatile Process process;
+    private volatile JmxConnect jmxConnect;
+
+    private final AtomicReference<NodeRepairJob> repair = new AtomicReference<>();
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
     @Override
@@ -94,26 +105,63 @@ public final class CassandraExecutor implements Executor {
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_RUNNING, details));
                     break;
                 case CASSANDRA_SERVER_RUN:
+                    safeShutdown();
                     final Process cassandraProcess = launchCassandraNodeTask(taskIdMarker, taskDetails.getCassandraServerRunTask());
-                    process.set(cassandraProcess);
+                    process = cassandraProcess;
+                    jmxConnect = new JmxConnect(taskDetails.getCassandraServerRunTask().getJmx());
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_STARTING));
                     // TODO(BenWhitehead) this should really come from the first successful health check, but stubbed for now.
                     scheduledExecutorService.schedule(new TaskStateChange(driver, task, TaskState.TASK_RUNNING), 15, TimeUnit.SECONDS);
                     break;
                 case CASSANDRA_SERVER_SHUTDOWN:
-                    process.get().destroy();
-                    process.set(null);
+                    safeShutdown();
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
                     break;
-                case CASSANDRA_SERVER_HEALTH_CHECK:
-                    final CassandraServerHealthCheckTask healthCheckTask = taskDetails.getCassandraServerHealthCheckTask();
+                case HEALTH_CHECK:
+                    final HealthCheckTask healthCheckTask = taskDetails.getHealthCheckTask();
                     LOGGER.info(taskIdMarker, "Received healthCheckTask: {}", protoToString(healthCheckTask));
-                    final CassandraNodeHealthCheckDetails healthCheck = performHealthCheck(healthCheckTask);
+                    final HealthCheckDetails healthCheck = performHealthCheck();
                     final SlaveStatusDetails healthCheckDetails = SlaveStatusDetails.newBuilder()
                         .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.HEALTH_CHECK_DETAILS)
-                        .setCassandraNodeHealthCheckDetails(healthCheck)
+                        .setHealthCheckDetails(healthCheck)
                         .build();
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED, healthCheckDetails));
+                    break;
+                case REPAIR:
+                    NodeRepairJob currentRepair = repair.get();
+                    if (currentRepair == null || currentRepair.isFinished()) {
+                        repair.set(currentRepair = new NodeRepairJob());
+                        if (currentRepair.start(jmxConnect))
+                            currentRepair.repairNextKeyspace();
+                        else {
+                            currentRepair.close();
+                            repair.set(null);
+                        }
+                    }
+                case REPAIR_STATUS:
+                    currentRepair = repair.get();
+                    RepairStatus.Builder repairStatus = RepairStatus.newBuilder()
+                            .setRunning(currentRepair != null && !currentRepair.isFinished());
+                    if (currentRepair != null) {
+                        repairStatus.addAllRemainingKeyspaces(currentRepair.getRemainingKeyspaces())
+                                .addAllRepairedKeyspaces(currentRepair.getKeyspaceStatus().values())
+                                .setStarted(currentRepair.getStartTimestamp())
+                                .setFinished(currentRepair.getFinishedTimestamp());
+                    }
+                    SlaveStatusDetails repairDetails = SlaveStatusDetails.newBuilder()
+                            .setRepairStatus(repairStatus.build())
+                            .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.REPAIR_STATUS)
+                            .build();
+                    driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED, repairDetails));
+                    break;
+                case CLEANUP:
+                    // TODO implement
+                case CLEANUP_STATUS:
+                    // TODO implement
+                    SlaveStatusDetails cleanupDetails = SlaveStatusDetails.newBuilder()
+                            .setCleanupStatus(CleanupStatus.getDefaultInstance())
+                            .build();
+                    driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED, cleanupDetails));
                     break;
             }
         } catch (InvalidProtocolBufferException e) {
@@ -173,13 +221,32 @@ public final class CassandraExecutor implements Executor {
             .build();
     }
 
-    private String getHostAddress() throws UnknownHostException {
+    private void safeShutdown() {
+        if (jmxConnect != null) {
+            try {
+                jmxConnect.close();
+            } catch (Exception ignores) {
+                // ignore this
+            }
+            jmxConnect = null;
+        }
+        if (process != null) {
+            try {
+                process.destroy();
+            } catch (Exception ignores) {
+                // ignore this
+            }
+            process = null;
+        }
+    }
+
+    private static String getHostAddress() throws UnknownHostException {
         // TODO: what to do on multihomed hosts?
         return InetAddress.getLocalHost().getHostAddress(); //TODO(BenWhitehead): This resolution may have to be more sophisticated
     }
 
     @NotNull
-    private Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraServerRunTask cassandraNodeTask) throws IOException {
+    private static Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraServerRunTask cassandraNodeTask) throws IOException {
         for (final TaskFile taskFile : cassandraNodeTask.getTaskFilesList()) {
             final File file = new File(taskFile.getOutputPath());
             LOGGER.debug(taskIdMarker, "Overwriting file {}", file);
@@ -278,15 +345,15 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
-    private CassandraNodeHealthCheckDetails performHealthCheck(@NotNull final CassandraServerHealthCheckTask healthCheckTask) {
-        CassandraNodeHealthCheckDetails.Builder builder = CassandraNodeHealthCheckDetails.newBuilder();
-        try (JmxConnect jmx = new JmxConnect(getHostAddress(), (int) healthCheckTask.getJmxPort() & 0xffff)) {
-
+    private HealthCheckDetails performHealthCheck() {
+        HealthCheckDetails.Builder builder = HealthCheckDetails.newBuilder();
+        try {
             // TODO Robert : we should add some "timeout" that allows C* to start and join
             // I.e. track status/operation-mode changes
 
-            CassandraNodeInfo info = buildInfo(jmx);
-            builder.setHealthy(true);
+            NodeInfo info = buildInfo();
+            builder.setHealthy(true)
+                    .setInfo(info);
             LOGGER.info("Healthcheck succeeded: operationMode:{} joined:{} gossip:{} native:{} rpc:{} uptime:{}s endpoint:{}, dc:{}, rack:{}, hostId:{}, version:{}",
                     info.getOperationMode(),
                     info.getJoined(),
@@ -307,31 +374,45 @@ public final class CassandraExecutor implements Executor {
         return builder.build();
     }
 
-    private CassandraNodeInfo buildInfo(JmxConnect jmx) throws UnknownHostException {
-        Nodetool nodetool = new Nodetool(jmx);
-
-        String endpoint = nodetool.getEndpoint();
-
-        // TODO HC response might be a bit over-engineered
+    private NodeInfo buildInfo() throws UnknownHostException {
+        Nodetool nodetool = new Nodetool(jmxConnect);
 
         // C* should be considered healthy, if the information can be collected.
         // All flags can be manually set by any administrator and represent a valid state.
-        return CassandraNodeInfo.newBuilder()
-                .setOperationMode(nodetool.getOperationMode())
-                .setJoined(nodetool.isJoined())
-                .setGossipInitialized(nodetool.isGossipInitialized())
-                .setGossipRunning(nodetool.isGossipRunning())
-                .setNativeTransportRunning(nodetool.isNativeTransportRunning())
-                .setRpcServerRunning(nodetool.isRPCServerRunning())
+
+        String operationMode = nodetool.getOperationMode();
+        boolean joined = nodetool.isJoined();
+        boolean gossipInitialized = nodetool.isGossipInitialized();
+        boolean gossipRunning = nodetool.isGossipRunning();
+        boolean nativeTransportRunning = nodetool.isNativeTransportRunning();
+        boolean rpcServerRunning = nodetool.isRPCServerRunning();
+
+        boolean valid = "NORMAL".equals(operationMode);
+
+        LOGGER.info("Cassandra node status: operationMode={}, joined={}, gossipInitialized={}, gossipRunning={}, nativeTransportRunning={}, rpcServerRunning={}",
+                operationMode, joined, gossipInitialized, gossipRunning, nativeTransportRunning, rpcServerRunning);
+
+        NodeInfo.Builder builder = NodeInfo.newBuilder()
+                .setOperationMode(operationMode)
+                .setJoined(joined)
+                .setGossipInitialized(gossipInitialized)
+                .setGossipRunning(gossipRunning)
+                .setNativeTransportRunning(nativeTransportRunning)
+                .setRpcServerRunning(rpcServerRunning)
                 .setUptimeMillis(nodetool.getUptimeInMillis())
                 .setVersion(nodetool.getVersion())
                 .setHostId(nodetool.getHostID())
-                .setEndpoint(endpoint)
-                .setTokenCount(nodetool.getTokenCount())
-                .setDataCenter(nodetool.getDataCenter(endpoint))
-                .setRack(nodetool.getRack(endpoint))
-                .setClusterName(nodetool.getClusterName())
-                .build();
+                .setClusterName(nodetool.getClusterName());
+
+        if (valid) {
+            String endpoint = nodetool.getEndpoint();
+            builder.setEndpoint(endpoint)
+                    .setTokenCount(nodetool.getTokenCount())
+                    .setDataCenter(nodetool.getDataCenter(endpoint))
+                    .setRack(nodetool.getRack(endpoint));
+        }
+
+        return builder.build();
     }
 
     public static void main(final String[] args) {

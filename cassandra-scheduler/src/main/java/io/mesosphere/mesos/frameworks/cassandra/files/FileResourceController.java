@@ -11,13 +11,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.mesosphere.mesos.frameworks.cassandra;
+package io.mesosphere.mesos.frameworks.cassandra.files;
 
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import org.jetbrains.annotations.NotNull;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
 import java.io.File;
 
@@ -25,18 +26,38 @@ import static io.mesosphere.mesos.frameworks.cassandra.util.Env.workingDir;
 
 @Path("/")
 public final class FileResourceController {
-
     @NotNull
     private final File cassandraExecutorFile;
     @NotNull
-    private final File jdkTarFile;
+    private final File jreTarFile;
     @NotNull
     private final File cassandraTarFile;
 
     public FileResourceController() {
+        File f;
+
+        String javaVersion = Env.option("JAVA_VERSION").or("7u76");
+        String osName = Env.osFromSystemProperty();
+        String providedJreTar = Env.option("JRE_FILE_PATH").or(workingDir("/jre-" + javaVersion + '-' + osName + "-x64.tar.gz"));
+        //if (providedJreTar != null)
+        f = new File(providedJreTar);
+        //if (f != null && !f.canRead())
+        //    f = null;
+        verifyFileExistsAndCanRead(f);
+        jreTarFile = f;
+
+        String cassandraVersion = Env.option("CASSANDRA_VERSION").or("2.1.2");
+        String providedCassandraTar = Env.option("CASSANDRA_FILE_PATH").or(workingDir("/apache-cassandra-" + cassandraVersion + "-bin.tar.gz"));
+        //f = null;
+        //if (providedCassandraTar != null)
+        f = new File(providedCassandraTar);
+        //if (f != null && !f.canRead())
+        //    f = null;
+        verifyFileExistsAndCanRead(f);
+        cassandraTarFile = f;
+
+
         cassandraExecutorFile = verifyFileExistsAndCanRead(Env.option("EXECUTOR_FILE_PATH").or(workingDir("/cassandra-executor.jar")));
-        jdkTarFile = verifyFileExistsAndCanRead(Env.option("JDK_FILE_PATH").or(workingDir("/jdk-7u75-linux-x64.tar.gz")));
-        cassandraTarFile = verifyFileExistsAndCanRead(Env.option("CASSANDRA_FILE_PATH").or(workingDir("/cassandra.tar.gz")));
     }
 
     @GET
@@ -46,19 +67,22 @@ public final class FileResourceController {
     }
 
     @GET
-    @Path("/jdk.tar.gz")
-    public Response jdkTar() {
-        return handleRequest(jdkTarFile, "application/x-gzip", "jdk.tar.gz");
+    @Path("/jre-{version}-{osname}.tar.gz")
+    public Response jreTar(@PathParam("version") String version, @PathParam("osname") String osname) {
+        // version is currently unused
+        // But we might need that parameter not too far away in the future since C* 3.x probably requires Java 8,
+        // while older versions still require Java 7.
+        return handleRequest(jreTarFile, "application/x-gzip", "jre.tar.gz");
     }
 
     @GET
-    @Path("/cassandra.tar.gz")
-    public Response cassandraTar() {
+    @Path("/apache-cassandra-{version}-bin.tar.gz")
+    public Response cassandraTar(@PathParam("version") String version) {
         return handleRequest(cassandraTarFile, "application/x-gzip", "cassandra.tar.gz");
     }
 
     @NotNull
-    private Response handleRequest(@NotNull final File resource, @NotNull final String type, @NotNull final String attachmentName) {
+    private static Response handleRequest(@NotNull final File resource, @NotNull final String type, @NotNull final String attachmentName) {
         final Response.ResponseBuilder builder = Response.ok(resource, type);
         builder.header("Content-Disposition", String.format("attachment; filename=\"%s\"", attachmentName));
         return builder.build();
@@ -67,8 +91,12 @@ public final class FileResourceController {
     @NotNull
     private static File verifyFileExistsAndCanRead(@NotNull final String path) {
         final File file = new File(path);
+        return verifyFileExistsAndCanRead(file);
+    }
+
+    private static File verifyFileExistsAndCanRead(File file) {
         if (!file.exists() || !file.canRead()) {
-            throw new IllegalArgumentException("Unable to read specified resource: " + path);
+            throw new IllegalArgumentException("Unable to read specified resource: " + file);
         }
         return file;
     }

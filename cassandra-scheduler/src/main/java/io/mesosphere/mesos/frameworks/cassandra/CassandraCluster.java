@@ -197,8 +197,8 @@ public final class CassandraCluster {
 
     public void addExecutorMetadata(@NotNull final ExecutorMetadata executorMetadata) {
         clusterState.executorMetadata(append(
-                clusterState.executorMetadata(),
-                executorMetadata
+            clusterState.executorMetadata(),
+            executorMetadata
         ));
     }
 
@@ -421,10 +421,10 @@ public final class CassandraCluster {
 
     private boolean shouldRunHealthCheck(@NotNull final String executorID) {
         final Optional<Long> previousHealthCheckTime = headOption(
-                from(healthCheckHistory.entries())
-                        .filter(healthCheckHistoryEntryExecutorIdEq(executorID))
-                        .transform(healthCheckHistoryEntryToTimestamp())
-                        .toSortedList(Collections.reverseOrder(naturalLongComparator))
+            from(healthCheckHistory.entries())
+                .filter(healthCheckHistoryEntryExecutorIdEq(executorID))
+                .transform(healthCheckHistoryEntryToTimestamp())
+                .toSortedList(Collections.reverseOrder(naturalLongComparator))
         );
         if (previousHealthCheckTime.isPresent()) {
             final Duration duration = new Duration(new Instant(previousHealthCheckTime.get()), clock.now());
@@ -515,8 +515,8 @@ public final class CassandraCluster {
     private CassandraNodeExecutor getCassandraNodeExecutorSupplier(@NotNull final String executorId) {
         String osName = Env.option("OS_NAME").or(Env.osFromSystemProperty());
         String javaExec = "macosx".equals(osName)
-                ? "$(pwd)/jre*/Contents/Home/bin/java"
-                : "$(pwd)/jre*/bin/java";
+            ? "$(pwd)/jre*/Contents/Home/bin/java"
+            : "$(pwd)/jre*/bin/java";
 
         return CassandraNodeExecutor.newBuilder()
             .setExecutorId(executorId)

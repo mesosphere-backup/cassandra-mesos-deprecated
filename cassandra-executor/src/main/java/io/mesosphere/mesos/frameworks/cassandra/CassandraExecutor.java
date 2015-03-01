@@ -14,10 +14,9 @@
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import ch.qos.logback.classic.LoggerContext;
+import com.fasterxml.jackson.dataformat.yaml.snakeyaml.Yaml;
 import com.google.common.base.Joiner;
 import com.google.common.io.Files;
-
-import com.fasterxml.jackson.dataformat.yaml.snakeyaml.Yaml;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.frameworks.cassandra.jmx.JmxConnect;
@@ -33,14 +32,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.List;
@@ -61,6 +53,7 @@ public final class CassandraExecutor implements Executor {
     }
 
     private volatile Process process;
+    private volatile TaskID serverTaskId;
     private volatile JmxConnect jmxConnect;
 
     private final AtomicReference<NodeRepairJob> repair = new AtomicReference<>();
@@ -91,8 +84,9 @@ public final class CassandraExecutor implements Executor {
             LOGGER.debug(taskIdMarker, "received taskDetails: {}", protoToString(taskDetails));
             switch (taskDetails.getTaskType()) {
                 case EXECUTOR_METADATA:
-                    final ExecutorMetadata slaveMetadata = collectSlaveMetadata(taskDetails.getExecutorMetadataTask());
-                    final SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
+                    final ExecutorMetadataTask executorMetadataTask = taskDetails.getExecutorMetadataTask();
+                    final ExecutorMetadata slaveMetadata = collectSlaveMetadata(executorMetadataTask);
+                    SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
                         .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.EXECUTOR_METADATA)
                         .setExecutorMetadata(slaveMetadata)
                         .build();
@@ -102,11 +96,16 @@ public final class CassandraExecutor implements Executor {
                     safeShutdown();
                     final Process cassandraProcess = launchCassandraNodeTask(taskIdMarker, taskDetails.getCassandraServerRunTask());
                     process = cassandraProcess;
+                    serverTaskId = task.getTaskId();
                     jmxConnect = new JmxConnect(taskDetails.getCassandraServerRunTask().getJmx());
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_STARTING));
                     break;
                 case CASSANDRA_SERVER_SHUTDOWN:
                     safeShutdown();
+                    driver.sendStatusUpdate(taskStatus(task.getExecutor().getExecutorId(),
+                            serverTaskId,
+                            TaskState.TASK_FINISHED,
+                            nullSlaveStatusDetails()));
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
                     break;
                 case HEALTH_CHECK:
@@ -276,7 +275,7 @@ public final class CassandraExecutor implements Executor {
     }
 
     @NotNull
-    private static Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraServerRunTask cassandraNodeTask) throws IOException {
+    private Process launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraServerRunTask cassandraNodeTask) throws IOException {
         for (final TaskFile taskFile : cassandraNodeTask.getTaskFilesList()) {
             final File file = new File(taskFile.getOutputPath());
             LOGGER.debug(taskIdMarker, "Overwriting file {}", file);
@@ -486,15 +485,18 @@ public final class CassandraExecutor implements Executor {
 
     @NotNull
     private static TaskStatus taskStatus(
-            @NotNull final ExecutorID executorId,
-            @NotNull final TaskID taskId, TaskState state, SlaveStatusDetails details) {
+            @NotNull final ExecutorID executorID,
+            @NotNull final TaskID taskID,
+            @NotNull final TaskState state,
+            @NotNull final SlaveStatusDetails details
+    ) {
         return TaskStatus.newBuilder()
-            .setExecutorId(executorId)
-            .setTaskId(taskId)
+                .setExecutorId(executorID)
+            .setTaskId(taskID)
             .setState(state)
             .setSource(TaskStatus.Source.SOURCE_EXECUTOR)
             .setData(ByteString.copyFrom(details.toByteArray()))
-            .build();
+                .build();
     }
 
     @NotNull
@@ -507,8 +509,9 @@ public final class CassandraExecutor implements Executor {
     @NotNull
     private static String processBuilderToString(@NotNull final ProcessBuilder builder) {
         return "ProcessBuilder{\n" +
-                "directory() = " + builder.directory() + ",\n" +
-                "command() = " + Joiner.on(" ").join(builder.command()) + ",\n" +
-                "environment() = " + Joiner.on("\n").withKeyValueSeparator("->").join(builder.environment()) + "\n}";
+                "directory() = " + builder.directory() +
+                ",\ncommand() = " + Joiner.on(" ").join(builder.command()) +
+                ",\nenvironment() = " + Joiner.on("\n").withKeyValueSeparator("->").join(builder.environment()) +
+                "\n}";
     }
 }

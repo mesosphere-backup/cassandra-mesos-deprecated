@@ -18,7 +18,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -124,9 +123,9 @@ public final class CassandraScheduler implements Scheduler {
                             final ExecutorMetadata executorMetadata = statusDetails.getExecutorMetadata();
                             cassandraCluster.addExecutorMetadata(executorMetadata);
                             break;
-                        case ERROR_DETAILS:
-                            break;
                         case HEALTH_CHECK_DETAILS:
+                            break;
+                        case ERROR_DETAILS:
                             break;
                     }
                     break;
@@ -186,10 +185,6 @@ public final class CassandraScheduler implements Scheduler {
             LOGGER.trace(taskIdMarker, "< statusUpdate(driver : {}, status : {})", driver, protoToString(status));
     }
 
-    private static boolean isExecutorTask(TaskID taskId) {
-        return taskId.getValue().endsWith(".executor");
-    }
-
     @Override
     public void frameworkMessage(final SchedulerDriver driver, final ExecutorID executorId, final SlaveID slaveId, final byte[] data) {
         if (LOGGER.isDebugEnabled())
@@ -216,12 +211,15 @@ public final class CassandraScheduler implements Scheduler {
     public void disconnected(final SchedulerDriver driver) {
         if (LOGGER.isDebugEnabled())
             LOGGER.debug("disconnected(driver : {})", driver);
+        LOGGER.debug("disconnected(driver : {})", driver);
+        // TODO implement
     }
 
     @Override
     public void slaveLost(final SchedulerDriver driver, final SlaveID slaveId) {
         if (LOGGER.isDebugEnabled())
             LOGGER.debug("slaveLost(driver : {}, slaveId : {})", driver, protoToString(slaveId));
+        // TODO implement
     }
 
     @Override

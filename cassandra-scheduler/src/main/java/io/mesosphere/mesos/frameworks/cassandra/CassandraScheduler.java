@@ -116,9 +116,9 @@ public final class CassandraScheduler implements Scheduler {
                             final ExecutorMetadata executorMetadata = statusDetails.getExecutorMetadata();
                             cassandraCluster.addExecutorMetadata(executorMetadata);
                             break;
-                        case ERROR_DETAILS:
-                            break;
                         case HEALTH_CHECK_DETAILS:
+                            break;
+                        case ERROR_DETAILS:
                             break;
                     }
                     break;
@@ -207,11 +207,13 @@ public final class CassandraScheduler implements Scheduler {
     @Override
     public void disconnected(final SchedulerDriver driver) {
         LOGGER.debug("disconnected(driver : {})", driver);
+        // TODO implement
     }
 
     @Override
     public void slaveLost(final SchedulerDriver driver, final SlaveID slaveId) {
         LOGGER.debug("slaveLost(driver : {}, slaveId : {})", driver, protoToString(slaveId));
+        // TODO implement
     }
 
     @Override

@@ -24,6 +24,13 @@ message CassandraFrameworkConfiguration {
     optional int64 memMb = 6;
     optional int64 diskMb = 7;
     optional int64 healthCheckIntervalSeconds = 8;
+    optional int64 bootstrapGraceTimeSeconds = 9;
+    repeated PortMapping portMapping = 10;
+}
+
+message PortMapping {
+    required string name = 1;
+    required int32 port = 2;
 }
 
 message CassandraClusterState {
@@ -38,7 +45,7 @@ message CassandraClusterHealthCheckHistory {
 message HealthCheckHistoryEntry {
     required string executorId = 1;
     required int64 timestamp = 2;
-    required CassandraNodeHealthCheckDetails details = 3;
+    required HealthCheckDetails details = 3;
 }
 
 message CassandraClusterScheduledTasksState {
@@ -74,7 +81,7 @@ message CassandraNode {
     optional CassandraNodeTask metadataTask = 6;
     optional CassandraNodeTask serverTask = 7;
 
-    repeated CassandraNodeHealthCheckDetails healthCheckHistory = 8;
+    repeated HealthCheckDetails healthCheckHistory = 8;
 }
 message DataVolume {
     required string path = 1;
@@ -117,19 +124,19 @@ message TaskDetails {
     optional ExecutorMetadataTask executorMetadataTask = 2;
     optional CassandraServerRunTask cassandraServerRunTask = 3;
     optional CassandraServerShutdownTask cassandraServerShutdownTask = 4;
-    optional CassandraServerHealthCheckTask cassandraServerHealthCheckTask = 5;
-    optional CassandraNodeRepairTask cassandraNodeRepairTask = 6;
-    optional CassandraNodeCleanupTask cassandraNodeCleanupTask = 7;
+    optional HealthCheckTask healthCheckTask = 5;
+    optional RepairTask repairTask = 6;
+    optional CleanupTask rleanupTask = 7;
 
     enum TaskType {
         EXECUTOR_METADATA = 1;
         CASSANDRA_SERVER_RUN = 2;
         CASSANDRA_SERVER_SHUTDOWN = 3;
-        CASSANDRA_SERVER_HEALTH_CHECK = 4;
-        CASSANDRA_NODE_REPAIR = 5;
-        CASSANDRA_NODE_REPAIR_STATUS = 6;
-        CASSANDRA_NODE_CLEANUP = 7;
-        CASSANDRA_NODE_CLEANUP_STATUS = 8;
+        HEALTH_CHECK = 4;
+        REPAIR = 5;
+        REPAIR_STATUS = 6;
+        CLEANUP = 7;
+        CLEANUP_STATUS = 8;
     }
 }
 
@@ -149,16 +156,13 @@ message CassandraServerRunTask {
 message CassandraServerShutdownTask {
 }
 
-message CassandraServerHealthCheckTask {
-    required JmxConnect jmx = 1;
+message HealthCheckTask {
 }
 
-message CassandraNodeRepairTask {
-    required JmxConnect jmx = 1;
+message RepairTask {
 }
 
-message CassandraNodeCleanupTask {
-    required JmxConnect jmx = 1;
+message CleanupTask {
 }
 
 message JmxConnect {
@@ -202,9 +206,9 @@ message SlaveStatusDetails {
     required StatusDetailsType statusDetailsType = 1;
     optional ExecutorMetadata executorMetadata = 2;
     optional SlaveErrorDetails slaveErrorDetails = 3;
-    optional CassandraNodeHealthCheckDetails cassandraNodeHealthCheckDetails = 4;
-    optional CassandraNodeRepairStatus repairStatus = 5;
-    optional CassandraNodeCleanupStatus cleanupStatus = 6;
+    optional HealthCheckDetails healthCheckDetails = 4;
+    optional RepairStatus repairStatus = 5;
+    optional CleanupStatus cleanupStatus = 6;
 
     enum StatusDetailsType {
         NULL_DETAILS = 1;
@@ -213,7 +217,6 @@ message SlaveStatusDetails {
         HEALTH_CHECK_DETAILS = 4;
         REPAIR_STATUS = 5;
         CLEANUP_STATUS = 6;
-        SERVER_RUN_DETAILS = 7;
     }
 }
 
@@ -227,7 +230,7 @@ message SlaveErrorDetails {
     optional string details = 2;
 }
 
-message CassandraNodeRepairStatus {
+message RepairStatus {
     required bool running = 1;
     repeated KeyspaceRepairStatus repairedKeyspaces = 2;
     repeated string remainingKeyspaces = 3;
@@ -241,16 +244,16 @@ message KeyspaceRepairStatus {
     required int64 duration = 3;
 }
 
-message CassandraNodeCleanupStatus {
+message CleanupStatus {
 }
 
-message CassandraNodeHealthCheckDetails {
+message HealthCheckDetails {
     required bool healthy = 1;
     optional string msg = 2;
-    optional CassandraNodeInfo info = 3;
+    optional NodeInfo info = 3;
 }
 
-message CassandraNodeInfo {
+message NodeInfo {
     // extracted this information because it could be meaningful outside of a health-check
     optional string clusterName = 1;
     optional string operationMode = 2;

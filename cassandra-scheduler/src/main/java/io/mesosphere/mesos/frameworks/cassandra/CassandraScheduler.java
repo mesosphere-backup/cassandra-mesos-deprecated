@@ -122,12 +122,6 @@ public final class CassandraScheduler implements Scheduler {
                             break;
                         case HEALTH_CHECK_DETAILS:
                             break;
-                        case REPAIR_STATUS:
-                            break;
-                        case CLEANUP_STATUS:
-                            break;
-                        case SERVER_RUN_DETAILS:
-                            break;
                         case ERROR_DETAILS:
                             break;
                     }
@@ -153,7 +147,6 @@ public final class CassandraScheduler implements Scheduler {
                         }
                         executorLost(driver, executorIdForTask, status.getSlaveId(), status.getState().ordinal());
                     } else {
-                        // TODO trigger node restart on error/failed/lost state
                         cassandraCluster.removeTask(taskId.getValue());
                         cassandraCluster.removeExecutorMetadata(executorId.getValue());
                         switch (statusDetails.getStatusDetailsType()) {
@@ -161,19 +154,12 @@ public final class CassandraScheduler implements Scheduler {
                                 break;
                             case EXECUTOR_METADATA:
                                 break;
-                            case SERVER_RUN_DETAILS:
-                                break;
                             case ERROR_DETAILS:
                                 LOGGER.error(taskIdMarker, protoToString(statusDetails.getSlaveErrorDetails()));
                                 break;
                             case HEALTH_CHECK_DETAILS:
-                                cassandraCluster.recordHealthCheck(executorId.getValue(), statusDetails.getCassandraNodeHealthCheckDetails());
-                                break;
-                            case REPAIR_STATUS:
-                                cassandraCluster.recordRepairStatus(executorId.getValue(), statusDetails.getRepairStatus());
-                                break;
-                            case CLEANUP_STATUS:
-                                // TODO implement
+                                final HealthCheckDetails healthCheckDetails = statusDetails.getHealthCheckDetails();
+                                cassandraCluster.recordHealthCheck(executorId.getValue(), healthCheckDetails);
                                 break;
                         }
                     }
@@ -296,7 +282,6 @@ public final class CassandraScheduler implements Scheduler {
             );
         }
         return builder.build();
-
     }
 
 }

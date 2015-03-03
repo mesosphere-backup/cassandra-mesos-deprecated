@@ -25,5 +25,8 @@ target/
 *~
 
 **/cassandra-mesos.log
+**/cassandra-mesos.log*.zip
 **/cassandra-executor.log
+**/cassandra-executor.log*.zip
 **/executor.log
+**/executor.log*.zip

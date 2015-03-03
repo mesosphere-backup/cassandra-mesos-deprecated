@@ -141,10 +141,10 @@ PORT0=18080
 # the jar.
 EXECUTOR_FILE_PATH=${PROJECT_DIR}/cassandra-executor/target/cassandra-executor-0.1.0-SNAPSHOT-jar-with-dependencies.jar
 
-# The file path to where a tar of the Oracle JDK version 7 update 75 is on the local file system.
+# The file path to where a tar of the Oracle JRE version 7 update 75 is on the local file system.
 # This file will be served by the build-in http server so that tasks will be able to easily access
-# the jdk, and it doesn't have to be provided by the slave host.
-JDK_FILE_PATH=${PROJECT_DIR}/target/framework-package/jdk.tar.gz
+# the jre, and it doesn't have to be provided by the slave host.
+JRE_FILE_PATH=${PROJECT_DIR}/target/framework-package/jdk.tar.gz
 
 # The file path to where a tar of Apache Cassandra 2.1.2 is on the local file system.
 # This file will be served by the build-in http server so that tasks will be able to easily access

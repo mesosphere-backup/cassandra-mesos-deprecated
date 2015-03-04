@@ -20,12 +20,14 @@ import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
+
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
 
 public final class CassandraFrameworkProtosUtils {
 
-    public CassandraFrameworkProtosUtils() {}
+    private CassandraFrameworkProtosUtils() {}
 
     @NotNull
     @SafeVarargs
@@ -43,6 +45,11 @@ public final class CassandraFrameworkProtosUtils {
     @NotNull
     public static Function<ExecutorMetadata, String> executorMetadataToIp() {
         return SlaveMetadataToIp.INSTANCE;
+    }
+
+    @NotNull
+    public static Function<CassandraNode, String> cassandraNodeToIp() {
+        return CassandraNodeToIp.INSTANCE;
     }
 
     @NotNull
@@ -133,12 +140,23 @@ public final class CassandraFrameworkProtosUtils {
         return URI.newBuilder().setValue(urlForResource).setExtract(extract).build();
     }
 
-    public static TaskConfig.Entry configValue(final String name, final Long value) {
+    public static TaskConfig.Entry configValue(final String name, final Integer value) {
         return TaskConfig.Entry.newBuilder().setName(name).setLongValue(value).build();
     }
 
     public static TaskConfig.Entry configValue(final String name, final String value) {
         return TaskConfig.Entry.newBuilder().setName(name).setStringValue(value).build();
+    }
+
+    public static List<String> getSeedNodeIps(List<CassandraNode> nodes) {
+        return newArrayList(from(nodes)
+            .filter(new Predicate<CassandraNode>() {
+                @Override
+                public boolean apply(CassandraNode v) {
+                    return v.getSeed();
+                }
+            })
+            .transform(cassandraNodeToIp()));
     }
 
     private static final class TupleToTaskEnvEntry implements Function<Tuple2<String, String>, TaskEnv.Entry> {
@@ -154,6 +172,15 @@ public final class CassandraFrameworkProtosUtils {
 
         @Override
         public String apply(final ExecutorMetadata input) {
+            return input.getIp();
+        }
+    }
+
+    private static final class CassandraNodeToIp implements Function<CassandraNode, String> {
+        private static final CassandraNodeToIp INSTANCE = new CassandraNodeToIp();
+
+        @Override
+        public String apply(final CassandraNode input) {
             return input.getIp();
         }
     }

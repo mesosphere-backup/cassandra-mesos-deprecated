@@ -19,9 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
-import java.io.IOException;
 import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.List;
@@ -264,7 +262,7 @@ public final class CassandraCluster {
                 }
             } else if (shouldRunHealthCheck(executorId)) {
                 final String taskId = node.getCassandraNodeExecutor().getExecutorId() + ".healthcheck";
-                final CassandraNodeTask task = getHealthCheckTask(executorId, taskId);
+                final CassandraNodeTask task = getHealthCheckTask(executorId, taskId, node.getJmxConnect());
                 cassandraNodeTasks.add(task);
             }
             final List<CassandraNodeTask> tasks = unmodifiableList(cassandraNodeTasks);
@@ -288,15 +286,14 @@ public final class CassandraCluster {
         CassandraNode.Builder builder = CassandraNode.newBuilder()
                 .setHostname(offer.getHostname());
         try {
-            InetAddress ia = InetAddress.getByName(offer.getHostname());
-
             int jmxPort = defaultCassandraPortMappings.get("jmx_port").intValue();
-            if (ia.isLoopbackAddress())
-                try (ServerSocket serverSocket = new ServerSocket(0)) {
-                    jmxPort = serverSocket.getLocalPort();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+            InetAddress ia = InetAddress.getByName(offer.getHostname());
+//            if (ia.isLoopbackAddress())
+//                try (ServerSocket serverSocket = new ServerSocket(0)) {
+//                    jmxPort = serverSocket.getLocalPort();
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
 
             return builder.setIp(ia.getHostAddress())
                     .setJmxConnect(JmxConnect.newBuilder()
@@ -434,10 +431,13 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private static CassandraNodeTask getHealthCheckTask(@NotNull final String executorId, @NotNull final String taskId) {
+    private static CassandraNodeTask getHealthCheckTask(@NotNull final String executorId, @NotNull final String taskId, final JmxConnect jmxConnect) {
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setTaskType(TaskDetails.TaskType.CASSANDRA_SERVER_HEALTH_CHECK)
-            .setCassandraServerHealthCheckTask(CassandraServerHealthCheckTask.getDefaultInstance())
+            .setCassandraServerHealthCheckTask(
+                CassandraServerHealthCheckTask.newBuilder()
+                    .setJmx(jmxConnect)
+            )
             .build();
         return CassandraNodeTask.newBuilder()
             .setTaskId(taskId)

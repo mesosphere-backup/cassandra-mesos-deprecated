@@ -94,6 +94,7 @@ public final class Main {
         final long      zkTimeoutMs             = Long.parseLong(       Env.option("CASSANDRA_ZK_TIMEOUT_MS").or("10000"));
         final String    mesosMasterZkUrl        =                       Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");
         final long      failoverTimeout         = Long.parseLong(       Env.option("CASSANDRA_FAILOVER_TIMEOUT_SECONDS").or(String.valueOf(Period.days(7).toStandardSeconds().getSeconds())));
+        final String    mesosRole               =                       Env.option("MESOS_ROLE").or("*");
 
         final Matcher matcher = zkURLPattern.matcher(zkUrl);
 
@@ -118,7 +119,8 @@ public final class Main {
             .setDiskMb(resourceDiskMegabytes)
             .setNumberOfNodes(executorCount)
             .setNumberOfSeeds(seedCount)
-            .setMemMb(resourceMemoryMegabytes);
+            .setMemMb(resourceMemoryMegabytes)
+            .setMesosRole(mesosRole);
         final PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
             state,
             frameworkName,
@@ -133,6 +135,7 @@ public final class Main {
                 .setFailoverTimeout(failoverTimeout)
                 .setUser("") // Have Mesos fill in the current user.
                 .setName(frameworkName)
+                .setRole(mesosRole)
                 .setCheckpoint(true);
 
         final Optional<String> frameworkId = configuration.frameworkId();

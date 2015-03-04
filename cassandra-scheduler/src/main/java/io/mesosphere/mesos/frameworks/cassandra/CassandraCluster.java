@@ -405,7 +405,8 @@ public final class CassandraCluster {
                                 configRole.getCpuCores(),
                                 configRole.getMemMb(),
                                 configRole.getDiskMb(),
-                                portMappings(config)
+                                portMappings(config),
+                                configRole.getMesosRole()
                         );
                         if (!errors.isEmpty()) {
                             LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
@@ -676,21 +677,26 @@ public final class CassandraCluster {
         final double cpu,
         final long mem,
         final long disk,
-        @NotNull final Map<String, Long> portMapping
+        @NotNull final Map<String, Long> portMapping,
+        final String mesosRole
     ) {
         final List<String> errors = newArrayList();
-        final ListMultimap<String, Protos.Resource> index = from(offer.getResourcesList()).index(resourceToName());
+        final ListMultimap<String, Protos.Resource> index = from(offer.getResourcesList())
+                .filter(resourceHasExpectedRole(mesosRole))
+                .index(resourceToName());
+
         final Double availableCpus = resourceValueDouble(headOption(index.get("cpus"))).or(0.0);
         final Long availableMem = resourceValueLong(headOption(index.get("mem"))).or(0L);
         final Long availableDisk = resourceValueLong(headOption(index.get("disk"))).or(0L);
+
         if (availableCpus <= cpu) {
-            errors.add(String.format("Not enough cpu resources. Required %f only %f available.", cpu, availableCpus));
+            errors.add(String.format("Not enough cpu resources for role %s. Required %f only %f available.", mesosRole, cpu, availableCpus));
         }
         if (availableMem <= mem) {
-            errors.add(String.format("Not enough mem resources. Required %d only %d available", mem, availableMem));
+            errors.add(String.format("Not enough mem resources for role %s. Required %d only %d available", mesosRole, mem, availableMem));
         }
         if (availableDisk <= disk) {
-            errors.add(String.format("Not enough disk resources. Required %d only %d available", disk, availableDisk));
+            errors.add(String.format("Not enough disk resources for role %s. Required %d only %d available", mesosRole, disk, availableDisk));
         }
 
         final TreeSet<Long> ports = resourceValueRange(headOption(index.get("ports")));
@@ -698,7 +704,7 @@ public final class CassandraCluster {
             final String key = entry.getKey();
             final Long value = entry.getValue();
             if (!ports.contains(value)) {
-                errors.add(String.format("Unavailable port %d(%s). %d other ports available.", value, key, ports.size()));
+                errors.add(String.format("Unavailable port %d(%s) for role %s. %d other ports available.", value, key, mesosRole, ports.size()));
             }
         }
         return errors;

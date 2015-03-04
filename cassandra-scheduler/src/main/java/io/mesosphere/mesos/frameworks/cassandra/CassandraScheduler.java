@@ -157,7 +157,7 @@ public final class CassandraScheduler implements Scheduler {
                         cassandraCluster.removeTask(taskId.getValue());
                         cassandraCluster.removeExecutorMetadata(executorId.getValue());
                         switch (statusDetails.getStatusDetailsType()) {
-                            case NULL_DETAILS:
+                        case NULL_DETAILS:
                                 break;
                             case EXECUTOR_METADATA:
                                 break;

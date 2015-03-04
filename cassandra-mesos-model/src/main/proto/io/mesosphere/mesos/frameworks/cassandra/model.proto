@@ -24,6 +24,7 @@ message CassandraFrameworkConfiguration {
     optional int64 memMb = 6;
     optional int64 diskMb = 7;
     optional int64 healthCheckIntervalSeconds = 8;
+    optional string mesosRoles = 9;
 }
 
 message CassandraClusterState {

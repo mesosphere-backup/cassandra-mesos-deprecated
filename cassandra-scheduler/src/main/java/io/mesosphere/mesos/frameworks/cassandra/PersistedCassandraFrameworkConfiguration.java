@@ -20,7 +20,8 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         final double cpuCores,
         final long memMb,
         final long diskMb,
-        final long healthCheckIntervalSeconds
+        final long healthCheckIntervalSeconds,
+        final String mesosRoles
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -36,6 +37,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setMemMb(memMb)
                         .setDiskMb(diskMb)
                         .setHealthCheckIntervalSeconds(healthCheckIntervalSeconds)
+                        .setMesosRoles(mesosRoles)
                         .build();
                 }
             },
@@ -100,5 +102,10 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     @NotNull
     public String cassandraVersion() {
         return get().getCassandraVersion();
+    }
+
+    @NotNull
+    public String mesosRoles() {
+        return get().getMesosRoles();
     }
 }

@@ -3,8 +3,11 @@ package io.mesosphere.mesos.util;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
+
+import org.apache.mesos.Protos.Resource;
 import org.jetbrains.annotations.NotNull;
 
 import static com.google.common.collect.FluentIterable.from;
@@ -103,6 +106,11 @@ public final class CassandraFrameworkProtosUtils {
     @NotNull
     public static Predicate<HealthCheckHistoryEntry> healthCheckHistoryEntryExecutorIdEq(@NotNull final String executorId) {
         return new HealthCheckHistoryEntryExecutorIdEq(executorId);
+    }
+
+    @NotNull
+    public static Predicate<Resource> resourceHasExpectedRole(@NotNull final String role) {
+        return new ResourceHasExpectedRole(role);
     }
 
     @NotNull
@@ -286,6 +294,20 @@ public final class CassandraFrameworkProtosUtils {
         @Override
         public boolean apply(final HealthCheckHistoryEntry item) {
             return item.getExecutorId().equals(executorId);
+        }
+    }
+
+    private static final class ResourceHasExpectedRole implements Predicate<Resource> {
+        @NotNull
+        private final String role;
+
+        public ResourceHasExpectedRole(@NotNull final String role) {
+            this.role = role;
+        }
+
+        @Override
+        public boolean apply(final Resource item) {
+            return item.getRole().equals(role);
         }
     }
 

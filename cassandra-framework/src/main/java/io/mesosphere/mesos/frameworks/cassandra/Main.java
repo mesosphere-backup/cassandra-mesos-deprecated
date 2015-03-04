@@ -14,6 +14,7 @@
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Optional;
+import io.mesosphere.mesos.frameworks.cassandra.files.FileResourceController;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.Clock;
 import io.mesosphere.mesos.util.ProtoUtils;
@@ -81,12 +82,13 @@ public final class Main {
         final int port0 = Integer.parseInt(portOption.get());
 
         final int       executorCount           = Integer.parseInt(     Env.option("CASSANDRA_NODE_COUNT").or("3"));
+        final int       seedCount               = Integer.parseInt(     Env.option("CASSANDRA_SEED_COUNT").or("2"));
         final double    resourceCpuCores        = Double.parseDouble(   Env.option("CASSANDRA_RESOURCE_CPU_CORES").or("2.0"));
         final long      resourceMemoryMegabytes = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_MEM_MB").or("2048"));
         final long      resourceDiskMegabytes   = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_DISK_MB").or("2048"));
         final long      healthCheckIntervalSec  = Long.parseLong(       Env.option("CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS").or("60"));
+        final long      bootstrapGraceTimeSec   = Long.parseLong(       Env.option("CASSANDRA_BOOTSTRAP_GRACE_TIME_SECONDS").or("60"));
         final String    cassandraVersion        =                       "2.1.2"; // TODO Env.option("CASSANDRA_VERSION").or("2.1.2");
-        final long      bootstrapGraceTimeSec   = Long.parseLong(       Env.option("CASSANDRA_BOOTSTRAP_GRACE_SECONDS").or("5"));
         final String    frameworkName           = frameworkName(        Env.option("CASSANDRA_CLUSTER_NAME"));
         final String    zkUrl                   =                       Env.option("CASSANDRA_ZK").or("zk://localhost:2181/cassandra-mesos");
         final long      zkTimeoutMs             = Long.parseLong(       Env.option("CASSANDRA_ZK_TIMEOUT_MS").or("10000"));
@@ -106,19 +108,21 @@ public final class Main {
             matcher.group(2)
         );
 
+        if (seedCount > executorCount || seedCount <= 0 || executorCount <= 0)
+            throw new IllegalArgumentException("number of nodes (" + executorCount + ") and/or number of seeds (" + seedCount + ") invalid");
+
         final PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
             state,
             frameworkName,
             cassandraVersion,
             executorCount,
+            seedCount,
             resourceCpuCores,
             resourceMemoryMegabytes,
             resourceDiskMegabytes,
-            healthCheckIntervalSec
+            healthCheckIntervalSec,
+            bootstrapGraceTimeSec
         );
-        final ExecutorCounter executorCounter = new ExecutorCounter(state, 0L);
-        final PersistedCassandraClusterState persistedCassandraClusterState = new PersistedCassandraClusterState(state);
-        final PersistedCassandraClusterHealthCheckHistory persistedCassandraClusterHealthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);
 
 
         final FrameworkInfo.Builder frameworkBuilder =
@@ -133,24 +137,28 @@ public final class Main {
             frameworkBuilder.setId(frameworkId(frameworkId.get()));
         }
 
-        final ResourceConfig rc = new ResourceConfig().packages("io.mesosphere.mesos.frameworks.cassandra");
-
         final URI httpServerBaseUri = URI.create(String.format("http://%s:%d/", formatInetAddress(InetAddress.getLocalHost()), port0));
-        final HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
 
         final Clock clock = new SystemClock();
         final CassandraCluster cassandraCluster = new CassandraCluster(
             clock,
             httpServerBaseUri.toString(),
-            executorCounter,
-            persistedCassandraClusterState,
-            persistedCassandraClusterHealthCheckHistory,
+            new ExecutorCounter(state, 0L),
+            new PersistedCassandraClusterState(state),
+            new PersistedCassandraClusterHealthCheckHistory(state),
+            new PersistedCassandraClusterJobs(state),
             configuration
         );
         final Scheduler scheduler = new CassandraScheduler(
             configuration,
             cassandraCluster
         );
+
+        final ResourceConfig rc = new ResourceConfig()
+            .register(new FileResourceController())
+            .register(new ApiController(cassandraCluster));
+            //.packages("io.mesosphere.mesos.frameworks.cassandra");
+        final HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
 
         final MesosSchedulerDriver driver;
         final Optional<Credential> credentials = getCredential();

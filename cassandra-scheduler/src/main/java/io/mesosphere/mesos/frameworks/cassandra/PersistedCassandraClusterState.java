@@ -15,19 +15,14 @@ package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
-import com.google.common.collect.FluentIterable;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.util.ProtoUtils;
+import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.state.State;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.List;
-
-import static com.google.common.base.Predicates.not;
-import static com.google.common.collect.FluentIterable.from;
-import static com.google.common.collect.Lists.newArrayList;
-import static io.mesosphere.mesos.util.CassandraFrameworkProtosUtils.cassandraNodeHostnameEq;
-import static io.mesosphere.mesos.util.Functions.append;
 
 final class PersistedCassandraClusterState extends StatePersistedObject<CassandraFrameworkProtos.CassandraClusterState> {
     public PersistedCassandraClusterState(@NotNull final State state) {
@@ -91,8 +86,35 @@ final class PersistedCassandraClusterState extends StatePersistedObject<Cassandr
      * Add a node, making sure to replace any previoud node with the same hostname
      */
     public void addOrSetNode(final CassandraFrameworkProtos.CassandraNode node) {
-        final FluentIterable<CassandraFrameworkProtos.CassandraNode> filterNot = from(nodes())
-            .filter(not(cassandraNodeHostnameEq(node.getHostname())));
-        nodes(append(newArrayList(filterNot), node));
+        List<CassandraFrameworkProtos.CassandraNode> nodeList = new ArrayList<>(nodes());
+        for (int i = 0; i < nodeList.size(); i++) {
+            CassandraFrameworkProtos.CassandraNode candidate = nodeList.get(i);
+            if (node.getHostname().equals(candidate.getHostname())) {
+                nodeList.set(i, node);
+                nodes(nodeList);
+                return;
+            }
+        }
+        nodeList.add(node);
+        nodes(nodeList);
+    }
+
+    public Tuple2<Integer, Integer> nodeCounts() {
+        int nodeCount = 0;
+        int seedCount = 0;
+        for (CassandraFrameworkProtos.CassandraNode n : nodes()) {
+            nodeCount++;
+            if (n.getSeed())
+                seedCount++;
+        }
+        return Tuple2.tuple2(nodeCount, seedCount);
+    }
+
+    public void updateLastServerLaunchTimestamp(long lastServerLaunchTimestamp) {
+        setValue(
+                CassandraFrameworkProtos.CassandraClusterState.newBuilder(get())
+                        .setLastServerLaunchTimestamp(lastServerLaunchTimestamp)
+                        .build()
+        );
     }
 }

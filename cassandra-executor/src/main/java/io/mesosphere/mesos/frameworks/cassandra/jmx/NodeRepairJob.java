@@ -15,6 +15,7 @@ package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.cassandra.service.ActiveRepairService;
+import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,56 +23,42 @@ import javax.management.ListenerNotFoundException;
 import javax.management.Notification;
 import javax.management.NotificationListener;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-public class NodeRepairJob extends AbstractKeyspacesJob implements NotificationListener {
+public class NodeRepairJob extends AbstractNodeJob implements NotificationListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(NodeRepairJob.class);
 
     private final Map<Integer, String> commandToKeyspace = new HashMap<>();
-    private final Map<String, CassandraFrameworkProtos.KeyspaceRepairStatus> keyspaceStatus = new HashMap<>();
-    private long finishedTimestamp;
 
-    private volatile long keyspaceStartedAt;
+    public NodeRepairJob(Protos.TaskID taskId) {
+        super(taskId);
+    }
 
-    public NodeRepairJob() {
+    @Override
+    public CassandraFrameworkProtos.ClusterJobType getType() {
+        return CassandraFrameworkProtos.ClusterJobType.REPAIR;
     }
 
     public boolean start(JmxConnect jmxConnect) {
-        if (!super.start(jmxConnect))
+        if (!super.start(jmxConnect)) {
             return false;
+        }
 
         jmxConnect.getStorageServiceProxy().addNotificationListener(this, null, null);
 
-        LOGGER.info("Initiated repair job for keyspaces {}", keyspaces);
+        LOGGER.info("Initiated repair job for keyspaces {}", getRemainingKeyspaces());
 
         return true;
     }
 
-    public boolean isFinished() {
-        return finishedTimestamp != 0L;
-    }
-
-    public long getFinishedTimestamp() {
-        return finishedTimestamp;
-    }
-
-    public List<String> getRemainingKeyspaces() {
-        return keyspaces;
-    }
-
-    public Map<String, CassandraFrameworkProtos.KeyspaceRepairStatus> getKeyspaceStatus() {
-        return keyspaceStatus;
-    }
-
-    public boolean repairNextKeyspace() {
+    public void startNextKeyspace() {
         while (true) {
-            if (keyspaces.isEmpty()) {
-                finished();
-                return false;
+            String keyspace = super.nextKeyspace();
+            if (keyspace == null) {
+                return;
             }
 
-            String keyspace = keyspaces.remove(0);
+            LOGGER.info("Starting repair on keyspace {}", keyspace);
 
             // equivalent to 'nodetool repair' WITHOUT --partitioner-range, --full, --in-local-dc, --sequential
             int commandNo = jmxConnect.getStorageServiceProxy().forceRepairAsync(keyspace, false, false, false, false);
@@ -83,15 +70,13 @@ public class NodeRepairJob extends AbstractKeyspacesJob implements NotificationL
             commandToKeyspace.put(commandNo, keyspace);
 
             LOGGER.info("Submitted repair for keyspace {} with cmd#{}", keyspace, commandNo);
-            return true;
+            break;
         }
     }
 
-    private void finished() {
+    protected void finished() {
         try {
-            finishedTimestamp = System.currentTimeMillis();
-            long duration = System.currentTimeMillis() - startTimestamp;
-            LOGGER.info("Repair job finished in {} seconds : {}", duration / 1000L, keyspaceStatus);
+            super.finished();
             jmxConnect.getStorageServiceProxy().removeNotificationListener(this);
             close();
         } catch (ListenerNotFoundException ignored) {
@@ -101,37 +86,64 @@ public class NodeRepairJob extends AbstractKeyspacesJob implements NotificationL
 
     @Override
     public void handleNotification(Notification notification, Object handback) {
-        if (!"repair".equals(notification.getType()))
+        if (!"repair".equals(notification.getType())) {
             return;
+        }
 
         int[] result = (int[]) notification.getUserData();
         int repairCommandNo = result[0];
         ActiveRepairService.Status status = ActiveRepairService.Status.values()[result[1]];
 
         String keyspace = commandToKeyspace.get(repairCommandNo);
-        LOGGER.info("Received notification about repair for keyspace {} with cmd#{} with status {}", keyspace, repairCommandNo, status);
 
         switch (status) {
             case STARTED:
-                keyspaceStartedAt = System.currentTimeMillis();
+                LOGGER.info("Received STARTED notification about repair for keyspace {} with cmd#{}, timetamp={}, message={}",
+                        keyspace, repairCommandNo, notification.getTimeStamp(), notification.getMessage());
+                keyspaceStarted();
                 break;
             case SESSION_SUCCESS:
+                LOGGER.debug("Received SESSION_SUCCESS notification about repair for keyspace {} with cmd#{}, timetamp={}, message={}",
+                        keyspace, repairCommandNo, notification.getTimeStamp(), notification.getMessage());
+                break;
             case SESSION_FAILED:
+                LOGGER.warn("Received SESSION_FAILED notification about repair for keyspace {} with cmd#{}, timetamp={}, message={}",
+                        keyspace, repairCommandNo, notification.getTimeStamp(), notification.getMessage());
                 break;
             case FINISHED:
+                LOGGER.info("Received FINISHED notification about repair for keyspace {} with cmd#{}, timetamp={}, message={}",
+                        keyspace, repairCommandNo, notification.getTimeStamp(), notification.getMessage());
 
-                // TODO possible race if this notification is received _before_ commandToKeyspace.put() is executed in repairNextKeyspace()
+                keyspaceFinished(status.name(), keyspace);
 
-                keyspaceStatus.put(keyspace, CassandraFrameworkProtos.KeyspaceRepairStatus.newBuilder()
-                        .setDuration(System.currentTimeMillis() - keyspaceStartedAt)
-                        .setStatus(status.name())
-                        .setKeyspace(keyspace)
-                        .build());
-
-                repairNextKeyspace();
+                startNextKeyspace();
 
                 break;
         }
+
+        // TODO also allow StorageServiceMBean.forceTerminateAllRepairSessions
+
+        /*
+        TODO handle these, too !!!
+
+        else if (JMXConnectionNotification.NOTIFS_LOST.equals(notification.getType()))
+        {
+            String message = String.format("[%s] Lost notification. You should check server log for repair status of keyspace %s",
+                                           format.format(notification.getTimeStamp()),
+                                           keyspace);
+            out.println(message);
+        }
+        else if (JMXConnectionNotification.FAILED.equals(notification.getType())
+                 || JMXConnectionNotification.CLOSED.equals(notification.getType()))
+        {
+            String message = String.format("JMX connection closed. You should check server log for repair status of keyspace %s"
+                                           + "(Subsequent keyspaces are not going to be repaired).",
+                                           keyspace);
+            error = new IOException(message);
+            condition.signalAll();
+        }
+
+         */
     }
 
 }

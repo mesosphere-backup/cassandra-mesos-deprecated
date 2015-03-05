@@ -37,7 +37,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setMemMb(memMb)
                         .setDiskMb(diskMb)
                         .setHealthCheckIntervalSeconds(healthCheckIntervalSeconds)
-                        .setMesosRoles(mesosRoles)
+                        .setMesosRole(mesosRoles)
                         .build();
                 }
             },
@@ -105,7 +105,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     }
 
     @NotNull
-    public String mesosRoles() {
-        return get().getMesosRoles();
+    public String mesosRole() {
+        return get().getMesosRole();
     }
 }

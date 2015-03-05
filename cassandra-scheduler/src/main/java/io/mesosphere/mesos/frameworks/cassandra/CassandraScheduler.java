@@ -246,21 +246,21 @@ public final class CassandraScheduler implements Scheduler {
                         environmentFromTaskEnv(executor.getTaskEnv()),
                         newArrayList(from(executor.getResourceList()).transform(uriToCommandInfoUri))
                     ),
-                    cpu(executor.getCpuCores()),
-                    mem(executor.getMemMb()),
-                    disk(executor.getDiskMb())
+                    cpu(executor.getCpuCores(), configuration.mesosRole()),
+                    mem(executor.getMemMb(), configuration.mesosRole()),
+                    disk(executor.getDiskMb(), configuration.mesosRole())
                 );
 
                 final TaskDetails taskDetails = cassandraNodeTask.getTaskDetails();
 
                 final TaskID taskId = taskId(cassandraNodeTask.getTaskId());
                 final List<Resource> resources = newArrayList(
-                    cpu(cassandraNodeTask.getCpuCores()),
-                    mem(cassandraNodeTask.getMemMb()),
-                    disk(cassandraNodeTask.getDiskMb())
+                    cpu(cassandraNodeTask.getCpuCores(), configuration.mesosRole()),
+                    mem(cassandraNodeTask.getMemMb(), configuration.mesosRole()),
+                    disk(cassandraNodeTask.getDiskMb(), configuration.mesosRole())
                 );
                 if (!cassandraNodeTask.getPortsList().isEmpty()) {
-                    resources.add(ports(cassandraNodeTask.getPortsList()));
+                    resources.add(ports(cassandraNodeTask.getPortsList(), configuration.mesosRole()));
                 }
                 final TaskInfo task = TaskInfo.newBuilder()
                     .setName(taskId.getValue())

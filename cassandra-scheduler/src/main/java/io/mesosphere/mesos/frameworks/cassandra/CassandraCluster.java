@@ -247,7 +247,7 @@ public final class CassandraCluster {
                     configuration.memMb(),
                     configuration.diskMb(),
                     defaultCassandraPortMappings,
-                    configuration.mesosRoles()
+                    configuration.mesosRole()
                 );
                 if (!errors.isEmpty()) {
                     LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));

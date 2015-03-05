@@ -158,7 +158,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     }
 
     @NotNull
-    public String mesosRoles() {
+    public String mesosRole() {
         return getDefaultConfigRole().getMesosRole();
     }
 }

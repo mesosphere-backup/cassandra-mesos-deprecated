@@ -47,6 +47,7 @@ public abstract class AbstractSchedulerTest {
             .setCassandraVersion("2.1.2")
             .setCpuCores(2)
             .setDiskMb(4096)
+            .setMesosRole("*")
             .setNumberOfNodes(3)
             .setNumberOfSeeds(2)
             .setName("default")

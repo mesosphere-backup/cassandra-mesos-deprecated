@@ -94,7 +94,7 @@ public final class Main {
         final long      zkTimeoutMs             = Long.parseLong(       Env.option("CASSANDRA_ZK_TIMEOUT_MS").or("10000"));
         final String    mesosMasterZkUrl        =                       Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");
         final long      failoverTimeout         = Long.parseLong(       Env.option("CASSANDRA_FAILOVER_TIMEOUT_SECONDS").or(String.valueOf(Period.days(7).toStandardSeconds().getSeconds())));
-        final String    mesosRole               =                       Env.option("MESOS_ROLE").or("*");
+        final String    mesosRole               =                       Env.option("CASSANDRA_FRAMEWORK_MESOS_ROLE").or("*");
 
         final Matcher matcher = zkURLPattern.matcher(zkUrl);
 

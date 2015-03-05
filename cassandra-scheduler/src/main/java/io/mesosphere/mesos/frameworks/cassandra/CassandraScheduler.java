@@ -310,19 +310,19 @@ public final class CassandraScheduler implements Scheduler {
                     environmentFromTaskEnv(tasksForOffer.getExecutor().getTaskEnv()),
                     newArrayList(from(tasksForOffer.getExecutor().getResourceList()).transform(uriToCommandInfoUri))
                 ),
-                cpu(tasksForOffer.getExecutor().getCpuCores()),
-                mem(tasksForOffer.getExecutor().getMemMb()),
-                disk(tasksForOffer.getExecutor().getDiskMb())
+                cpu(tasksForOffer.getExecutor().getCpuCores(), configuration.mesosRole()),
+                mem(tasksForOffer.getExecutor().getMemMb(), configuration.mesosRole()),
+                disk(tasksForOffer.getExecutor().getDiskMb(), configuration.mesosRole())
             );
 
             final TaskID taskId = taskId(cassandraNodeTask.getTaskId());
             final List<Resource> resources = newArrayList(
-                cpu(cassandraNodeTask.getCpuCores()),
-                mem(cassandraNodeTask.getMemMb()),
-                disk(cassandraNodeTask.getDiskMb())
+                cpu(cassandraNodeTask.getCpuCores(), configuration.mesosRole()),
+                mem(cassandraNodeTask.getMemMb(), configuration.mesosRole()),
+                disk(cassandraNodeTask.getDiskMb(), configuration.mesosRole())
             );
             if (!cassandraNodeTask.getPortsList().isEmpty()) {
-                resources.add(ports(cassandraNodeTask.getPortsList()));
+                resources.add(ports(cassandraNodeTask.getPortsList(), configuration.mesosRole()));
             }
 
             final TaskInfo task = TaskInfo.newBuilder()

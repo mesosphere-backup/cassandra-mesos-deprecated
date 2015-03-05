@@ -15,7 +15,7 @@ CASSANDRA_CLUSTER_NAME=dev-cluster
 # Mesos ZooKeeper URL to locate leading master
 MESOS_ZK=zk://localhost:2181/mesos
 
-# ZooKeeper URL to be used to storm framework state
+# ZooKeeper URL to be used to store framework state
 CASSANDRA_ZK=zk://localhost:2181/cassandra-mesos
 
 # The number of nodes in the ring (default 3)
@@ -36,6 +36,8 @@ CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS=60
 # The number of seconds that should be used as the mesos framework timeout (default 604800 seconds / 7 days)
 CASSANDRA_FAILOVER_TIMEOUT_SECONDS=604800
 
+# The mesos role to used to reserve resources (default *). If this is set, the framework only accepts offers that have resources for that role.
+CASSANDRA_FRAMEWORK_MESOS_ROLE=*
 ```
 
 ## Mesos Node Configuration

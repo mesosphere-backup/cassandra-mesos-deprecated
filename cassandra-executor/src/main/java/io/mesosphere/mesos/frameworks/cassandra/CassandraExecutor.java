@@ -138,21 +138,8 @@ public final class CassandraExecutor implements Executor {
                             nullSlaveStatusDetails()));
                     driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
                     break;
-                case HEALTH_CHECK:
-                    final HealthCheckTask healthCheckTask = taskDetails.getHealthCheckTask();
-                    LOGGER.info(taskIdMarker, "Received healthCheckTask: {}", protoToString(healthCheckTask));
-                    final HealthCheckDetails healthCheck = performHealthCheck(driver);
-                    final SlaveStatusDetails healthCheckDetails = SlaveStatusDetails.newBuilder()
-                        .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.HEALTH_CHECK_DETAILS)
-                        .setHealthCheckDetails(healthCheck)
-                        .build();
-                    driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED, healthCheckDetails));
-                    break;
                 case NODE_JOB:
                     startJob(driver, task, taskDetails);
-                    break;
-                case NODE_JOB_STATUS:
-                    jobStatus(driver, task);
                     break;
             }
         } catch (InvalidProtocolBufferException e) {
@@ -249,11 +236,16 @@ public final class CassandraExecutor implements Executor {
 
             handleProcessNoLongerAlive(driver);
 
+            if (serverTaskStatusOutstanding) {
+                driver.sendStatusUpdate(taskStatus(serverTask, process != null ? TaskState.TASK_RUNNING : TaskState.TASK_ERROR));
+                serverTaskStatusOutstanding = false;
+            }
+
             switch (taskDetails.getTaskType()) {
                 case HEALTH_CHECK:
                     final HealthCheckTask healthCheckTask = taskDetails.getHealthCheckTask();
                     LOGGER.info("Received healthCheckTask: {}", protoToString(healthCheckTask));
-                    final HealthCheckDetails healthCheck = performHealthCheck(driver);
+                    final HealthCheckDetails healthCheck = performHealthCheck();
                     final SlaveStatusDetails healthCheckDetails = SlaveStatusDetails.newBuilder()
                             .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.HEALTH_CHECK_DETAILS)
                             .setHealthCheckDetails(healthCheck)
@@ -352,17 +344,13 @@ public final class CassandraExecutor implements Executor {
             }
             process = null;
         }
+        serverTaskStatusOutstanding = false;
         serverTask = null;
     }
 
     @NotNull
-    private HealthCheckDetails performHealthCheck(ExecutorDriver driver) {
+    private HealthCheckDetails performHealthCheck() {
         HealthCheckDetails.Builder builder = HealthCheckDetails.newBuilder();
-
-        if (serverTaskStatusOutstanding) {
-            driver.sendStatusUpdate(taskStatus(serverTask, process != null ? TaskState.TASK_RUNNING : TaskState.TASK_ERROR));
-            serverTaskStatusOutstanding = false;
-        }
 
         if (process == null) {
             return builder.setHealthy(false)

@@ -22,7 +22,6 @@ import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 import io.mesosphere.mesos.frameworks.cassandra.util.Env;
 import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import io.mesosphere.mesos.util.Clock;
-import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 import org.joda.time.Duration;
@@ -404,14 +403,7 @@ public final class CassandraCluster {
                         }
                     } else {
                         if (shouldRunHealthCheck(executorId)) {
-                            // TODO if a health check response is 'super-lost' then issue a health-check via SchedulerDriver.launchTasks() and check the result
-                            // We have to recover state based on that response.
-                            if (false) {
-                                final String taskId = node.getCassandraNodeExecutor().getExecutorId() + ".healthcheck";
-                                result.getLaunchTasks().add(getHealthCheckTask(executorId, taskId));
-                            } else {
-                                result.getSubmitTasks().add(getHealthCheckTaskDetails());
-                            }
+                            result.getSubmitTasks().add(getHealthCheckTaskDetails());
                         }
 
                         handleClusterTask(executorId, result);
@@ -602,18 +594,6 @@ public final class CassandraCluster {
                 resourceUri(getUrlForResource("/apache-cassandra-" + configuration.cassandraVersion() + "-bin.tar.gz"), true),
                 resourceUri(getUrlForResource("/cassandra-executor.jar"), false)
             ))
-            .build();
-    }
-
-    @NotNull
-    private CassandraNodeTask getHealthCheckTask(@NotNull final String executorId, final String taskId) {
-        return CassandraNodeTask.newBuilder()
-            .setTaskId(taskId)
-            .setExecutorId(executorId)
-            .setCpuCores(0.1)
-            .setMemMb(16)
-            .setDiskMb(16)
-            .setTaskDetails(getHealthCheckTaskDetails())
             .build();
     }
 

@@ -689,7 +689,7 @@ public final class CassandraCluster {
 
     // cluster tasks
 
-    public void handleClusterTask(String executorId, TasksForOffer tasksForOffer) {
+    private void handleClusterTask(String executorId, TasksForOffer tasksForOffer) {
         ClusterJobStatus currentTask = getCurrentClusterJob();
         if (currentTask == null)
             return;

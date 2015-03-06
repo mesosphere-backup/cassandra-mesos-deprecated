@@ -202,11 +202,8 @@ public final class CassandraExecutor implements Executor {
             default:
                 return;
         }
-        if (startJob(job)) {
-            driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_RUNNING, nullSlaveStatusDetails()));
-        } else {
-            driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_ERROR, nullSlaveStatusDetails()));
-        }
+        TaskState taskState = startJob(job);
+        driver.sendStatusUpdate(taskStatus(task, taskState, nullSlaveStatusDetails()));
     }
 
     private void jobStatus(ExecutorDriver driver, TaskInfo task) {
@@ -311,14 +308,14 @@ public final class CassandraExecutor implements Executor {
         return currentJob.get();
     }
 
-    public boolean startJob(AbstractNodeJob nodeJob) {
+    public TaskState startJob(AbstractNodeJob nodeJob) {
         AbstractNodeJob current = currentJob.get();
         if (current == null || current.isFinished()) {
             currentJob.set(nodeJob);
             if (nodeJob.start(jmxConnect)) {
                 LOGGER.info("Starting node job {}", nodeJob.getType());
                 nodeJob.startNextKeyspace();
-                return true;
+                return TaskState.TASK_RUNNING;
             }
             else {
                 LOGGER.error("Failed to start node job {}", nodeJob.getType());
@@ -330,7 +327,7 @@ public final class CassandraExecutor implements Executor {
             LOGGER.error("Cannot start new node job {} while another node job is not finished ({})",
                     nodeJob.getType(), current.getType());
         }
-        return false;
+        return TaskState.TASK_ERROR;
     }
 
     private void forceCurrentJobAbort() {

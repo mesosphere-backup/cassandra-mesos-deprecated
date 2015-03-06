@@ -257,6 +257,7 @@ message SlaveErrorDetails {
     optional string msg = 1;
     optional string details = 2;
     optional ErrorType errorType = 3;
+    optional int32 processExitCode = 4;
 
     enum ErrorType {
         // cassandra server process is not runnning but is expected to be
@@ -267,6 +268,8 @@ message SlaveErrorDetails {
         PROTOCOL_VIOLATION = 3;
         // another node job is still running
         ANOTHER_JOB_RUNNING = 4;
+        // failed to start task
+        TASK_START_FAILURE = 5;
     }
 }
 

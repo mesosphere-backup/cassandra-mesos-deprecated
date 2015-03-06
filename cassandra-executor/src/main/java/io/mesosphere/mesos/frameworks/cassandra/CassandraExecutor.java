@@ -159,13 +159,13 @@ public final class CassandraExecutor implements Executor {
             final String msg = "Error deserializing task data to type: " + TaskDetails.class.getName();
             LOGGER.error(taskIdMarker, msg, e);
             final TaskStatus taskStatus =
-                slaveErrorDetails(task, msg, null, null);
+                slaveErrorDetails(task, msg, null, SlaveErrorDetails.ErrorType.PROTOCOL_VIOLATION);
             driver.sendStatusUpdate(taskStatus);
         } catch (Exception e) {
             final String msg = "Error starting task due to exception.";
             LOGGER.error(taskIdMarker, msg, e);
             final TaskStatus taskStatus =
-                slaveErrorDetails(task, msg, e.getMessage() != null ? e.getMessage() : "-", null);
+                slaveErrorDetails(task, msg, e.getMessage() != null ? e.getMessage() : "-", SlaveErrorDetails.ErrorType.TASK_START_FAILURE);
             driver.sendStatusUpdate(taskStatus);
         }
         LOGGER.debug(taskIdMarker, "< launchTask(driver : {}, task : {})", driver, protoToString(task));
@@ -521,14 +521,24 @@ public final class CassandraExecutor implements Executor {
     @NotNull
     private static TaskStatus slaveErrorDetails(
         @NotNull TaskInfo task,
-        String msg, String details, SlaveErrorDetails.ErrorType errorType) {
-        SlaveErrorDetails.Builder slaveErrorDetails = SlaveErrorDetails.newBuilder();
+        String msg, String details,
+        @NotNull SlaveErrorDetails.ErrorType errorType) {
+        return slaveErrorDetails(task, msg, details, null, errorType);
+    }
+
+    @NotNull
+    private static TaskStatus slaveErrorDetails(
+        @NotNull TaskInfo task,
+        String msg, String details, Integer exitCode,
+        @NotNull SlaveErrorDetails.ErrorType errorType) {
+        SlaveErrorDetails.Builder slaveErrorDetails = SlaveErrorDetails.newBuilder()
+            .setErrorType(errorType);
         if (msg != null)
             slaveErrorDetails.setMsg(msg);
         if (details != null)
             slaveErrorDetails.setDetails(details);
-        if (errorType != null)
-            slaveErrorDetails.setErrorType(errorType);
+        if (exitCode != null)
+            slaveErrorDetails.setProcessExitCode(exitCode);
         SlaveStatusDetails slaveStatusDetails = SlaveStatusDetails.newBuilder()
             .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.ERROR_DETAILS)
             .setSlaveErrorDetails(slaveErrorDetails)

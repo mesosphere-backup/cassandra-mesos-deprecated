@@ -173,9 +173,7 @@ public final class CassandraExecutor implements Executor {
 
     private void startJob(ExecutorDriver driver, TaskInfo task, TaskDetails taskDetails) {
         if (process == null) {
-            final TaskStatus taskStatus =
-                slaveErrorDetails(task, "cassandra server process not running", null, SlaveErrorDetails.ErrorType.PROCESS_NOT_RUNNING);
-            driver.sendStatusUpdate(taskStatus);
+            serverProcessNotRunning(driver, task);
             return;
         }
 
@@ -199,9 +197,7 @@ public final class CassandraExecutor implements Executor {
         if (process == null) {
             LOGGER.error("No Cassandra process to handle node-job-status");
             if (task != null) {
-                final TaskStatus taskStatus =
-                    slaveErrorDetails(task, "cassandra server process not running", null, SlaveErrorDetails.ErrorType.PROCESS_NOT_RUNNING);
-                driver.sendStatusUpdate(taskStatus);
+                serverProcessNotRunning(driver, task);
             }
             return;
         }
@@ -509,6 +505,12 @@ public final class CassandraExecutor implements Executor {
             .setSource(TaskStatus.Source.SOURCE_EXECUTOR)
             .setData(ByteString.copyFrom(details.toByteArray()))
             .build();
+    }
+
+    private static void serverProcessNotRunning(@NotNull ExecutorDriver driver, @NotNull TaskInfo task) {
+        final TaskStatus taskStatus =
+            slaveErrorDetails(task, "cassandra server process not running", null, SlaveErrorDetails.ErrorType.PROCESS_NOT_RUNNING);
+        driver.sendStatusUpdate(taskStatus);
     }
 
     @NotNull

@@ -154,6 +154,8 @@ public class CassandraExecutorTest {
         assertFalse(objectFactory.storageServiceProxy.listeners.isEmpty());
 
         objectFactory.storageServiceProxy.emitRepairNotification(ActiveRepairService.Status.STARTED);
+        // SESSION_SUCCESS is called for each repaired range (one KS/CF repair usually contains a lot of ranges)
+        // Just simulate that here.
         objectFactory.storageServiceProxy.emitRepairNotification(ActiveRepairService.Status.SESSION_SUCCESS);
         objectFactory.storageServiceProxy.emitRepairNotification(ActiveRepairService.Status.SESSION_SUCCESS);
         objectFactory.storageServiceProxy.emitRepairNotification(ActiveRepairService.Status.SESSION_SUCCESS);

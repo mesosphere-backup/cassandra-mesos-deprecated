@@ -92,7 +92,7 @@ public abstract class AbstractNodeJob implements Closeable {
         return keyspaceStatus;
     }
 
-    protected void finished() {
+    protected void cleanupAfterJobFinished() {
         finishedTimestamp = System.currentTimeMillis();
         long duration = System.currentTimeMillis() - startTimestamp;
         LOGGER.info("{} finished in {} seconds : {}", getClass().getSimpleName(), duration / 1000L, keyspaceStatus);
@@ -112,7 +112,7 @@ public abstract class AbstractNodeJob implements Closeable {
 
     public String nextKeyspace() {
         if (remainingKeyspaces.isEmpty()) {
-            finished();
+            cleanupAfterJobFinished();
             return null;
         }
 
@@ -122,6 +122,6 @@ public abstract class AbstractNodeJob implements Closeable {
     public abstract void startNextKeyspace();
 
     public void forceAbort() {
-        finished();
+        cleanupAfterJobFinished();
     }
 }

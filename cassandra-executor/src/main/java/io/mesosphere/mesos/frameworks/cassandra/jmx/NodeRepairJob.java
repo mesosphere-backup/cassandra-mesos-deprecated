@@ -74,9 +74,9 @@ public class NodeRepairJob extends AbstractNodeJob implements NotificationListen
         }
     }
 
-    protected void finished() {
+    protected void cleanupAfterJobFinished() {
         try {
-            super.finished();
+            super.cleanupAfterJobFinished();
             jmxConnect.getStorageServiceProxy().removeNotificationListener(this);
             close();
         } catch (ListenerNotFoundException ignored) {

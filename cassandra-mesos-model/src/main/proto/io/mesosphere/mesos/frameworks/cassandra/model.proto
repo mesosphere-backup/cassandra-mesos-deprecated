@@ -256,6 +256,18 @@ message ExecutorMetadata {
 message SlaveErrorDetails {
     optional string msg = 1;
     optional string details = 2;
+    optional ErrorType errorType = 3;
+
+    enum ErrorType {
+        // cassandra server process is not runnning but is expected to be
+        PROCESS_NOT_RUNNING = 1;
+        // cassandra server process exited
+        PROCESS_EXITED = 2;
+        // protobuf (de)serialization failed
+        PROTOCOL_VIOLATION = 3;
+        // another node job is still running
+        ANOTHER_JOB_RUNNING = 4;
+    }
 }
 
 message HealthCheckDetails {

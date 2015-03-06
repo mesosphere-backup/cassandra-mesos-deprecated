@@ -158,27 +158,14 @@ public final class CassandraExecutor implements Executor {
         } catch (InvalidProtocolBufferException e) {
             final String msg = "Error deserializing task data to type: " + TaskDetails.class.getName();
             LOGGER.error(taskIdMarker, msg, e);
-            final SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
-                .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.ERROR_DETAILS)
-                .setSlaveErrorDetails(
-                    SlaveErrorDetails.newBuilder()
-                        .setMsg(msg)
-                )
-                .build();
-            final TaskStatus taskStatus = taskStatus(task, TaskState.TASK_ERROR, details);
+            final TaskStatus taskStatus =
+                slaveErrorDetails(task, msg, null, null);
             driver.sendStatusUpdate(taskStatus);
         } catch (Exception e) {
             final String msg = "Error starting task due to exception.";
             LOGGER.error(taskIdMarker, msg, e);
-            final SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
-                .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.ERROR_DETAILS)
-                .setSlaveErrorDetails(
-                        SlaveErrorDetails.newBuilder()
-                                .setMsg(msg)
-                                .setDetails(e.getMessage() != null ? e.getMessage() : "-")
-                )
-                    .build();
-            final TaskStatus taskStatus = taskStatus(task, TaskState.TASK_ERROR, details);
+            final TaskStatus taskStatus =
+                slaveErrorDetails(task, msg, e.getMessage() != null ? e.getMessage() : "-", null);
             driver.sendStatusUpdate(taskStatus);
         }
         LOGGER.debug(taskIdMarker, "< launchTask(driver : {}, task : {})", driver, protoToString(task));
@@ -186,7 +173,9 @@ public final class CassandraExecutor implements Executor {
 
     private void startJob(ExecutorDriver driver, TaskInfo task, TaskDetails taskDetails) {
         if (process == null) {
-            driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_ERROR, nullSlaveStatusDetails()));
+            final TaskStatus taskStatus =
+                slaveErrorDetails(task, "cassandra server process not running", null, SlaveErrorDetails.ErrorType.PROCESS_NOT_RUNNING);
+            driver.sendStatusUpdate(taskStatus);
             return;
         }
 
@@ -202,15 +191,18 @@ public final class CassandraExecutor implements Executor {
             default:
                 return;
         }
-        TaskState taskState = startJob(job);
-        driver.sendStatusUpdate(taskStatus(task, taskState, nullSlaveStatusDetails()));
+        TaskStatus taskStatus = startJob(task, job);
+        driver.sendStatusUpdate(taskStatus);
     }
 
     private void jobStatus(ExecutorDriver driver, TaskInfo task) {
         if (process == null) {
             LOGGER.error("No Cassandra process to handle node-job-status");
-            if (task != null)
-                driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_ERROR, nullSlaveStatusDetails()));
+            if (task != null) {
+                final TaskStatus taskStatus =
+                    slaveErrorDetails(task, "cassandra server process not running", null, SlaveErrorDetails.ErrorType.PROCESS_NOT_RUNNING);
+                driver.sendStatusUpdate(taskStatus);
+            }
             return;
         }
 
@@ -308,14 +300,14 @@ public final class CassandraExecutor implements Executor {
         return currentJob.get();
     }
 
-    public TaskState startJob(AbstractNodeJob nodeJob) {
+    public TaskStatus startJob(TaskInfo task, AbstractNodeJob nodeJob) {
         AbstractNodeJob current = currentJob.get();
         if (current == null || current.isFinished()) {
             currentJob.set(nodeJob);
             if (nodeJob.start(jmxConnect)) {
                 LOGGER.info("Starting node job {}", nodeJob.getType());
                 nodeJob.startNextKeyspace();
-                return TaskState.TASK_RUNNING;
+                return taskStatus(task, TaskState.TASK_RUNNING, nullSlaveStatusDetails());
             }
             else {
                 LOGGER.error("Failed to start node job {}", nodeJob.getType());
@@ -327,7 +319,7 @@ public final class CassandraExecutor implements Executor {
             LOGGER.error("Cannot start new node job {} while another node job is not finished ({})",
                     nodeJob.getType(), current.getType());
         }
-        return TaskState.TASK_ERROR;
+        return slaveErrorDetails(task, "Another node job is still running", null, SlaveErrorDetails.ErrorType.ANOTHER_JOB_RUNNING);
     }
 
     private void forceCurrentJobAbort() {
@@ -413,14 +405,8 @@ public final class CassandraExecutor implements Executor {
             int exitCode = process.exitValue();
             LOGGER.error("Cassandra process terminated unexpectedly with exit code {}", exitCode);
 
-            final SlaveStatusDetails details = SlaveStatusDetails.newBuilder()
-                    .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.ERROR_DETAILS)
-                    .setSlaveErrorDetails(
-                            SlaveErrorDetails.newBuilder()
-                                    .setMsg("process exited with exit code " + exitCode)
-                    )
-                    .build();
-            final TaskStatus taskStatus = taskStatus(serverTask, TaskState.TASK_ERROR, details);
+            final TaskStatus taskStatus =
+                slaveErrorDetails(serverTask, "process exited with exit code " + exitCode, null, SlaveErrorDetails.ErrorType.PROCESS_EXITED);
             driver.sendStatusUpdate(taskStatus);
 
             safeShutdown();
@@ -523,6 +509,24 @@ public final class CassandraExecutor implements Executor {
             .setSource(TaskStatus.Source.SOURCE_EXECUTOR)
             .setData(ByteString.copyFrom(details.toByteArray()))
             .build();
+    }
+
+    @NotNull
+    private static TaskStatus slaveErrorDetails(
+        @NotNull TaskInfo task,
+        String msg, String details, SlaveErrorDetails.ErrorType errorType) {
+        SlaveErrorDetails.Builder slaveErrorDetails = SlaveErrorDetails.newBuilder();
+        if (msg != null)
+            slaveErrorDetails.setMsg(msg);
+        if (details != null)
+            slaveErrorDetails.setDetails(details);
+        if (errorType != null)
+            slaveErrorDetails.setErrorType(errorType);
+        SlaveStatusDetails slaveStatusDetails = SlaveStatusDetails.newBuilder()
+            .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.ERROR_DETAILS)
+            .setSlaveErrorDetails(slaveErrorDetails)
+            .build();
+        return taskStatus(task, TaskState.TASK_ERROR, slaveStatusDetails);
     }
 
     @NotNull

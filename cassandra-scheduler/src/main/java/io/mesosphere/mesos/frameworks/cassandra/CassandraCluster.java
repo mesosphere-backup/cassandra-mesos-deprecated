@@ -560,7 +560,6 @@ public final class CassandraCluster {
 
         return CassandraNodeTask.newBuilder()
             .setTaskId(taskId)
-            .setSubmittedTimestamp(clock.now().getMillis())
             .setExecutorId(executorId)
             .setCpuCores(configuration.cpuCores())
             .setMemMb(configuration.memMb())
@@ -610,7 +609,6 @@ public final class CassandraCluster {
     private CassandraNodeTask getHealthCheckTask(@NotNull final String executorId, final String taskId) {
         return CassandraNodeTask.newBuilder()
             .setTaskId(taskId)
-            .setSubmittedTimestamp(clock.now().getMillis())
             .setExecutorId(executorId)
             .setCpuCores(0.1)
             .setMemMb(16)
@@ -638,7 +636,6 @@ public final class CassandraCluster {
             .build();
         return CassandraNodeTask.newBuilder()
             .setTaskId(executorId)
-            .setSubmittedTimestamp(clock.now().getMillis())
             .setExecutorId(executorId)
             .setCpuCores(0.1)
             .setMemMb(16)
@@ -747,7 +744,6 @@ public final class CassandraCluster {
                     .build();
             CassandraNodeTask cassandraNodeTask = CassandraNodeTask.newBuilder()
                     .setTaskId(executorId + '.' + currentTask.getJobType().name())
-                    .setSubmittedTimestamp(clock.now().getMillis())
                     .setExecutorId(executorId)
                     .setCpuCores(0.1)
                     .setMemMb(16)
@@ -761,14 +757,12 @@ public final class CassandraCluster {
                     .setTaskId(cassandraNodeTask.getTaskId())
                     .setJobType(currentTask.getJobType())
                     .setTaskId(cassandraNodeTask.getTaskId())
-                    .setStartedTimestamp(cassandraNodeTask.getSubmittedTimestamp())
+                    .setStartedTimestamp(clock.now().getMillis())
                     .build();
             jobsState.nextNode(currentTask, currentNode);
 
             LOGGER.info("Starting cluster job {} on {}/{}", currentTask.getJobType().name(), nextNode.get().getIp(),
                     nextNode.get().getHostname());
-
-            return;
         }
     }
 

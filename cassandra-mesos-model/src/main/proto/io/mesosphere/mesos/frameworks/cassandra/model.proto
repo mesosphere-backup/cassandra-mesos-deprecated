@@ -149,8 +149,6 @@ message CassandraNodeTask {
     repeated int64 ports = 6;
 
     optional TaskDetails taskDetails = 7;
-
-    required int64 submittedTimestamp = 8;
 }
 
 message TaskDetails {

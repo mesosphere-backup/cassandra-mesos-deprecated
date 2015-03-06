@@ -224,8 +224,9 @@ public class ProdJmxConnect implements JmxConnect {
     }
 
     public CacheServiceMBean getCacheServiceProxy() {
-        if (cacheService == null)
+        if (cacheService == null) {
             cacheService = newProxy(CacheService.MBEAN_NAME, CacheServiceMBean.class);
+        }
         return cacheService;
     }
 

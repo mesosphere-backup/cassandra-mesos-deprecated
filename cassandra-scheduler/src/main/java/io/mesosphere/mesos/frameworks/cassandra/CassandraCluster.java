@@ -306,12 +306,12 @@ public final class CassandraCluster {
 
             CassandraNode.Builder node;
             if (!nodeOption.isPresent()) {
-                Tuple2<Integer, Integer> nodeCounts = clusterState.nodeCounts();
-                if (nodeCounts._1 >= configuration.numberOfNodes())
+                NodeCounts nodeCounts = clusterState.nodeCounts();
+                if (nodeCounts.getNodeCount() >= configuration.numberOfNodes())
                     // number of C* cluster nodes already present
                     return null;
 
-                boolean buildSeedNode = nodeCounts._2 < configuration.numberOfSeeds();
+                boolean buildSeedNode = nodeCounts.getSeedCount() < configuration.numberOfSeeds();
                 CassandraNode newNode = buildCassandraNode(offer, buildSeedNode);
                 clusterState.nodes(append(
                         clusterState.nodes(),
@@ -339,7 +339,7 @@ public final class CassandraCluster {
                 final Optional<ExecutorMetadata> maybeMetadata = getExecutorMetadata(executorId);
                 if (maybeMetadata.isPresent()) {
                     if (!node.hasServerTask()) {
-                        if (clusterState.nodeCounts()._2 < configuration.numberOfSeeds()) {
+                        if (clusterState.nodeCounts().getSeedCount() < configuration.numberOfSeeds()) {
                             // we do not have enough executor metadata records to fulfil seed node requirement
                             if (LOGGER.isDebugEnabled())
                                 LOGGER.debug(marker, "Cannot launch non-seed node (seed node requirement not fulfilled)");

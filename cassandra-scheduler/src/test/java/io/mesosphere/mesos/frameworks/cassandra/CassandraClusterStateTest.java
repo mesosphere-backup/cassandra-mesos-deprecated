@@ -46,7 +46,7 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         cluster.addExecutorMetadata(executorMetadata1);
         noopOnOffer(cluster, slaves[0], 1);
         assertEquals(Collections.singletonList("127.1.1.1"), cluster.getSeedNodes());
-        assertThat(clusterState.nodeCounts()).isEqualTo(Tuple2.tuple2(1, 1));
+        assertThat(clusterState.nodeCounts()).isEqualTo(new NodeCounts(1, 1));
 
         // rollout slave #2
 
@@ -71,11 +71,11 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         noopOnOffer(cluster, slaves[1], 3);
         noopOnOffer(cluster, slaves[2], 3);
 
-        assertThat(clusterState.nodeCounts()).isEqualTo(Tuple2.tuple2(3, 2));
+        assertThat(clusterState.nodeCounts()).isEqualTo(new NodeCounts(3, 2));
 
         cluster.addExecutorMetadata(executorMetadata2);
 
-        assertThat(clusterState.nodeCounts()).isEqualTo(Tuple2.tuple2(3, 2));
+        assertThat(clusterState.nodeCounts()).isEqualTo(new NodeCounts(3, 2));
 
         //
         // now there are enough executor metadata to start the seed nodes - but not the non-seed nodes

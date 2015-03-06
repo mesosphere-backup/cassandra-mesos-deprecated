@@ -17,7 +17,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.util.ProtoUtils;
-import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.state.State;
 import org.jetbrains.annotations.NotNull;
 
@@ -99,7 +98,7 @@ final class PersistedCassandraClusterState extends StatePersistedObject<Cassandr
         nodes(nodeList);
     }
 
-    public Tuple2<Integer, Integer> nodeCounts() {
+    public NodeCounts nodeCounts() {
         int nodeCount = 0;
         int seedCount = 0;
         for (CassandraFrameworkProtos.CassandraNode n : nodes()) {
@@ -107,7 +106,7 @@ final class PersistedCassandraClusterState extends StatePersistedObject<Cassandr
             if (n.getSeed())
                 seedCount++;
         }
-        return Tuple2.tuple2(nodeCount, seedCount);
+        return new NodeCounts(nodeCount, seedCount);
     }
 
     public void updateLastServerLaunchTimestamp(long lastServerLaunchTimestamp) {

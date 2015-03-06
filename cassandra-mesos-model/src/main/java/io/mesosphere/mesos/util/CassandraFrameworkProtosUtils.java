@@ -140,15 +140,15 @@ public final class CassandraFrameworkProtosUtils {
         return URI.newBuilder().setValue(urlForResource).setExtract(extract).build();
     }
 
-    public static TaskConfig.Entry configValue(final String name, final Integer value) {
+    public static TaskConfig.Entry configValue(@NotNull final String name, @NotNull final Integer value) {
         return TaskConfig.Entry.newBuilder().setName(name).setLongValue(value).build();
     }
 
-    public static TaskConfig.Entry configValue(final String name, final String value) {
+    public static TaskConfig.Entry configValue(@NotNull final String name, @NotNull final String value) {
         return TaskConfig.Entry.newBuilder().setName(name).setStringValue(value).build();
     }
 
-    public static List<String> getSeedNodeIps(List<CassandraNode> nodes) {
+    public static List<String> getSeedNodeIps(@NotNull List<CassandraNode> nodes) {
         return newArrayList(from(nodes)
             .filter(new Predicate<CassandraNode>() {
                 @Override
@@ -162,7 +162,7 @@ public final class CassandraFrameworkProtosUtils {
     private static final class TupleToTaskEnvEntry implements Function<Tuple2<String, String>, TaskEnv.Entry> {
         private static final TupleToTaskEnvEntry INSTANCE = new TupleToTaskEnvEntry();
         @Override
-        public TaskEnv.Entry apply(final Tuple2<String, String> input) {
+        public TaskEnv.Entry apply(@NotNull final Tuple2<String, String> input) {
             return TaskEnv.Entry.newBuilder().setName(input._1).setValue(input._2).build();
         }
     }
@@ -171,7 +171,7 @@ public final class CassandraFrameworkProtosUtils {
         private static final SlaveMetadataToIp INSTANCE = new SlaveMetadataToIp();
 
         @Override
-        public String apply(final ExecutorMetadata input) {
+        public String apply(@NotNull final ExecutorMetadata input) {
             return input.getIp();
         }
     }
@@ -180,7 +180,7 @@ public final class CassandraFrameworkProtosUtils {
         private static final CassandraNodeToIp INSTANCE = new CassandraNodeToIp();
 
         @Override
-        public String apply(final CassandraNode input) {
+        public String apply(@NotNull final CassandraNode input) {
             return input.getIp();
         }
     }
@@ -189,7 +189,7 @@ public final class CassandraFrameworkProtosUtils {
         private static final CassandraNodeToBuilder INSTANCE = new CassandraNodeToBuilder();
 
         @Override
-        public CassandraNode.Builder apply(final CassandraNode input) {
+        public CassandraNode.Builder apply(@NotNull final CassandraNode input) {
             return CassandraNode.newBuilder(input);
         }
     }
@@ -198,7 +198,7 @@ public final class CassandraFrameworkProtosUtils {
         private static final CassandraNodeBuilderToCassandraNode INSTANCE = new CassandraNodeBuilderToCassandraNode();
 
         @Override
-        public CassandraNode apply(final CassandraNode.Builder input) {
+        public CassandraNode apply(@NotNull final CassandraNode.Builder input) {
             return input.build();
         }
     }
@@ -207,7 +207,7 @@ public final class CassandraFrameworkProtosUtils {
         private static final ExecutorMetadataToBuilder INSTANCE = new ExecutorMetadataToBuilder();
 
         @Override
-        public ExecutorMetadata.Builder apply(final ExecutorMetadata input) {
+        public ExecutorMetadata.Builder apply(@NotNull final ExecutorMetadata input) {
             return ExecutorMetadata.newBuilder(input);
         }
     }
@@ -216,7 +216,7 @@ public final class CassandraFrameworkProtosUtils {
         private static final ExecutorMetadataBuilderToExecutorMetadata INSTANCE = new ExecutorMetadataBuilderToExecutorMetadata();
 
         @Override
-        public ExecutorMetadata apply(final ExecutorMetadata.Builder input) {
+        public ExecutorMetadata apply(@NotNull final ExecutorMetadata.Builder input) {
             return input.build();
         }
     }
@@ -230,7 +230,7 @@ public final class CassandraFrameworkProtosUtils {
         }
 
         @Override
-        public boolean apply(final CassandraNode item) {
+        public boolean apply(@NotNull final CassandraNode item) {
             return item.hasMetadataTask() && item.getMetadataTask().getTaskId().equals(metadataTaskId);
         }
     }
@@ -244,7 +244,7 @@ public final class CassandraFrameworkProtosUtils {
         }
 
         @Override
-        public boolean apply(final CassandraNode item) {
+        public boolean apply(@NotNull final CassandraNode item) {
             return item.hasServerTask() && item.getServerTask().getTaskId().equals(taskId);
         }
     }
@@ -253,14 +253,14 @@ public final class CassandraFrameworkProtosUtils {
         private static final ExecutorIdFromCassandraNode INSTANCE = new ExecutorIdFromCassandraNode();
 
         @Override
-        public String apply(final CassandraNode input) {
+        public String apply(@NotNull final CassandraNode input) {
             return input.getCassandraNodeExecutor().getExecutorId();
         }
     }
 
     private static final class CassandraNodeHasExecutor implements Predicate<CassandraNode> {
         @Override
-        public boolean apply(final CassandraNode item) {
+        public boolean apply(@NotNull final CassandraNode item) {
             return item.hasCassandraNodeExecutor();
         }
     }
@@ -274,7 +274,7 @@ public final class CassandraFrameworkProtosUtils {
         }
 
         @Override
-        public boolean apply(final CassandraNode item) {
+        public boolean apply(@NotNull final CassandraNode item) {
             return item.hasHostname() && item.getHostname().equals(hostname);
         }
     }
@@ -288,7 +288,7 @@ public final class CassandraFrameworkProtosUtils {
         }
 
         @Override
-        public boolean apply(final ExecutorMetadata item) {
+        public boolean apply(@NotNull final ExecutorMetadata item) {
             return item.getExecutorId().equals(executorId);
         }
     }
@@ -296,7 +296,7 @@ public final class CassandraFrameworkProtosUtils {
 
     private static final class CassandraNodeHasServerTask implements Predicate<CassandraNode> {
         @Override
-        public boolean apply(final CassandraNode item) {
+        public boolean apply(@NotNull final CassandraNode item) {
             return item.hasServerTask();
         }
     }
@@ -310,7 +310,7 @@ public final class CassandraFrameworkProtosUtils {
         }
 
         @Override
-        public boolean apply(final CassandraNode item) {
+        public boolean apply(@NotNull final CassandraNode item) {
             return item.hasCassandraNodeExecutor() && item.getCassandraNodeExecutor().getExecutorId().equals(executorId);
         }
     }
@@ -324,7 +324,7 @@ public final class CassandraFrameworkProtosUtils {
         }
 
         @Override
-        public boolean apply(final HealthCheckHistoryEntry item) {
+        public boolean apply(@NotNull final HealthCheckHistoryEntry item) {
             return item.getExecutorId().equals(executorId);
         }
     }
@@ -333,7 +333,7 @@ public final class CassandraFrameworkProtosUtils {
         private static final HealthCheckHistoryEntryToExecutorId INSTANCE = new HealthCheckHistoryEntryToExecutorId();
 
         @Override
-        public String apply(final HealthCheckHistoryEntry input) {
+        public String apply(@NotNull final HealthCheckHistoryEntry input) {
             return input.getExecutorId();
         }
     }
@@ -342,7 +342,7 @@ public final class CassandraFrameworkProtosUtils {
         private static final HealthCheckHistoryEntryToTimestamp INSTANCE = new HealthCheckHistoryEntryToTimestamp();
 
         @Override
-        public Long apply(final HealthCheckHistoryEntry input) {
+        public Long apply(@NotNull final HealthCheckHistoryEntry input) {
             return input.getTimestamp();
         }
     }
@@ -351,7 +351,7 @@ public final class CassandraFrameworkProtosUtils {
         private static final CassandraNodeToExecutor INSTANCE = new CassandraNodeToExecutor();
 
         @Override
-        public CassandraNodeExecutor apply(final CassandraNode input) {
+        public CassandraNodeExecutor apply(@NotNull final CassandraNode input) {
             return input.getCassandraNodeExecutor();
         }
     }

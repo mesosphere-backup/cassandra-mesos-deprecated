@@ -111,7 +111,7 @@ public final class CassandraExecutor implements Executor {
                 LOGGER.debug(taskIdMarker, "received taskDetails: {}", protoToString(taskDetails));
             }
 
-            processAlive(driver);
+            handleProcessNoLongerAlive(driver);
 
             switch (taskDetails.getTaskType()) {
                 case EXECUTOR_METADATA:
@@ -247,7 +247,7 @@ public final class CassandraExecutor implements Executor {
         try {
             TaskDetails taskDetails = TaskDetails.parseFrom(data);
 
-            processAlive(driver);
+            handleProcessNoLongerAlive(driver);
 
             switch (taskDetails.getTaskType()) {
                 case HEALTH_CHECK:
@@ -313,7 +313,7 @@ public final class CassandraExecutor implements Executor {
         }
         else {
             LOGGER.error("Cannot start new node job {} while another node job is not finished ({})",
-                    nodeJob.getType(), current.getType());
+                nodeJob.getType(), current.getType());
         }
         return slaveErrorDetails(task, "Another node job is still running", null, SlaveErrorDetails.ErrorType.ANOTHER_JOB_RUNNING);
     }
@@ -375,17 +375,17 @@ public final class CassandraExecutor implements Executor {
             builder.setHealthy(true)
                     .setInfo(info);
             LOGGER.info("Healthcheck succeeded: operationMode:{} joined:{} gossip:{} native:{} rpc:{} uptime:{}s endpoint:{}, dc:{}, rack:{}, hostId:{}, version:{}",
-                    info.getOperationMode(),
-                    info.getJoined(),
-                    info.getGossipRunning(),
-                    info.getNativeTransportRunning(),
-                    info.getRpcServerRunning(),
-                    info.getUptimeMillis() / 1000,
-                    info.getEndpoint(),
-                    info.getDataCenter(),
-                    info.getRack(),
-                    info.getHostId(),
-                    info.getVersion());
+                info.getOperationMode(),
+                info.getJoined(),
+                info.getGossipRunning(),
+                info.getNativeTransportRunning(),
+                info.getRpcServerRunning(),
+                info.getUptimeMillis() / 1000,
+                info.getEndpoint(),
+                info.getDataCenter(),
+                info.getRack(),
+                info.getHostId(),
+                info.getVersion());
         } catch (Exception e) {
             LOGGER.warn("Healthcheck failed.", e);
             builder.setHealthy(false)
@@ -394,16 +394,21 @@ public final class CassandraExecutor implements Executor {
         return builder.build();
     }
 
-    private void processAlive(ExecutorDriver driver) {
+    /**
+     * Handles the state when the Cassandra server process exited on its own and cleans up our state.
+     */
+    private void handleProcessNoLongerAlive(ExecutorDriver driver) {
         if (process == null)
             return;
         try {
             int exitCode = process.exitValue();
             LOGGER.error("Cassandra process terminated unexpectedly with exit code {}", exitCode);
 
-            final TaskStatus taskStatus =
-                slaveErrorDetails(serverTask, "process exited with exit code " + exitCode, null, SlaveErrorDetails.ErrorType.PROCESS_EXITED);
-            driver.sendStatusUpdate(taskStatus);
+            if (serverTask != null) {
+                final TaskStatus taskStatus =
+                    slaveErrorDetails(serverTask, "process exited with exit code " + exitCode, null, SlaveErrorDetails.ErrorType.PROCESS_EXITED);
+                driver.sendStatusUpdate(taskStatus);
+            }
 
             safeShutdown();
 

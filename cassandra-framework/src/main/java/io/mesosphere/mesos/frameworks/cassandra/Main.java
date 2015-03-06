@@ -108,8 +108,9 @@ public final class Main {
             matcher.group(2)
         );
 
-        if (seedCount > executorCount || seedCount <= 0 || executorCount <= 0)
+        if (seedCount > executorCount || seedCount <= 0 || executorCount <= 0) {
             throw new IllegalArgumentException("number of nodes (" + executorCount + ") and/or number of seeds (" + seedCount + ") invalid");
+        }
 
         final PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
             state,

@@ -112,15 +112,18 @@ public final class Main {
             throw new IllegalArgumentException("number of nodes (" + executorCount + ") and/or number of seeds (" + seedCount + ") invalid");
         }
 
+        CassandraFrameworkProtos.CassandraConfigRole.Builder defaultConfigRole = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
+            .setCassandraVersion(cassandraVersion)
+            .setCpuCores(resourceCpuCores)
+            .setDiskMb(resourceDiskMegabytes)
+            .setNumberOfNodes(executorCount)
+            .setNumberOfSeeds(seedCount)
+            .setMemMb(resourceMemoryMegabytes);
+        CassandraCluster.fillConfigRoleGaps(defaultConfigRole);
         final PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
             state,
             frameworkName,
-            cassandraVersion,
-            executorCount,
-            seedCount,
-            resourceCpuCores,
-            resourceMemoryMegabytes,
-            resourceDiskMegabytes,
+            defaultConfigRole.build(),
             healthCheckIntervalSec,
             bootstrapGraceTimeSec
         );

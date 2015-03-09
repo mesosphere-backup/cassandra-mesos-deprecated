@@ -303,14 +303,16 @@ public final class CassandraCluster {
         try {
             final Optional<CassandraNode> nodeOption = cassandraNodeForHostname(offer.getHostname());
 
+            CassandraConfigRole defaultConfigRole = configuration.getDefaultConfigRole();
+
             CassandraNode.Builder node;
             if (!nodeOption.isPresent()) {
                 NodeCounts nodeCounts = clusterState.nodeCounts();
-                if (nodeCounts.getNodeCount() >= configuration.numberOfNodes())
+                if (nodeCounts.getNodeCount() >= defaultConfigRole.getNumberOfNodes())
                     // number of C* cluster nodes already present
                     return null;
 
-                boolean buildSeedNode = nodeCounts.getSeedCount() < configuration.numberOfSeeds();
+                boolean buildSeedNode = nodeCounts.getSeedCount() < defaultConfigRole.getNumberOfSeeds();
                 CassandraNode newNode = buildCassandraNode(offer, buildSeedNode);
                 clusterState.nodes(append(
                         clusterState.nodes(),
@@ -338,7 +340,7 @@ public final class CassandraCluster {
                 final Optional<ExecutorMetadata> maybeMetadata = getExecutorMetadata(executorId);
                 if (maybeMetadata.isPresent()) {
                     if (!node.hasServerTask()) {
-                        if (clusterState.nodeCounts().getSeedCount() < configuration.numberOfSeeds()) {
+                        if (clusterState.nodeCounts().getSeedCount() < defaultConfigRole.getNumberOfSeeds()) {
                             // we do not have enough executor metadata records to fulfil seed node requirement
                             if (LOGGER.isDebugEnabled())
                                 LOGGER.debug(marker, "Cannot launch non-seed node (seed node requirement not fulfilled)");
@@ -383,11 +385,12 @@ public final class CassandraCluster {
                         }
 
                         CassandraFrameworkConfiguration config = configuration.get();
+                        CassandraConfigRole configRole = configuration.getDefaultConfigRole();
                         final List<String> errors = hasResources(
                                 offer,
-                                config.getCpuCores(),
-                                config.getMemMb(),
-                                config.getDiskMb(),
+                                configRole.getCpuCores(),
+                                configRole.getMemMb(),
+                                configRole.getDiskMb(),
                                 portMappings(config)
                         );
                         if (!errors.isEmpty()) {
@@ -516,46 +519,52 @@ public final class CassandraCluster {
             @NotNull final ExecutorMetadata metadata,
             @NotNull final CassandraNode.Builder node) {
         CassandraFrameworkConfiguration config = configuration.get();
-        final TaskConfig taskConfig = TaskConfig.newBuilder()
-            .addVariables(configValue("cluster_name", config.getFrameworkName()))
-            .addVariables(configValue("broadcast_address", metadata.getIp()))
-            .addVariables(configValue("rpc_address", metadata.getIp()))
-            .addVariables(configValue("listen_address", metadata.getIp()))
-            .addVariables(configValue("storage_port", getPortMapping(config, PORT_STORAGE)))
-            .addVariables(configValue("ssl_storage_port", getPortMapping(config, PORT_STORAGE_SSL)))
-            .addVariables(configValue("native_transport_port", getPortMapping(config, PORT_NATIVE)))
-            .addVariables(configValue("rpc_port", getPortMapping(config, PORT_RPC)))
-            .addVariables(configValue("seeds", SEEDS_FORMAT_JOINER.join(getSeedNodes())))
-            .build();
+        CassandraConfigRole configRole = config.getDefaultConfigRole();
+        final TaskConfig.Builder taskConfig = TaskConfig.newBuilder(configRole.getCassandraYamlConfig());
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("cluster_name", config.getFrameworkName()));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("broadcast_address", metadata.getIp()));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("rpc_address", metadata.getIp()));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("listen_address", metadata.getIp()));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("storage_port", getPortMapping(config, PORT_STORAGE)));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("ssl_storage_port", getPortMapping(config, PORT_STORAGE_SSL)));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("native_transport_port", getPortMapping(config, PORT_NATIVE)));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("rpc_port", getPortMapping(config, PORT_RPC)));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("seeds", SEEDS_FORMAT_JOINER.join(getSeedNodes())));
+        final TaskEnv.Builder taskEnv = TaskEnv.newBuilder();
+        for (TaskEnv.Entry entry : configRole.getTaskEnv().getVariablesList()) {
+            if (!"JMX_PORT".equals(entry.getName()) && !"MAX_HEAP_SIZE".equals(entry.getName())) {
+                taskEnv.addVariables(entry);
+            }
+        }
+        // see conf/cassandra-env.sh in the cassandra distribution for details
+        // about these variables.
+        CassandraFrameworkProtosUtils.addTaskEnvEntry(taskEnv, true, "JMX_PORT", String.valueOf(node.getJmxConnect().getJmxPort()));
+        CassandraFrameworkProtosUtils.addTaskEnvEntry(taskEnv, true, "MAX_HEAP_SIZE", configRole.getMemJavaHeapMb() + "m");
+        // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
+        // times. If in doubt, and if you do not particularly want to tweak, go with
+        // 100 MB per physical CPU core.
+        CassandraFrameworkProtosUtils.addTaskEnvEntry(taskEnv, false, "HEAP_NEWSIZE", (int) (configRole.getCpuCores() * 100) + "m");
+
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setTaskType(TaskDetails.TaskType.CASSANDRA_SERVER_RUN)
             .setCassandraServerRunTask(
-                    CassandraServerRunTask.newBuilder()
-                            // we want to know the PID of Cassandra process
-                            // have to start it in foreground in order to be able to detect runtime status in the executor
-                            .addAllCommand(newArrayList("apache-cassandra-" + config.getCassandraVersion() + "/bin/cassandra", "-p", "cassandra.pid", "-f"))
-                            .setTaskConfig(taskConfig)
-                            .setVersion(config.getCassandraVersion())
-                            .setTaskEnv(taskEnv(
-                                    // see conf/cassandra-env.sh in the cassandra distribution for details
-                                    // about these variables.
-                                    tuple2("JMX_PORT", String.valueOf(node.getJmxConnect().getJmxPort())),
-                                    tuple2("MAX_HEAP_SIZE", config.getMemMb() + "m"),
-                                    // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
-                                    // times. If in doubt, and if you do not particularly want to tweak, go with
-                                    // 100 MB per physical CPU core.
-                                    tuple2("HEAP_NEWSIZE", (int) (config.getCpuCores() * 100) + "m")
-                            ))
-                            .setJmx(node.getJmxConnect())
+                CassandraServerRunTask.newBuilder()
+                    // we want to know the PID of Cassandra process
+                    // have to start it in foreground in order to be able to detect runtime status in the executor
+                    .addAllCommand(newArrayList("apache-cassandra-" + configRole.getCassandraVersion() + "/bin/cassandra", "-p", "cassandra.pid", "-f"))
+                    .setTaskConfig(taskConfig)
+                    .setVersion(configRole.getCassandraVersion())
+                    .setTaskEnv(taskEnv)
+                    .setJmx(node.getJmxConnect())
             )
                 .build();
 
         return CassandraNodeTask.newBuilder()
             .setTaskId(taskId)
             .setExecutorId(executorId)
-            .setCpuCores(configuration.cpuCores())
-            .setMemMb(configuration.memMb())
-            .setDiskMb(configuration.diskMb())
+            .setCpuCores(configRole.getCpuCores())
+            .setMemMb(configRole.getMemMb())
+            .setDiskMb(configRole.getDiskMb())
             .addAllPorts(portMappings(config).values())
             .setTaskDetails(taskDetails)
             .build();
@@ -575,6 +584,8 @@ public final class CassandraCluster {
             ? "$(pwd)/jre*/Contents/Home/bin/java"
             : "$(pwd)/jre*/bin/java";
 
+        CassandraConfigRole configRole = configuration.getDefaultConfigRole();
+
         return CassandraNodeExecutor.newBuilder()
             .setExecutorId(executorId)
             .setSource(configuration.frameworkName())
@@ -591,7 +602,7 @@ public final class CassandraCluster {
             .setTaskEnv(taskEnvFromMap(executorEnv))
             .addAllResource(newArrayList(
                 resourceUri(getUrlForResource("/jre-7-" + osName + ".tar.gz"), true),
-                resourceUri(getUrlForResource("/apache-cassandra-" + configuration.cassandraVersion() + "-bin.tar.gz"), true),
+                resourceUri(getUrlForResource("/apache-cassandra-" + configRole.getCassandraVersion() + "-bin.tar.gz"), true),
                 resourceUri(getUrlForResource("/cassandra-executor.jar"), false)
             ))
             .build();
@@ -664,7 +675,7 @@ public final class CassandraCluster {
         } catch (IllegalArgumentException e) {
             LOGGER.info("Cannout update number-of-nodes", e);
         }
-        return configuration.numberOfNodes();
+        return configuration.getDefaultConfigRole().getNumberOfNodes();
     }
 
     // cluster tasks
@@ -817,5 +828,29 @@ public final class CassandraCluster {
                 return clusterJobStatus;
         }
         return null;
+    }
+
+    public static void fillConfigRoleGaps(CassandraConfigRole.Builder configRole) {
+        if (configRole.hasMemMb()) {
+            if (!configRole.hasMemAssumeOffHeapMb()) {
+                configRole.setMemAssumeOffHeapMb(configRole.getMemMb() / 2);
+            }
+            if (!configRole.hasMemJavaHeapMb()) {
+                configRole.setMemJavaHeapMb(configRole.getMemMb() / 2);
+            }
+        } else  {
+            if (configRole.hasMemJavaHeapMb()) {
+                if (!configRole.hasMemAssumeOffHeapMb()) {
+                    configRole.setMemAssumeOffHeapMb(configRole.getMemJavaHeapMb());
+                }
+            } else {
+                if (configRole.hasMemAssumeOffHeapMb()) {
+                    configRole.setMemJavaHeapMb(configRole.getMemAssumeOffHeapMb());
+                } else {
+                    throw new IllegalArgumentException("Config role is missing memory configuration");
+                }
+            }
+            configRole.setMemMb(configRole.getMemJavaHeapMb() + configRole.getMemAssumeOffHeapMb());
+        }
     }
 }

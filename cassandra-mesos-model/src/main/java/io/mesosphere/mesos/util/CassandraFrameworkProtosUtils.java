@@ -159,6 +159,29 @@ public final class CassandraFrameworkProtosUtils {
             .transform(cassandraNodeToIp()));
     }
 
+    public static void addTaskEnvEntry(@NotNull final TaskEnv.Builder taskEnv, boolean replace, @NotNull final String name, @NotNull final String value) {
+        for (int i = 0; i < taskEnv.getVariablesList().size(); i++) {
+            TaskEnv.Entry entry = taskEnv.getVariables(i);
+            if (name.equals(entry.getName())) {
+                if (replace)
+                    taskEnv.setVariables(i, TaskEnv.Entry.newBuilder().setName(name).setValue(value).build());
+                return;
+            }
+        }
+        taskEnv.addVariables(TaskEnv.Entry.newBuilder().setName(name).setValue(value).build());
+    }
+
+    public static void setTaskConfig(@NotNull final TaskConfig.Builder taskConfig, @NotNull final TaskConfig.Entry entry) {
+        for (int i = 0; i < taskConfig.getVariablesList().size(); i++) {
+            TaskConfig.Entry e = taskConfig.getVariables(i);
+            if (entry.getName().equals(e.getName())) {
+                taskConfig.setVariables(i, entry);
+                return;
+            }
+        }
+        taskConfig.addVariables(entry);
+    }
+
     private static final class TupleToTaskEnvEntry implements Function<Tuple2<String, String>, TaskEnv.Entry> {
         private static final TupleToTaskEnvEntry INSTANCE = new TupleToTaskEnvEntry();
         @Override

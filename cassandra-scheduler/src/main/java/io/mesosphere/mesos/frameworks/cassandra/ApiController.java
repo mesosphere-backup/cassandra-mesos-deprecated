@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
@@ -42,7 +41,6 @@ public final class ApiController {
 
     @GET
     @Path("/")
-    @Produces("text/html")
     public Response indexPage(@Context UriInfo uriInfo) {
         StringWriter sw = new StringWriter();
         try {
@@ -82,7 +80,6 @@ public final class ApiController {
 
     @GET
     @Path("/seed-nodes")
-    @Produces("application/json")
     public Response seedNodes() {
         StringWriter sw = new StringWriter();
         try {
@@ -117,7 +114,6 @@ public final class ApiController {
 
     @GET
     @Path("/config")
-    @Produces("application/json")
     public Response config() {
         StringWriter sw = new StringWriter();
         try {
@@ -170,7 +166,6 @@ public final class ApiController {
 
     @GET
     @Path("/nodes")
-    @Produces("application/json")
     public Response nodes() {
         StringWriter sw = new StringWriter();
         try {
@@ -263,7 +258,6 @@ public final class ApiController {
 
     @GET
     @Path("/scale/nodes")
-    @Produces("application/json")
     public Response updateNodeCount(@QueryParam("nodes") int nodeCount) {
         StringWriter sw = new StringWriter();
         try {
@@ -292,56 +286,48 @@ public final class ApiController {
 
     @GET
     @Path("/repair/start")
-    @Produces("application/json")
     public Response repairStart() {
         return startJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
     }
 
     @GET
     @Path("/cleanup/start")
-    @Produces("application/json")
     public Response cleanupStart() {
         return startJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
     }
 
     @GET
     @Path("/repair/abort")
-    @Produces("application/json")
     public Response repairAbort() {
         return abortJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
     }
 
     @GET
     @Path("/cleanup/abort")
-    @Produces("application/json")
     public Response cleanupAbort() {
         return abortJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
     }
 
     @GET
     @Path("/repair/status")
-    @Produces("application/json")
     public Response repairStatus() {
         return jobStatus(CassandraFrameworkProtos.ClusterJobType.REPAIR, "repair");
     }
 
     @GET
     @Path("/cleanup/status")
-    @Produces("application/json")
     public Response cleanupStatus() {
         return jobStatus(CassandraFrameworkProtos.ClusterJobType.CLEANUP, "cleanup");
     }
 
     @GET
     @Path("/repair/last")
-    @Produces("application/json")
     public Response lastRepair() {
         return lastJob(CassandraFrameworkProtos.ClusterJobType.REPAIR, "repair");
     }
 
     @GET
     @Path("/cleanup/last")
-    @Produces("application/json")
     public Response lastCleanup() {
         return lastJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP, "cleanup");
     }

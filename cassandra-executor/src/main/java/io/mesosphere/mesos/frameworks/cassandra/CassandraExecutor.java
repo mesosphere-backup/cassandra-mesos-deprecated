@@ -441,6 +441,9 @@ public final class CassandraExecutor implements Executor {
 
             forceCurrentJobAbort();
 
+            // send health check that process is no longer alive
+            healthCheck(driver);
+
         } catch (IllegalThreadStateException e) {
             // ignore
         }

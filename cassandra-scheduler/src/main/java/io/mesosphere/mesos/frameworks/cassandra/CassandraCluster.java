@@ -548,10 +548,10 @@ public final class CassandraCluster {
 
     @NotNull
     private CassandraNodeTask getServerTask(
-            @NotNull final String executorId,
-            @NotNull final String taskId,
-            @NotNull final ExecutorMetadata metadata,
-            @NotNull final CassandraNode.Builder node) {
+        @NotNull final String executorId,
+        @NotNull final String taskId,
+        @NotNull final ExecutorMetadata metadata,
+        @NotNull final CassandraNode.Builder node) {
         CassandraFrameworkConfiguration config = configuration.get();
         CassandraConfigRole configRole = config.getDefaultConfigRole();
         final TaskConfig.Builder taskConfig = TaskConfig.newBuilder(configRole.getCassandraYamlConfig());

@@ -24,7 +24,9 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.io.StringWriter;
 
@@ -41,19 +43,41 @@ public final class ApiController {
     @GET
     @Path("/")
     @Produces("text/html")
-    public String indexPage() {
-        return
-            "<a href=\"config\">Configuration</a> <br/>" +
-            "<a href=\"nodes\">All nodes</a> <br/>" +
-            "<a href=\"seed-nodes\">List of seed nodes</a> <br/>" +
-            "<a href=\"repair/start\">Start repair</a> <br/>" +
-            "<a href=\"repair/status\">Current repair status</a> <br/>" +
-            "<a href=\"repair/last\">Last repair</a> <br/>" +
-            "<a href=\"repair/abort\">Abort current repair</a> <br/>" +
-            "<a href=\"cleanup/start\">Start cleanup</a> <br/>" +
-            "<a href=\"cleanup/status\">Current cleanup status</a> <br/>" +
-            "<a href=\"cleanup/last\">Last cleanup</a> <br/>" +
-            "<a href=\"cleanup/abort\">Abort current cleanup</a> <br/>";
+    public Response indexPage(@Context UriInfo uriInfo) {
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            String baseUrl = uriInfo.getBaseUri().toString();
+
+            json.writeStringField("configuration", baseUrl + "config");
+            json.writeStringField("allNodes", baseUrl + "nodes");
+
+            json.writeObjectFieldStart("repair");
+            json.writeStringField("start", baseUrl + "repair/start");
+            json.writeStringField("status", baseUrl + "repair/status");
+            json.writeStringField("lastStatus", baseUrl + "repair/last");
+            json.writeStringField("abort", baseUrl + "repair/abort");
+            json.writeEndObject();
+
+            json.writeObjectFieldStart("cleanup");
+            json.writeStringField("start", baseUrl + "cleanup/start");
+            json.writeStringField("status", baseUrl + "cleanup/status");
+            json.writeStringField("lastStatus", baseUrl + "cleanup/last");
+            json.writeStringField("abort", baseUrl + "cleanup/abort");
+            json.writeEndObject();
+
+            json.writeEndObject();
+            json.close();
+        } catch (Exception e) {
+            LOGGER.error("Failed to JSON doc", e);
+            return Response.serverError().build();
+        }
+
+        return Response.ok(sw.toString(), "application/json").build();
     }
 
     @GET

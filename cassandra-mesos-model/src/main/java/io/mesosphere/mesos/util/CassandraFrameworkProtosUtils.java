@@ -15,7 +15,6 @@ package io.mesosphere.mesos.util;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 import org.jetbrains.annotations.NotNull;
@@ -28,19 +27,6 @@ import static com.google.common.collect.Lists.newArrayList;
 public final class CassandraFrameworkProtosUtils {
 
     private CassandraFrameworkProtosUtils() {}
-
-    @NotNull
-    @SafeVarargs
-    public static TaskEnv taskEnv(@NotNull final Tuple2<String, String>... tuples) {
-        return TaskEnv.newBuilder()
-            .addAllVariables(from(newArrayList(tuples)).transform(tupleToTaskEnvEntry()))
-            .build();
-    }
-
-    @NotNull
-    public static Function<Tuple2<String, String>, TaskEnv.Entry> tupleToTaskEnvEntry() {
-        return TupleToTaskEnvEntry.INSTANCE;
-    }
 
     @NotNull
     public static Function<ExecutorMetadata, String> executorMetadataToIp() {
@@ -74,20 +60,7 @@ public final class CassandraFrameworkProtosUtils {
 
     @NotNull
     public static Predicate<CassandraNode> cassandraNodeForTaskId(@NotNull final String taskId) {
-        return Predicates.or(
-            cassandraNodeMetadataTaskIdEq(taskId),
-            cassandraNodeServerTaskIdEq(taskId)
-        );
-    }
-
-    @NotNull
-    public static Predicate<CassandraNode> cassandraNodeMetadataTaskIdEq(@NotNull final String taskId) {
-        return new CassandraNodeMetadataTaskIdEq(taskId);
-    }
-
-    @NotNull
-    public static Predicate<CassandraNode> cassandraNodeServerTaskIdEq(@NotNull final String taskId) {
-        return new CassandraNodeServerTaskIdEq(taskId);
+        return new CassandraNodeTaskIdEq(taskId);
     }
 
     @NotNull
@@ -108,11 +81,6 @@ public final class CassandraFrameworkProtosUtils {
     @NotNull
     public static Predicate<ExecutorMetadata> executorMetadataExecutorIdEq(@NotNull final String executorId) {
         return new ExecutorMetadataExecutorIdEq(executorId);
-    }
-
-    @NotNull
-    public static Predicate<CassandraNode> cassandraNodeHasServerTask() {
-        return new CassandraNodeHasServerTask();
     }
 
     @NotNull
@@ -182,12 +150,32 @@ public final class CassandraFrameworkProtosUtils {
         taskConfig.addVariables(entry);
     }
 
-    private static final class TupleToTaskEnvEntry implements Function<Tuple2<String, String>, TaskEnv.Entry> {
-        private static final TupleToTaskEnvEntry INSTANCE = new TupleToTaskEnvEntry();
-        @Override
-        public TaskEnv.Entry apply(@NotNull final Tuple2<String, String> input) {
-            return TaskEnv.Entry.newBuilder().setName(input._1).setValue(input._2).build();
+    public static CassandraNodeTask getTaskForNode(@NotNull CassandraNode cassandraNode, @NotNull String taskId) {
+        for (CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
+            if (cassandraNodeTask.getTaskId().equals(taskId))
+                return cassandraNodeTask;
         }
+        return null;
+    }
+
+    public static CassandraNodeTask getTaskForNode(@NotNull CassandraNode cassandraNode, @NotNull CassandraNodeTask.TaskType taskType) {
+        for (CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
+            if (cassandraNodeTask.getTaskType() == taskType)
+                return cassandraNodeTask;
+        }
+        return null;
+    }
+
+    public static CassandraNode.Builder removeTask(@NotNull CassandraNode cassandraNode, @NotNull CassandraNodeTask nodeTask) {
+        CassandraNode.Builder builder = CassandraNode.newBuilder(cassandraNode);
+        for (int i = 0; i < builder.getTasksList().size(); i++) {
+            CassandraNodeTask t = builder.getTasks(i);
+            if (t.getTaskId().equals(nodeTask.getTaskId())) {
+                builder.removeTasks(i);
+                break;
+            }
+        }
+        return builder;
     }
 
     private static final class SlaveMetadataToIp implements Function<ExecutorMetadata, String> {
@@ -244,31 +232,21 @@ public final class CassandraFrameworkProtosUtils {
         }
     }
 
-    private static final class CassandraNodeMetadataTaskIdEq implements Predicate<CassandraNode> {
-        @NotNull
-        private final String metadataTaskId;
-
-        public CassandraNodeMetadataTaskIdEq(@NotNull final String metadataTaskId) {
-            this.metadataTaskId = metadataTaskId;
-        }
-
-        @Override
-        public boolean apply(@NotNull final CassandraNode item) {
-            return item.hasMetadataTask() && item.getMetadataTask().getTaskId().equals(metadataTaskId);
-        }
-    }
-
-    private static final class CassandraNodeServerTaskIdEq implements Predicate<CassandraNode> {
+    private static final class CassandraNodeTaskIdEq implements Predicate<CassandraNode> {
         @NotNull
         private final String taskId;
 
-        public CassandraNodeServerTaskIdEq(@NotNull final String taskId) {
+        public CassandraNodeTaskIdEq(@NotNull final String taskId) {
             this.taskId = taskId;
         }
 
         @Override
         public boolean apply(@NotNull final CassandraNode item) {
-            return item.hasServerTask() && item.getServerTask().getTaskId().equals(taskId);
+            for (CassandraNodeTask cassandraNodeTask : item.getTasksList()) {
+                if (cassandraNodeTask.getTaskId().equals(taskId))
+                    return true;
+            }
+            return false;
         }
     }
 
@@ -313,14 +291,6 @@ public final class CassandraFrameworkProtosUtils {
         @Override
         public boolean apply(@NotNull final ExecutorMetadata item) {
             return item.getExecutorId().equals(executorId);
-        }
-    }
-
-
-    private static final class CassandraNodeHasServerTask implements Predicate<CassandraNode> {
-        @Override
-        public boolean apply(@NotNull final CassandraNode item) {
-            return item.hasServerTask();
         }
     }
 

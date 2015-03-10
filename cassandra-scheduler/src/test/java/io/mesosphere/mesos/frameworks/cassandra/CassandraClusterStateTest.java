@@ -13,6 +13,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra;
 
+import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
 import org.junit.Test;
@@ -162,7 +163,9 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         // cluster now up with 3 running nodes
 
         // server-task no longer running
-        cluster.removeTask(cluster.cassandraNodeForHostname(slaves[0]._2).get().getServerTask().getTaskId(), null);
+        CassandraFrameworkProtos.CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(cluster.cassandraNodeForHostname(slaves[0]._2).get(), CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER);
+        assertNotNull(serverTask);
+        cluster.removeTask(serverTask.getTaskId(), null);
 
         // server-task cannot start again
         launchServer(cluster, slaves[0]);

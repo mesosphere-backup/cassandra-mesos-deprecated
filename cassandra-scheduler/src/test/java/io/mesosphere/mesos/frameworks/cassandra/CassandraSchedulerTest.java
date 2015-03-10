@@ -14,6 +14,7 @@
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import io.mesosphere.mesos.util.ProtoUtils;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
@@ -31,6 +32,120 @@ import static org.junit.Assert.*;
 public class CassandraSchedulerTest extends AbstractSchedulerTest {
     CassandraScheduler scheduler;
     MockSchedulerDriver driver;
+
+    Protos.TaskInfo[] executorMetadata;
+    Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails>[] executorServer;
+
+    @Test
+    public void testNodeTargetStateShutdownAndRun() throws Exception {
+
+        threeNodeCluster();
+
+        noopOnOffer(slaves[0], 3);
+        noopOnOffer(slaves[1], 3);
+        noopOnOffer(slaves[2], 3);
+
+        assertNull(cluster.nodeStop("foo bar baz"));
+
+        CassandraFrameworkProtos.CassandraNode node1 = cluster.nodeStop(slaves[0]._2);
+        assertNotNull(node1);
+        assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.STOP, node1.getTargetRunState());
+
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+
+        // verify that CASSANDRA_SERVER_SHUTDOWN task is launched
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_SHUTDOWN);
+        // must not repeat CASSANDRA_SERVER_SHUTDOWN since it's already launched
+        noopOnOffer(slaves[0], 3);
+
+        // re-check that server-task is still present
+        node1 = cluster.findNode(slaves[0]._2);
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+
+        // simulate server-task has finished
+        executorTaskFinished(executorServer[0]._1, CassandraFrameworkProtos.SlaveStatusDetails.newBuilder()
+            .setStatusDetailsType(CassandraFrameworkProtos.SlaveStatusDetails.StatusDetailsType.NULL_DETAILS)
+            .build());
+
+        // check that server-task is no longer present
+        node1 = cluster.findNode(slaves[0]._2);
+        assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+
+
+        // now start node
+
+        node1 = cluster.nodeRun(slaves[0]._2);
+        assertNotNull(node1);
+        assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN, node1.getTargetRunState());
+
+        // verify that CASSANDRA_SERVER_RUN task is launched
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        // must not repeat CASSANDRA_SERVER_RUN since it's already launched
+        noopOnOffer(slaves[0], 3);
+
+        // check that server-task is present
+        node1 = cluster.findNode(slaves[0]._2);
+        assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN, node1.getTargetRunState());
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+
+        // simulate server-task is running
+        sendHealthCheckResult(executorMetadata[0], healthCheckDetailsSuccess("NORMAL", true));
+
+    }
+
+    @Test
+    public void testNodeTargetStateRestart() throws Exception {
+
+        threeNodeCluster();
+
+        noopOnOffer(slaves[0], 3);
+        noopOnOffer(slaves[1], 3);
+        noopOnOffer(slaves[2], 3);
+
+        assertNull(cluster.nodeRestart("foo bar baz"));
+
+        CassandraFrameworkProtos.CassandraNode node1 = cluster.nodeRestart(slaves[0]._2);
+        assertNotNull(node1);
+        assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RESTART, node1.getTargetRunState());
+
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+
+        // verify that CASSANDRA_SERVER_SHUTDOWN task is launched
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_SHUTDOWN);
+        // must not repeat CASSANDRA_SERVER_SHUTDOWN since it's already launched
+        noopOnOffer(slaves[0], 3);
+
+        // re-check that server-task is still present
+        node1 = cluster.findNode(slaves[0]._2);
+        assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RESTART, node1.getTargetRunState());
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+
+        // simulate server-task has finished
+        executorTaskFinished(executorServer[0]._1, CassandraFrameworkProtos.SlaveStatusDetails.newBuilder()
+            .setStatusDetailsType(CassandraFrameworkProtos.SlaveStatusDetails.StatusDetailsType.NULL_DETAILS)
+            .build());
+
+        // check that server-task is no longer present
+        node1 = cluster.findNode(slaves[0]._2);
+        assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RESTART, node1.getTargetRunState());
+        assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+
+
+
+        // verify that CASSANDRA_SERVER_RUN task is launched
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        // must not repeat CASSANDRA_SERVER_RUN since it's already launched
+        noopOnOffer(slaves[0], 3);
+
+        // check that server-task is present
+        node1 = cluster.findNode(slaves[0]._2);
+        assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN, node1.getTargetRunState());
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+
+        // simulate server-task is running
+        sendHealthCheckResult(executorMetadata[0], healthCheckDetailsSuccess("NORMAL", true));
+
+    }
 
     @Test
     public void testLaunchNewCluster() throws InvalidProtocolBufferException {
@@ -632,7 +747,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         cleanState();
 
         // rollout slaves
-        Protos.TaskInfo[] executorMetadata = new Protos.TaskInfo[]
+        executorMetadata = new Protos.TaskInfo[]
                 {
                         launchExecutor(slaves[0], 1),
                         launchExecutor(slaves[1], 2),
@@ -645,13 +760,16 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         // launch servers
 
-        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
-        launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        //noinspection unchecked
+        executorServer = new Tuple2[3];
+
+        executorServer[0] = launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        executorServer[1] = launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
 
         sendHealthCheckResult(executorMetadata[0], healthCheckDetailsSuccess("NORMAL", true));
         sendHealthCheckResult(executorMetadata[1], healthCheckDetailsSuccess("NORMAL", true));
 
-        launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        executorServer[2] = launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
 
         sendHealthCheckResult(executorMetadata[2], healthCheckDetailsSuccess("NORMAL", true));
         return executorMetadata;
@@ -689,15 +807,15 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
     private void executorTaskFinished(Protos.TaskInfo taskInfo, CassandraFrameworkProtos.SlaveStatusDetails slaveStatusDetails) {
         scheduler.statusUpdate(driver, Protos.TaskStatus.newBuilder()
-                .setExecutorId(executorId(taskInfo))
-                .setHealthy(true)
-                .setSlaveId(taskInfo.getSlaveId())
-                .setSource(Protos.TaskStatus.Source.SOURCE_EXECUTOR)
-                .setTaskId(taskInfo.getTaskId())
-                .setTimestamp(System.currentTimeMillis())
-                .setState(Protos.TaskState.TASK_FINISHED)
-                .setData(slaveStatusDetails.toByteString())
-                .build());
+            .setExecutorId(executorId(taskInfo))
+            .setHealthy(true)
+            .setSlaveId(taskInfo.getSlaveId())
+            .setSource(Protos.TaskStatus.Source.SOURCE_EXECUTOR)
+            .setTaskId(taskInfo.getTaskId())
+            .setTimestamp(System.currentTimeMillis())
+            .setState(Protos.TaskState.TASK_FINISHED)
+            .setData(slaveStatusDetails.toByteString())
+            .build());
     }
 
     private void sendHealthCheckResult(Protos.TaskInfo taskInfo, CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
@@ -765,7 +883,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         return taskDetails;
     }
 
-    private CassandraFrameworkProtos.TaskDetails launchTask(Tuple2<Protos.SlaveID, String> slave, CassandraFrameworkProtos.TaskDetails.TaskType taskType) throws InvalidProtocolBufferException {
+    private Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> launchTask(Tuple2<Protos.SlaveID, String> slave, CassandraFrameworkProtos.TaskDetails.TaskType taskType) throws InvalidProtocolBufferException {
         Protos.Offer offer = createOffer(slave);
 
         scheduler.resourceOffers(driver, Collections.singletonList(offer));
@@ -780,7 +898,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         CassandraFrameworkProtos.TaskDetails taskDetails = taskDetails(taskInfo);
         assertEquals(taskType, taskDetails.getTaskType());
-        return taskDetails;
+        return Tuple2.tuple2(taskInfo, taskDetails);
     }
 
     private static CassandraFrameworkProtos.TaskDetails taskDetails(Protos.TaskInfo data) throws InvalidProtocolBufferException {

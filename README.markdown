@@ -94,6 +94,39 @@ The Cassandra Mesos Framework requires an install of Maven between 3.2.1 and 3.2
 
 _NOTE: Maven 3.2.5 has a binary incompatible change with earlier version of Maven 3.2.x and will cause an exception to be thrown when the protobuf tool chain tries to run._
 
+## Cassandra memory usage
+
+Memory used by Cassandra can be roughly categorized into:
+
+* Java heap memory. The amount of memory used by the Java VM for heap memory.
+* Off heap memory. Off heap is used for several reasons by Cassandra:
+     * **index-summary** (default: 5% of the heap size)
+       configured in `cassandra.yaml` - see `index_summary_capacity_in_mb`
+       default to 5% of the heap size (may exceed)
+     * **key-cache** (default: 5% of the heap size)
+       configured in `cassandra.yaml` - see `key_cache_size_in_mb`
+       default to 5% of the heap size
+     * **row-cache** (default: off)
+       configured in `cassandra.yaml` - see `row_cache_size_in_mb` (must be explicitly enabled in taskEnv)
+       default to 0
+     * **counter-cache** (default: min(2.5% of Heap (in MB), 50MB))
+       configured in `cassandra.yaml` - see `counter_cache_size_in_mb`
+       default: min(2.5% of Heap (in MB), 50MB) ; 0 means no cache
+     * **memtables** (default on-heap)
+       configured in `cassandra.yaml` - see `file_cache_size_in_mb`
+       default to the smaller of 1/4 of heap or 512MB
+     * **file-cache** (default: min(25% of Heap (in MB), 512MB))
+       configured in `cassandra.yaml` - see `file_cache_size_in_mb`
+       default to the smaller of 1/4 of heap or 512MB
+     * overhead during flushes/compactions/cleanup
+       implicitly defined by workload
+* OS buffer cache. The amount of (provisioned) memory reserved for the operating system for disk block buffers.
+
+The default configuration simply assumes that you need as much off-heap memory than Java heap memory.
+It basically divides the provisioned amount of memory by 2 and assigns it to the Java heap.
+
+A good planned production system is sized to meet its workload requirements. That does mean proper values for
+Cassandra process environment, `cassandra.yaml` and memory sizing.
 
 ### Setup maven toolchain for protoc
 

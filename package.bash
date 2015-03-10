@@ -28,7 +28,7 @@ function download {(
 
     mkdir -p ${TARGET_DIR}
     cd ${TARGET_DIR}
-    _download ${DOWNLOAD_URL_CASS} "cassandra.tar.gz"
+    _download ${DOWNLOAD_URL_CASS} "apache-cassandra-2.1.2-bin.tar.gz"
 
 )}
 

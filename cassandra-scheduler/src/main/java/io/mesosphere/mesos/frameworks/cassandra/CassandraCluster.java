@@ -272,7 +272,7 @@ public final class CassandraCluster {
             if (nodeOpt.isPresent()) {
                 LOGGER.info(
                     "health check result unhealthy for node: {}. Message: '{}'",
-                    nodeOpt.get().getCassandraNodeExecutor().getExecutorId(),
+                    nodeOpt.get().hasCassandraNodeExecutor() ? nodeOpt.get().getCassandraNodeExecutor().getExecutorId() : "??",
                     details.getMsg()
                     );
                 // TODO: This needs to be smarter, right not it assumes that as soon as it's unhealth it's dead
@@ -842,7 +842,9 @@ public final class CassandraCluster {
                 .setStartedTimestamp(clock.now().getMillis());
 
         for (CassandraNode cassandraNode : clusterState.nodes()) {
-            builder.addRemainingNodes(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+            if (cassandraNode.hasCassandraNodeExecutor()) {
+                builder.addRemainingNodes(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+            }
         }
 
         jobsState.currentJob(builder.build());

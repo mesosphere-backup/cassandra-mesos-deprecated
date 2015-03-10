@@ -189,13 +189,18 @@ public final class ApiController {
                 writeTask(json, "metadataTask", CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraFrameworkProtos.CassandraNodeTask.TaskType.METADATA));
 // TODO                cassandraNode.getDataVolumesList();
 
-                json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                if (!cassandraNode.hasCassandraNodeExecutor()) {
+                    json.writeNullField("executorId");
+                } else {
+                    json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                }
                 json.writeStringField("ip", cassandraNode.getIp());
                 json.writeStringField("hostname", cassandraNode.getHostname());
                 json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
                 json.writeNumberField("jmxPort", cassandraNode.getJmxConnect().getJmxPort());
 
-                CassandraFrameworkProtos.HealthCheckHistoryEntry lastHealthCheck = cluster.lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                CassandraFrameworkProtos.HealthCheckHistoryEntry lastHealthCheck =
+                    cassandraNode.hasCassandraNodeExecutor() ? cluster.lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId()) : null;
 
                 if (lastHealthCheck != null)
                     json.writeNumberField("lastHealthCheck", lastHealthCheck.getTimestampEnd());
@@ -573,7 +578,9 @@ public final class ApiController {
             } else {
                 json.writeStringField("ip", cassandraNode.getIp());
                 json.writeStringField("hostname", cassandraNode.getHostname());
-                if (cassandraNode.hasCassandraNodeExecutor()) {
+                if (!cassandraNode.hasCassandraNodeExecutor()) {
+                    json.writeNullField("executorId");
+                } else {
                     json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
                 }
                 json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());

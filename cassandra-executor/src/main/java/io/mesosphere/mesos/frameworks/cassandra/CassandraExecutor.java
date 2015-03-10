@@ -242,6 +242,11 @@ public final class CassandraExecutor implements Executor {
         if (serverTask != null && serverTask.getTaskId().equals(taskId)) {
             killCassandraDaemon(driver);
         }
+        else if (executorInfo.getExecutorId().getValue().equals(taskId.getValue())) {
+            safeShutdown(driver);
+            driver.sendStatusUpdate(taskStatus(executorInfo.getExecutorId(), taskId, TaskState.TASK_FINISHED, nullSlaveStatusDetails()));
+            driver.stop();
+        }
     }
 
     @Override

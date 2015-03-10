@@ -18,6 +18,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -121,7 +122,11 @@ public final class CassandraScheduler implements Scheduler {
             }
             switch (status.getState()) {
                 case TASK_STAGING:
+                    // TODO really interested in stating state?
+                    break;
                 case TASK_STARTING:
+                    // TODO really interested in stating state?
+                    break;
                 case TASK_RUNNING:
                     switch (statusDetails.getStatusDetailsType()) {
                         case NULL_DETAILS:

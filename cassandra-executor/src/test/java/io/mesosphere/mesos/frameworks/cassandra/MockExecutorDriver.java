@@ -32,7 +32,7 @@ public class MockExecutorDriver implements ExecutorDriver {
     private List<Protos.TaskStatus> taskStatusList = new ArrayList<>();
     private List<CassandraFrameworkProtos.SlaveStatusDetails> frameworkMessages = new ArrayList<>();
 
-    public MockExecutorDriver(Executor executor) {
+    public MockExecutorDriver(Executor executor, Protos.ExecutorID executorId) {
         this.executor = executor;
 
         slaveInfo = Protos.SlaveInfo.newBuilder()
@@ -47,7 +47,7 @@ public class MockExecutorDriver implements ExecutorDriver {
                 .setUser("me-myself-and-i")
                 .build();
         executorInfo = Protos.ExecutorInfo.newBuilder()
-                .setExecutorId(Protos.ExecutorID.newBuilder().setValue(UUID.randomUUID().toString()))
+                .setExecutorId(executorId)
                 .setCommand(Protos.CommandInfo.getDefaultInstance())
                 .setContainer(Protos.ContainerInfo.newBuilder()
                         .setType(Protos.ContainerInfo.Type.MESOS))

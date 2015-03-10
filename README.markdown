@@ -18,8 +18,12 @@ MESOS_ZK=zk://localhost:2181/mesos
 # ZooKeeper URL to be used to storm framework state
 CASSANDRA_ZK=zk://localhost:2181/cassandra-mesos
 
-# The number of nodes in the ring (default 3)
+# The number of nodes in the cluster (default 3)
 CASSANDRA_NODE_COUNT=3
+
+# The number of seed nodes in the cluster (default 2)
+# set this to 1, if you only want to spawn one node 
+CASSANDRA_SEED_COUNT=2
 
 # The number of CPU Cores for each Cassandra Node (default 2.0)
 CASSANDRA_RESOURCE_CPU_CORES=2.0
@@ -32,6 +36,10 @@ CASSANDRA_RESOURCE_DISK_MB=2048
 
 # The number of seconds between each health check of the cassandra node (default 60)
 CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS=60
+
+# The default bootstrap grace time - the minimum interval between two node starts
+# You may set this to a lower value in pure local development environments.
+CASSANDRA_BOOTSTRAP_GRACE_TIME_SECONDS=120
 
 # The number of seconds that should be used as the mesos framework timeout (default 604800 seconds / 7 days)
 CASSANDRA_FAILOVER_TIMEOUT_SECONDS=604800

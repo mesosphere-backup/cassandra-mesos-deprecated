@@ -325,3 +325,30 @@ curl -s http://192.168.5.101:18080/live-nodes/ascii/2
 ```
 
 Note that the implementation does a best-effort approach to return random nodes.
+
+## Using Cassandra-on-Mesos with DataStax Java Driver
+
+The artifact `java-driver-extension` provides the `CassandraOnMesos` tool class that 
+configures the DataStax Java Driver with native protocol port and contact points from the information
+available from the Cassandra-on-Mesos framework.
+
+You need to have the base-API-URI provided the framework.
+A typical base-API-URI looks like this: {@code http://192.168.1.2:18080/}
+
+To use the DataStax Java Driver, construct the {@link Cluster} instance as follows:
+
+```java
+import com.datastax.driver.core.Cluster;
+import io.mesosphere.mesos.frameworks.cassandra.javadriver.CassandraOnMesos;
+```
+
+```java
+Cluster.Builder clusterBuilder =
+    CassandraOnMesos.forClusterBuilder(Cluster.builder())
+        .withApiEndpoint(httpServerBaseUri)
+        .withNumberOfContactPoints(2)
+        .build();
+// the Cluster.Builder instance is now configured with two live initial contact points
+clusterBuilder.withClusterName(...);
+Cluster cluster = clusterBuilder.build();
+```

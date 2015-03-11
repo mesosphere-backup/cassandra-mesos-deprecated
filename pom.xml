@@ -169,6 +169,12 @@
                 </exclusions>
             </dependency>
 
+            <dependency>
+                <groupId>com.datastax.cassandra</groupId>
+                <artifactId>cassandra-driver-core</artifactId>
+                <version>${version.datastax-java-driver}</version>
+            </dependency>
+
             <!-- Libraries that make working in java easier -->
             <dependency>
                 <groupId>com.google.guava</groupId>

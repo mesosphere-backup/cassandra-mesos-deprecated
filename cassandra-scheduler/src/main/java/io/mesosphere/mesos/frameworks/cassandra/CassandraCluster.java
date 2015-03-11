@@ -277,13 +277,7 @@ public final class CassandraCluster {
                 //removeTask(nodeOpt.get().getServerTask().getTaskId());
             }
         }
-        healthCheckHistory.record(
-            HealthCheckHistoryEntry.newBuilder()
-                .setExecutorId(executorId)
-                .setTimestamp(clock.now().getMillis())
-                .setDetails(details)
-                .build()
-        );
+        healthCheckHistory.record(executorId, clock.now().getMillis(), details);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("< recordHealthCheck(executorId : {}, details : {})", executorId, protoToString(details));
         }

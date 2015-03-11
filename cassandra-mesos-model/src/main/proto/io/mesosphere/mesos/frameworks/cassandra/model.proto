@@ -41,13 +41,15 @@ message CassandraClusterState {
 }
 
 message CassandraClusterHealthCheckHistory {
-    repeated HealthCheckHistoryEntry entries = 1;
+    required int32 maxEntriesPerNode = 1;
+    repeated HealthCheckHistoryEntry entries = 2;
 }
 
 message HealthCheckHistoryEntry {
     required string executorId = 1;
-    required int64 timestamp = 2;
-    required HealthCheckDetails details = 3;
+    required int64 timestampFirst = 2;
+    required int64 timestampLast = 3;
+    required HealthCheckDetails details = 4;
 }
 
 enum ClusterJobType {

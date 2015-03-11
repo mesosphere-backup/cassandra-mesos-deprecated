@@ -18,12 +18,13 @@ option java_outer_classname = "CassandraFrameworkProtos";
 message CassandraFrameworkConfiguration {
     optional string frameworkId = 1;
     optional string frameworkName = 2;
-    optional int64 healthCheckIntervalSeconds = 8;
-    optional int64 bootstrapGraceTimeSeconds = 10;
-    repeated PortMapping portMapping = 11;
+    optional int64 healthCheckIntervalSeconds = 3;
+    optional int64 bootstrapGraceTimeSeconds = 4;
+    repeated PortMapping portMapping = 5;
+    optional string snitch = 6;
 
     // default configuration
-    required CassandraConfigRole defaultConfigRole = 6;
+    required CassandraConfigRole defaultConfigRole = 7;
 }
 
 // CassandraConfigRole is currently only used once. But different nodes may require different sizings -
@@ -188,6 +189,12 @@ message CassandraNode {
         // Note that general bootstrap-grace-time settings and other checks (e.g. currently other nodes joining) apply.
         RESTART = 2;
     }
+
+    optional NodeLocation location = 13;
+}
+message NodeLocation {
+    required string datacenter = 1;
+    required string rack = 2;
 }
 message DataVolume {
     required string path = 1;
@@ -259,6 +266,8 @@ message CassandraServerRunTask {
     repeated TaskFile taskFiles = 4;
     required TaskConfig taskConfig = 5;
     required JmxConnect jmx = 6;
+
+    optional NodeLocation location = 7;
 }
 
 message NodeJobTask {

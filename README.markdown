@@ -1,6 +1,45 @@
 Cassandra Mesos Framework
 =========================
 
+# Design
+A design document outlining what features and characteristics are being targeted by the Cassandra Mesos Framework can be found in the docs folder in [design.markdown](docs/design.markdown).
+
+# Current Status
+
+### Implemented
+* The framework can register with Mesos providing a failover timeout so that if the framework disconnects from mesos tasks will continue to run.
+* The number of nodes, amount of resources (cpu, ram, disk and ports) are all configurable and evaluated when resources offers from Mesos are taken into consideration.  
+* cassandra.yaml and varaibles for cassandra-env.sh are provided by the scheduler as part of the task definition.
+* Health checks are performed by the executor and results are sent back to the scheduler using messaging mechanisms provided by Mesos.
+* The Framework can restart and reregister with mesos without killing tasks.
+* The scheduler can send tasks to nodes to perform 'nodetool repair'
+* The scheduler can send tasks to nodes to perform 'nodetool cleanup'
+* The Framework can easily be launched by Marathon allowing for easy installation
+* Repair Job coordination
+* Cleanup Job coordination
+
+### Near Term Tasks
+* Integration tests
+* Create stress tests to try and simulate real world workloads and to identify bugs in fault tolerance handling
+* Replace Node
+* Rolling restart
+* Improved heap calculation to allow for memory mapped files
+
+# Running the Framework
+
+Currently the recommended way to run the Cassandra Mesos Framework is via Marathon. A `marathon.json` from the latest build can be found [here](https://teamcity.mesosphere.io/guestAuth/repository/download/Oss_Mesos_Cassandra_CassandraFramework/.lastSuccessful/marathon.json).
+
+Once you've downloaded the marathon.json update the `MESOS_ZK` url and any other parameters you would like to change. Then POST the marathon.json to your marathon instance and the framework will boostrap itself.
+
+## Mesos Node Configuration
+
+You will need to expand the port range managed by Mesos on each node so that it includes the standard cassandra ports.
+
+This can be done by passing the following flag to the mesos-slave process:
+```
+--resources='ports:[31000-32000,7000-7001,7199-7199,9042-9042,9160-9160]'
+```
+
 # Configuration
 
 All configuration is handled through environment variables (this lends itself well to being easy to configure marathon to run the framework).
@@ -22,7 +61,7 @@ CASSANDRA_ZK=zk://localhost:2181/cassandra-mesos
 CASSANDRA_NODE_COUNT=3
 
 # The number of seed nodes in the cluster (default 2)
-# set this to 1, if you only want to spawn one node 
+# set this to 1, if you only want to spawn one node
 CASSANDRA_SEED_COUNT=2
 
 # The number of CPU Cores for each Cassandra Node (default 2.0)
@@ -46,18 +85,15 @@ CASSANDRA_FAILOVER_TIMEOUT_SECONDS=604800
 
 ```
 
-## Mesos Node Configuration
-
-You will need to expand the port range managed by Mesos on each node so that it includes the standard cassandra ports.
-
-This can be done by passing the following flag to the mesos-slave process:
-```
---resources='ports:[31000-32000,7000-7001,7199-7199,9042-9042,9160-9160]'
-```
-
 
 ## Build
 The Cassandra Mesos Framework is a maven project with modules for the Framework, Scheduler, Executor and Model. Standard maven convention applies. The Framework and Executor are both built as `jar-with-dependencies` in addition to their standalone jar, so that they are easy to run and distribute.
+
+### Install Maven
+The Cassandra Mesos Framework requires an install of Maven between 3.2.1 and 3.2.4 to build.
+
+_NOTE: Maven 3.2.5 has a binary incompatible change with earlier version of Maven 3.2.x and will cause an exception to be thrown when the protobuf tool chain tries to run._
+
 
 ### Setup maven toolchain for protoc
 
@@ -74,7 +110,7 @@ The Cassandra Mesos Framework is a maven project with modules for the Framework,
          ```
 
 3. Create `~/.m2/toolchains.xml` with the following contents, Update `PROTOBUF_HOME` to match the directory you ran make in
-  
+
   ```
   <?xml version="1.0" encoding="UTF-8"?>
   <toolchains>

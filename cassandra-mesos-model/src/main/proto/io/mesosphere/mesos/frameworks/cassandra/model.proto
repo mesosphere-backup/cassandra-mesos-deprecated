@@ -24,8 +24,6 @@ message CassandraFrameworkConfiguration {
 
     // default configuration
     required CassandraConfigRole defaultConfigRole = 6;
-    // additional configurations (currently unused)
-    repeated CassandraConfigRole configRoles = 7;
 }
 
 // CassandraConfigRole is currently only used once. But different nodes may require different sizings -

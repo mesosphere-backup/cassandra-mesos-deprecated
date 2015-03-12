@@ -99,13 +99,15 @@ message CassandraClusterState {
 }
 
 message CassandraClusterHealthCheckHistory {
-    repeated HealthCheckHistoryEntry entries = 1;
+    required int32 maxEntriesPerNode = 1;
+    repeated HealthCheckHistoryEntry entries = 2;
 }
 
 message HealthCheckHistoryEntry {
     required string executorId = 1;
-    required int64 timestamp = 2;
-    required HealthCheckDetails details = 3;
+    required int64 timestampStart = 2;
+    required int64 timestampEnd = 3;
+    required HealthCheckDetails details = 4;
 }
 
 enum ClusterJobType {
@@ -167,11 +169,9 @@ message CassandraNode {
     optional CassandraNodeTask metadataTask = 6;
     optional CassandraNodeTask serverTask = 7;
 
-    repeated HealthCheckDetails healthCheckHistory = 8;
-
-    required bool seed = 9;
-    optional int64 lastRepairTimestamp = 10;
-    optional int64 lastCleanupTimestamp = 11;
+    required bool seed = 8;
+    optional int64 lastRepairTimestamp = 9;
+    optional int64 lastCleanupTimestamp = 10;
 }
 message DataVolume {
     required string path = 1;

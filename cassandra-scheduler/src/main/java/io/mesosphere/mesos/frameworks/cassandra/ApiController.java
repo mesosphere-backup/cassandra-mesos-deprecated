@@ -196,7 +196,7 @@ public final class ApiController {
                 CassandraFrameworkProtos.HealthCheckHistoryEntry lastHealthCheck = cluster.lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
 
                 if (lastHealthCheck != null)
-                    json.writeNumberField("lastHealthCheck", lastHealthCheck.getTimestamp());
+                    json.writeNumberField("lastHealthCheck", lastHealthCheck.getTimestampEnd());
                 else
                     json.writeNullField("lastHealthCheck");
 

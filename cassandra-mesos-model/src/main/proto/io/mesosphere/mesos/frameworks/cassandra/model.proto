@@ -47,8 +47,8 @@ message CassandraClusterHealthCheckHistory {
 
 message HealthCheckHistoryEntry {
     required string executorId = 1;
-    required int64 timestampFirst = 2;
-    required int64 timestampLast = 3;
+    required int64 timestampStart = 2;
+    required int64 timestampEnd = 3;
     required HealthCheckDetails details = 4;
 }
 

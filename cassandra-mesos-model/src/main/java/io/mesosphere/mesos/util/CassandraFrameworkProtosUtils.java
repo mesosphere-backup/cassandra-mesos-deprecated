@@ -343,7 +343,7 @@ public final class CassandraFrameworkProtosUtils {
 
         @Override
         public Long apply(@NotNull final HealthCheckHistoryEntry input) {
-            return input.getTimestampLast();
+            return input.getTimestampEnd();
         }
     }
 

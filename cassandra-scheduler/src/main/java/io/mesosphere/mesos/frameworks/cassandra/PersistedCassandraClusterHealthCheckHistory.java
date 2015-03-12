@@ -114,12 +114,16 @@ final class PersistedCassandraClusterHealthCheckHistory extends StatePersistedOb
             // If yes, then just update HealthCheckHistoryEntry.timestampLast,
             // otherwise add the entry and remove the eldest historic entry.
             CassandraFrameworkProtos.HealthCheckHistoryEntry last = forNode.get(forNode.size() - 1);
+            if (last.getTimestampEnd() > timestamp) {
+                // we already have more recent information - discard the current details
+                return;
+            }
             if (isSimilarEntry(last.getDetails(), healthCheckDetails)) {
                 for (int i = 0; i < forNode.size() - 1; i++) {
                     builder.addEntries(forNode.get(i));
                 }
                 builder.addEntries(buildEntry(executorId, timestamp, healthCheckDetails)
-                    .setTimestampFirst(last.getTimestampFirst()));
+                    .setTimestampStart(last.getTimestampStart()));
             } else {
                 for (int i = Math.max(0, forNode.size() + 1 - maxEntriesPerNode); i < forNode.size(); i++)
                     builder.addEntries(forNode.get(i));
@@ -165,8 +169,8 @@ final class PersistedCassandraClusterHealthCheckHistory extends StatePersistedOb
            CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
         return CassandraFrameworkProtos.HealthCheckHistoryEntry.newBuilder()
             .setExecutorId(executorId)
-            .setTimestampFirst(timestamp)
-            .setTimestampLast(timestamp)
+            .setTimestampStart(timestamp)
+            .setTimestampEnd(timestamp)
             .setDetails(healthCheckDetails);
     }
 }

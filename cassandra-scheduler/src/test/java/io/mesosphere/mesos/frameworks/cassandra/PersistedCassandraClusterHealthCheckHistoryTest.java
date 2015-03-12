@@ -17,6 +17,8 @@ import org.apache.mesos.state.InMemoryState;
 import org.apache.mesos.state.State;
 import org.junit.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.Assert.*;
 
@@ -46,8 +48,8 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         assertThat(hcHistory.entriesForExecutor(exec1))
             .hasSize(1)
             .contains(hce1);
-        assertEquals(1L, hce1.getTimestampFirst());
-        assertEquals(1L, hce1.getTimestampLast());
+        assertEquals(1L, hce1.getTimestampStart());
+        assertEquals(1L, hce1.getTimestampEnd());
 
         // just increase uptime
         hc.setInfo(ni
@@ -63,8 +65,8 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         assertThat(hcHistory.entriesForExecutor(exec1))
             .hasSize(1)
             .contains(hce2);
-        assertEquals(1L, hce2.getTimestampFirst());
-        assertEquals(2L, hce2.getTimestampLast());
+        assertEquals(1L, hce2.getTimestampStart());
+        assertEquals(2L, hce2.getTimestampEnd());
 
         // toggle a field
         hc.setInfo(ni
@@ -82,8 +84,8 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
             .hasSize(2)
             .contains(hce2)
             .contains(hce3);
-        assertEquals(3L, hce3.getTimestampFirst());
-        assertEquals(3L, hce3.getTimestampLast());
+        assertEquals(3L, hce3.getTimestampStart());
+        assertEquals(3L, hce3.getTimestampEnd());
 
         // toggle more fields and record
         hc.setInfo(ni
@@ -181,8 +183,8 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         assertThat(hcHistory.entriesForExecutor(exec2))
             .hasSize(1)
             .contains(otherHce1);
-        assertEquals(1L, otherHce1.getTimestampFirst());
-        assertEquals(1L, otherHce1.getTimestampLast());
+        assertEquals(1L, otherHce1.getTimestampStart());
+        assertEquals(1L, otherHce1.getTimestampEnd());
 
         // just increase uptime
         otherHc.setInfo(otherNi
@@ -198,8 +200,8 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         assertThat(hcHistory.entriesForExecutor(exec2))
             .hasSize(1)
             .contains(otherHce2);
-        assertEquals(1L, otherHce2.getTimestampFirst());
-        assertEquals(2L, otherHce2.getTimestampLast());
+        assertEquals(1L, otherHce2.getTimestampStart());
+        assertEquals(2L, otherHce2.getTimestampEnd());
 
         // toggle a field
         otherHc.setInfo(otherNi
@@ -217,8 +219,8 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
             .hasSize(2)
             .contains(otherHce2)
             .contains(otherHce3);
-        assertEquals(3L, otherHce3.getTimestampFirst());
-        assertEquals(3L, otherHce3.getTimestampLast());
+        assertEquals(3L, otherHce3.getTimestampStart());
+        assertEquals(3L, otherHce3.getTimestampEnd());
 
         // toggle more fields and record
         otherHc.setInfo(otherNi
@@ -408,5 +410,56 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         assertTrue(PersistedCassandraClusterHealthCheckHistory.objEquals(1, 1));
         assertFalse(PersistedCassandraClusterHealthCheckHistory.objEquals("1", "2"));
         assertFalse(PersistedCassandraClusterHealthCheckHistory.objEquals(1, 2));
+    }
+
+    @Test
+    public void testAllOscillatingOutOfOrder() throws Exception {
+        State state = new InMemoryState();
+        PersistedCassandraClusterHealthCheckHistory hcHistory = new PersistedCassandraClusterHealthCheckHistory(state);
+
+        hcHistory.record("abc", 10, unhealthy());
+        hcHistory.record("abc", 11,   healthy());
+        hcHistory.record("abc", 13, unhealthy());
+        hcHistory.record("abc", 16, unhealthy());
+        hcHistory.record("abc", 14,   healthy());
+        hcHistory.record("abc", 19, unhealthy());
+        hcHistory.record("abc", 15,   healthy());
+        hcHistory.record("abc", 12,   healthy());
+        hcHistory.record("abc", 25, unhealthy());
+        hcHistory.record("abc", 17,   healthy());
+        hcHistory.record("abc", 20,   healthy());
+        hcHistory.record("abc", 21,   healthy());
+        hcHistory.record("abc", 22, unhealthy());
+        hcHistory.record("abc", 24,   healthy());
+        hcHistory.record("abc", 18,   healthy());
+        hcHistory.record("abc", 23,   healthy());
+
+        final CassandraFrameworkProtos.CassandraClusterHealthCheckHistory history = hcHistory.get();
+        final List<CassandraFrameworkProtos.HealthCheckHistoryEntry> list = history.getEntriesList();
+
+        CassandraFrameworkProtos.HealthCheckHistoryEntry prev = null;
+        for (final CassandraFrameworkProtos.HealthCheckHistoryEntry entry : list) {
+            if (prev != null) {
+                assertThat(entry.getTimestampStart()).isLessThanOrEqualTo(entry.getTimestampEnd());
+                assertThat(prev.getTimestampEnd()).isLessThanOrEqualTo(entry.getTimestampStart());
+            }
+            prev = entry;
+        }
+    }
+
+    static CassandraFrameworkProtos.HealthCheckDetails healthy() {
+        return healthCheckDetails(true);
+    }
+    static CassandraFrameworkProtos.HealthCheckDetails unhealthy() {
+        return healthCheckDetails(false);
+    }
+
+    static CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails(final boolean healthy) {
+        return CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
+            .setHealthy(healthy)
+            .setInfo(CassandraFrameworkProtos.NodeInfo.newBuilder()
+                .setClusterName("cluster")
+                .setDataCenter("dc1")
+                .setUptimeMillis(1).build()).build();
     }
 }

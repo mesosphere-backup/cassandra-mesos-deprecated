@@ -21,10 +21,7 @@ import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
@@ -308,7 +305,7 @@ public final class ApiController {
 
     // cluster scaling
 
-    @GET
+    @POST
     @Path("/scale/nodes")
     public Response updateNodeCount(@QueryParam("nodes") int nodeCount) {
         StringWriter sw = new StringWriter();
@@ -545,7 +542,7 @@ public final class ApiController {
 
     // node run / stop / restart
 
-    @GET
+    @POST
     @Path("/node/stop/{node}")
     public Response nodeStop(@PathParam("node") String node) {
         CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeStop(node);
@@ -553,7 +550,7 @@ public final class ApiController {
         return nodeStatusUpdate(cassandraNode);
     }
 
-    @GET
+    @POST
     @Path("/node/run/{node}")
     public Response nodeStart(@PathParam("node") String node) {
         CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeRun(node);
@@ -561,7 +558,7 @@ public final class ApiController {
         return nodeStatusUpdate(cassandraNode);
     }
 
-    @GET
+    @POST
     @Path("/node/restart/{node}")
     public Response nodeRestart(@PathParam("node") String node) {
         CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeRestart(node);

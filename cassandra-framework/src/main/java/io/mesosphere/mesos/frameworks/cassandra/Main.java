@@ -119,7 +119,6 @@ public final class Main {
             .setNumberOfNodes(executorCount)
             .setNumberOfSeeds(seedCount)
             .setMemMb(resourceMemoryMegabytes);
-        CassandraCluster.fillConfigRoleGaps(defaultConfigRole);
         final PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
             state,
             frameworkName,

@@ -21,49 +21,50 @@ public class CassandraConfigRoleTest {
     @Test(expected = IllegalArgumentException.class)
     public void testMemoryParametersNone() {
         CassandraFrameworkProtos.CassandraConfigRole.Builder builder = CassandraFrameworkProtos.CassandraConfigRole.newBuilder();
-        CassandraCluster.fillConfigRoleGaps(builder);
+        PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
     }
 
     @Test()
     public void testMemoryParameters() {
         CassandraFrameworkProtos.CassandraConfigRole.Builder builder;
+        CassandraFrameworkProtos.CassandraConfigRole configRole;
 
         builder = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
             .setMemMb(8192);
-        CassandraCluster.fillConfigRoleGaps(builder);
-        assertThat(builder.getMemMb()).isEqualTo(8192);
-        assertThat(builder.getMemAssumeOffHeapMb()).isEqualTo(4096);
-        assertThat(builder.getMemJavaHeapMb()).isEqualTo(4096);
+        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
+        assertThat(configRole.getMemMb()).isEqualTo(8192);
+        assertThat(configRole.getMemAssumeOffHeapMb()).isEqualTo(4096);
+        assertThat(configRole.getMemJavaHeapMb()).isEqualTo(4096);
 
         builder = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
             .setMemJavaHeapMb(4096);
-        CassandraCluster.fillConfigRoleGaps(builder);
-        assertThat(builder.getMemMb()).isEqualTo(8192);
-        assertThat(builder.getMemAssumeOffHeapMb()).isEqualTo(4096);
-        assertThat(builder.getMemJavaHeapMb()).isEqualTo(4096);
+        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
+        assertThat(configRole.getMemMb()).isEqualTo(8192);
+        assertThat(configRole.getMemAssumeOffHeapMb()).isEqualTo(4096);
+        assertThat(configRole.getMemJavaHeapMb()).isEqualTo(4096);
 
         builder = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
             .setMemAssumeOffHeapMb(4096);
-        CassandraCluster.fillConfigRoleGaps(builder);
-        assertThat(builder.getMemMb()).isEqualTo(8192);
-        assertThat(builder.getMemAssumeOffHeapMb()).isEqualTo(4096);
-        assertThat(builder.getMemJavaHeapMb()).isEqualTo(4096);
+        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
+        assertThat(configRole.getMemMb()).isEqualTo(8192);
+        assertThat(configRole.getMemAssumeOffHeapMb()).isEqualTo(4096);
+        assertThat(configRole.getMemJavaHeapMb()).isEqualTo(4096);
 
         builder = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
             .setMemJavaHeapMb(4096)
             .setMemAssumeOffHeapMb(4096);
-        CassandraCluster.fillConfigRoleGaps(builder);
-        assertThat(builder.getMemMb()).isEqualTo(8192);
-        assertThat(builder.getMemAssumeOffHeapMb()).isEqualTo(4096);
-        assertThat(builder.getMemJavaHeapMb()).isEqualTo(4096);
+        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
+        assertThat(configRole.getMemMb()).isEqualTo(8192);
+        assertThat(configRole.getMemAssumeOffHeapMb()).isEqualTo(4096);
+        assertThat(configRole.getMemJavaHeapMb()).isEqualTo(4096);
 
         builder = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
             .setMemMb(10000)
             .setMemJavaHeapMb(4096)
             .setMemAssumeOffHeapMb(4096);
-        CassandraCluster.fillConfigRoleGaps(builder);
-        assertThat(builder.getMemMb()).isEqualTo(10000);
-        assertThat(builder.getMemAssumeOffHeapMb()).isEqualTo(4096);
-        assertThat(builder.getMemJavaHeapMb()).isEqualTo(4096);
+        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
+        assertThat(configRole.getMemMb()).isEqualTo(10000);
+        assertThat(configRole.getMemAssumeOffHeapMb()).isEqualTo(4096);
+        assertThat(configRole.getMemJavaHeapMb()).isEqualTo(4096);
     }
 }

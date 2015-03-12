@@ -46,11 +46,11 @@ message CassandraConfigRole {
     // Cassandra memory usage can be categorized into
     // 1. Java heap (MAX_HEAP_SIZE) - including new-gen (HEAP_NEWSIZE)
     //    Amount of Java heap in MB.
-    //    (defaults to 50% of memMb, if not present)
+    //    (defaults to 50% of memMb, max 16384, if not present)
     optional int64 memJavaHeapMb = 8;
     // 2. Off-Heap
     //    Amount of Off heap in MB.
-    //    (defaults to 50% of memMb, if not present)
+    //    (defaults to memMb - memJavaHeapMb, if not present)
     optional int64 memAssumeOffHeapMb = 9;
     // 3. OS (add as much as possible for OS block cache)
     //    This is just the difference between memMb and memJavaHeapMb + memAssumeOffHeapMb

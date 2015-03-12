@@ -830,27 +830,4 @@ public final class CassandraCluster {
         return null;
     }
 
-    public static void fillConfigRoleGaps(CassandraConfigRole.Builder configRole) {
-        if (configRole.hasMemMb()) {
-            if (!configRole.hasMemAssumeOffHeapMb()) {
-                configRole.setMemAssumeOffHeapMb(configRole.getMemMb() / 2);
-            }
-            if (!configRole.hasMemJavaHeapMb()) {
-                configRole.setMemJavaHeapMb(configRole.getMemMb() / 2);
-            }
-        } else  {
-            if (configRole.hasMemJavaHeapMb()) {
-                if (!configRole.hasMemAssumeOffHeapMb()) {
-                    configRole.setMemAssumeOffHeapMb(configRole.getMemJavaHeapMb());
-                }
-            } else {
-                if (configRole.hasMemAssumeOffHeapMb()) {
-                    configRole.setMemJavaHeapMb(configRole.getMemAssumeOffHeapMb());
-                } else {
-                    throw new IllegalArgumentException("Config role is missing memory configuration");
-                }
-            }
-            configRole.setMemMb(configRole.getMemJavaHeapMb() + configRole.getMemAssumeOffHeapMb());
-        }
-    }
 }

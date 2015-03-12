@@ -40,7 +40,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                 public CassandraFrameworkConfiguration get() {
                     return CassandraFrameworkConfiguration.newBuilder()
                         .setFrameworkName(frameworkName)
-                        .setDefaultConfigRole(defaultConfigRole)
+                        .setDefaultConfigRole(fillConfigRoleGaps(defaultConfigRole))
                         .setHealthCheckIntervalSeconds(healthCheckIntervalSeconds)
                         .setBootstrapGraceTimeSeconds(bootstrapGraceTimeSec)
                         .build();
@@ -63,6 +63,32 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                 }
             }
         );
+    }
+
+    public static CassandraFrameworkProtos.CassandraConfigRole fillConfigRoleGaps(CassandraFrameworkProtos.CassandraConfigRole configRole) {
+        CassandraFrameworkProtos.CassandraConfigRole.Builder builder = CassandraFrameworkProtos.CassandraConfigRole.newBuilder(configRole);
+        if (builder.hasMemMb()) {
+            if (!builder.hasMemJavaHeapMb()) {
+                builder.setMemJavaHeapMb(Math.min(builder.getMemMb() / 2, 16384));
+            }
+            if (!builder.hasMemAssumeOffHeapMb()) {
+                builder.setMemAssumeOffHeapMb(builder.getMemMb() - builder.getMemJavaHeapMb());
+            }
+        } else  {
+            if (builder.hasMemJavaHeapMb()) {
+                if (!builder.hasMemAssumeOffHeapMb()) {
+                    builder.setMemAssumeOffHeapMb(builder.getMemJavaHeapMb());
+                }
+            } else {
+                if (builder.hasMemAssumeOffHeapMb()) {
+                    builder.setMemJavaHeapMb(builder.getMemAssumeOffHeapMb());
+                } else {
+                    throw new IllegalArgumentException("Config role is missing memory configuration");
+                }
+            }
+            builder.setMemMb(builder.getMemJavaHeapMb() + builder.getMemAssumeOffHeapMb());
+        }
+        return builder.build();
     }
 
     @NotNull

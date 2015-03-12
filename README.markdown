@@ -128,6 +128,12 @@ It basically divides the provisioned amount of memory by 2 and assigns it to the
 A good planned production system is sized to meet its workload requirements. That does mean proper values for
 Cassandra process environment, `cassandra.yaml` and memory sizing.
 
+You should not run Cassandra (even in test environments) with less than 4 GB configured in `memMb`.
+A recommended minimum value for `memMb` is 16GB. In times where RAM is getting cheaper, provision as much as you can
+afford - with 8 to 16 GB for `memJavaHeapMb`. Remember to figure out the really required numbers in load and
+stress tests with your application.
+
+
 ### Setup maven toolchain for protoc
 
 1. Download version 2.5.0 of protobuf [here](https://code.google.com/p/protobuf/downloads/list)

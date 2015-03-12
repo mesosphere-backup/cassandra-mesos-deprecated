@@ -129,9 +129,11 @@ public final class ApiController {
             json.writeStringField("frameworkName", configuration.getFrameworkName());
             json.writeStringField("frameworkId", configuration.getFrameworkId());
 // TODO          json.writeStringField("clusterName", configuration.getFrameworkId());
-            json.writeStringField("cassandraVersion", configuration.getCassandraVersion());
-            json.writeNumberField("numberOfNodes", configuration.getNumberOfNodes());
-            json.writeNumberField("numbeOfSeeds", configuration.getNumberOfSeeds());
+
+            CassandraFrameworkProtos.CassandraConfigRole configRole = configuration.getDefaultConfigRole();
+            json.writeObjectFieldStart("defaultConfigRole");
+            writeConfigRole(json, configRole);
+            json.writeEndObject();
 
             json.writeNumberField("nativePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_NATIVE));
             json.writeNumberField("rpcPort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_RPC));
@@ -239,6 +241,43 @@ public final class ApiController {
         return Response.ok(sw.toString(), "application/json").build();
     }
 
+    private void writeConfigRole(JsonGenerator json, CassandraFrameworkProtos.CassandraConfigRole configRole) throws IOException {
+        json.writeStringField("cassandraVersion", configRole.getCassandraVersion());
+        json.writeNumberField("targetNodeCount", configRole.getNumberOfNodes());
+        json.writeNumberField("seedNodeCount", configRole.getNumberOfSeeds());
+        json.writeNumberField("diskMb", configRole.getDiskMb());
+        json.writeNumberField("cpuCores", configRole.getCpuCores());
+        if (configRole.hasMemJavaHeapMb()) {
+            json.writeNumberField("memJavaHeapMb", configRole.getMemJavaHeapMb());
+        }
+        if (configRole.hasMemAssumeOffHeapMb()) {
+            json.writeNumberField("memAssumeOffHeapMb", configRole.getMemAssumeOffHeapMb());
+        }
+        if (configRole.hasMemMb()) {
+            json.writeNumberField("memMb", configRole.getMemMb());
+        }
+
+        if (!configRole.hasTaskEnv()) {
+            json.writeNullField("taskEnv");
+        } else {
+            json.writeObjectFieldStart("taskEnv");
+            for (CassandraFrameworkProtos.TaskEnv.Entry entry : configRole.getTaskEnv().getVariablesList()) {
+                json.writeStringField(entry.getName(), entry.getValue());
+            }
+            json.writeEndObject();
+            json.writeObjectFieldStart("cassandraYaml");
+            for (CassandraFrameworkProtos.TaskConfig.Entry entry : configRole.getCassandraYamlConfig().getVariablesList()) {
+                if (entry.hasLongValue()) {
+                    json.writeNumberField(entry.getName(), entry.getLongValue());
+                }
+                if (entry.hasStringValue()) {
+                    json.writeStringField(entry.getName(), entry.getStringValue());
+                }
+            }
+            json.writeEndObject();
+        }
+    }
+
     private static void writeTask(JsonGenerator json, String name, CassandraFrameworkProtos.CassandraNodeTask task) throws IOException {
         if (task != null && task.hasTaskId()) {
             json.writeObjectFieldStart(name);
@@ -266,8 +305,9 @@ public final class ApiController {
             json.setPrettyPrinter(new DefaultPrettyPrinter());
             json.writeStartObject();
 
-            json.writeNumberField("oldNodeCount", cluster.getConfiguration().get().getNumberOfNodes());
-            json.writeNumberField("seedNodeCount", cluster.getConfiguration().get().getNumberOfSeeds());
+            CassandraFrameworkProtos.CassandraConfigRole configRole = cluster.getConfiguration().getDefaultConfigRole();
+            json.writeNumberField("oldNodeCount", configRole.getNumberOfNodes());
+            json.writeNumberField("seedNodeCount", configRole.getNumberOfSeeds());
             int newCount = cluster.updateNodeCount(nodeCount);
             json.writeBooleanField("applied", newCount == nodeCount);
             json.writeNumberField("newNodeCount", newCount);

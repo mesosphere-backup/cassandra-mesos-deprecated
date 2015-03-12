@@ -18,15 +18,73 @@ option java_outer_classname = "CassandraFrameworkProtos";
 message CassandraFrameworkConfiguration {
     optional string frameworkId = 1;
     optional string frameworkName = 2;
-    optional string cassandraVersion = 3;
-    optional int32 numberOfNodes = 4;
-    optional double cpuCores = 5;
-    optional int64 memMb = 6;
-    optional int64 diskMb = 7;
     optional int64 healthCheckIntervalSeconds = 8;
-    optional int32 numberOfSeeds = 9;
     optional int64 bootstrapGraceTimeSeconds = 10;
     repeated PortMapping portMapping = 11;
+
+    // default configuration
+    required CassandraConfigRole defaultConfigRole = 6;
+}
+
+// CassandraConfigRole is currently only used once. But different nodes may require different sizings -
+// e.g. when replacing old metal with new metal. Different DCs may also have different sizings.
+// Individual nodes just reference a "config role".
+message CassandraConfigRole {
+    // arbitrary name of this configuration - usually "default" but could be something like "16core-128g-4x500gSSD"
+    optional string name = 1;
+
+    optional string cassandraVersion = 2;
+    optional int32 numberOfNodes = 3;
+    optional double cpuCores = 4;
+    optional int64 diskMb = 6;
+    optional int32 numberOfSeeds = 7;
+
+
+    // total memory required (must be greater than memJavaHeapMb + memAssumeOffHeapMb)
+    optional int64 memMb = 5;
+
+    // Cassandra memory usage can be categorized into
+    // 1. Java heap (MAX_HEAP_SIZE) - including new-gen (HEAP_NEWSIZE)
+    //    Amount of Java heap in MB.
+    //    (defaults to 50% of memMb, max 16384, if not present)
+    optional int64 memJavaHeapMb = 8;
+    // 2. Off-Heap
+    //    Amount of Off heap in MB.
+    //    (defaults to memMb - memJavaHeapMb, if not present)
+    optional int64 memAssumeOffHeapMb = 9;
+    // 3. OS (add as much as possible for OS block cache)
+    //    This is just the difference between memMb and memJavaHeapMb + memAssumeOffHeapMb
+
+    // Production grade memory configuration should include all three memory configuration parameters above.
+    // Do not forget to add as much memory for OS block cache as possible for improved performance.
+
+    // Off-heap structures (C* 2.1):
+    // - index-summary (default: 5% of the heap size)
+    //   configured in cassandra.yaml - see index_summary_capacity_in_mb
+    //   default to 5% of the heap size (may exceed)
+    // - key-cache (default: 5% of the heap size)
+    //   configured in cassandra.yaml - see key_cache_size_in_mb
+    //   default to 5% of the heap size
+    // - row-cache (default: off)
+    //   configured in cassandra.yaml - see row_cache_size_in_mb (must be explicitly enabled in taskEnv)
+    //   default to 0
+    // - counter-cache (default: min(2.5% of Heap (in MB), 50MB))
+    //   configured in cassandra.yaml - see counter_cache_size_in_mb
+    //   default: min(2.5% of Heap (in MB), 50MB) ; 0 means no cache
+    // - memtables (default on-heap)
+    //   configured in cassandra.yaml - see file_cache_size_in_mb
+    //   default to the smaller of 1/4 of heap or 512MB
+    // - file-cache (default: min(25% of Heap (in MB), 512MB))
+    //   configured in cassandra.yaml - see file_cache_size_in_mb
+    //   default to the smaller of 1/4 of heap or 512MB
+    // - overhead during flushes/compactions/cleanup
+    //   implicitly defined by workload
+
+    // additional configuration
+    // process environment
+    optional TaskEnv taskEnv = 10;
+    // cassandra.yaml configuration
+    optional TaskConfig cassandraYamlConfig = 11;
 }
 
 message PortMapping {

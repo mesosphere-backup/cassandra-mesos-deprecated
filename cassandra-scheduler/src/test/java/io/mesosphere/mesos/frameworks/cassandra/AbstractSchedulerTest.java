@@ -43,15 +43,19 @@ public abstract class AbstractSchedulerTest {
         // start with clean state
         state = new InMemoryState();
 
+        CassandraFrameworkProtos.CassandraConfigRole defaultConfigRole = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
+            .setCassandraVersion("2.1.2")
+            .setCpuCores(2)
+            .setDiskMb(4096)
+            .setNumberOfNodes(3)
+            .setNumberOfSeeds(2)
+            .setName("default")
+            .setMemMb(4096)
+            .build();
         configuration = new PersistedCassandraFrameworkConfiguration(
                 state,
                 "test-cluster",
-                "2.1.2",
-                3, // node count
-                2, // seed count
-                2, // CPUs
-                4096, // memMb
-                4096, // diskMb
+                defaultConfigRole,
                 0, // health-check
                 0 // bootstrap-grace-time
         );

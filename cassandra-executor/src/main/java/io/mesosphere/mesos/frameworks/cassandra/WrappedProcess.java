@@ -16,5 +16,9 @@ package io.mesosphere.mesos.frameworks.cassandra;
 public interface WrappedProcess {
     void destroy();
 
-    int exitValue();
+    void destroyForcibly();
+
+    int exitValue() throws IllegalThreadStateException;
+
+    int getPid();
 }

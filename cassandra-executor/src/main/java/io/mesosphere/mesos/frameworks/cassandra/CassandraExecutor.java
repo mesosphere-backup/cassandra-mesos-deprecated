@@ -30,6 +30,7 @@ import org.slf4j.MarkerFactory;
 
 import java.net.UnknownHostException;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
@@ -52,7 +53,6 @@ public final class CassandraExecutor implements Executor {
     // But without I/O redirection. Note: we need an Oracle JVM then - not a big deal - C* requires an Oracle JVM.
     private volatile WrappedProcess process;
     private volatile JmxConnect jmxConnect;
-    private volatile boolean serverTaskStatusOutstanding;
 
     private ExecutorInfo executorInfo;
     private TaskInfo serverTask;
@@ -60,6 +60,8 @@ public final class CassandraExecutor implements Executor {
     private final AtomicReference<AbstractNodeJob> currentJob = new AtomicReference<>();
 
     private final ExecutorService executorService;
+
+    private final AtomicBoolean killDaemonSingleton = new AtomicBoolean();
 
     public CassandraExecutor(ObjectFactory objectFactory) {
         this.objectFactory = objectFactory;
@@ -125,49 +127,30 @@ public final class CassandraExecutor implements Executor {
                     break;
                 case CASSANDRA_SERVER_RUN:
                     safeShutdown(driver);
-                    serverTask = task;
-                    serverTaskStatusOutstanding = true;
-                    process = objectFactory.launchCassandraNodeTask(taskIdMarker, taskDetails.getCassandraServerRunTask());
-                    jmxConnect = objectFactory.newJmxConnect(taskDetails.getCassandraServerRunTask().getJmx());
-                    break;
-                case CASSANDRA_SERVER_SHUTDOWN:
-                    if (serverTask == null) {
-                        driver.sendStatusUpdate(slaveErrorDetails(task, "no server task", "-", SlaveErrorDetails.ErrorType.PROCESS_NOT_RUNNING));
-                    } else {
-                        TaskID serverTaskId = serverTask.getTaskId();
-                        if (jmxConnect != null) {
-                            LOGGER.info(taskIdMarker, "Stopping Cassandra Daemon...");
-                            try {
-                                try {
-                                    jmxConnect.getStorageServiceProxy().stopDaemon();
-                                } catch (Throwable ignored) {
-                                    // any kind of strange exception may occur since shutdown closes everything
-                                }
-                                // TODO make shutdown timeout configurable
-                                long timeoutAt = System.currentTimeMillis() + 60000L;
-                                while (true) {
-                                    if (timeoutAt < System.currentTimeMillis()) {
-                                        // TODO push some more information to scheduler if regular shutdown failed
-                                        break;
-                                    }
-                                    try {
-                                        int exitCode = process.exitValue();
-                                        LOGGER.info(taskIdMarker, "Cassandra process terminated with exit code {}", exitCode);
-                                        break;
-                                    } catch (IllegalThreadStateException e) {
-                                        // ignore
-                                    }
-                                }
-                            } catch (Exception e) {
-                                LOGGER.error(taskIdMarker, "Failed to stop Cassandra daemon - forcing process destroy", e);
-                            }
+                    try {
+                        process = objectFactory.launchCassandraNodeTask(taskIdMarker, taskDetails.getCassandraServerRunTask());
+
+                        try {
+                            Thread.sleep(500);
+                            int exitCode = process.exitValue();
+                            process = null;
+
+                            LOGGER.error(taskIdMarker, "Cassandra daemon process exited early with code " + exitCode + " - see logs for details");
+                            driver.sendStatusUpdate(slaveErrorDetails(task, "Cassandra daemon process exited early with code " + exitCode + " see logs for details", "-", SlaveErrorDetails.ErrorType.PROCESS_EXITED));
+                        } catch (InterruptedException | IllegalThreadStateException e) {
+                            // that's what we want (ITSE)
                         }
-                        safeShutdown(driver);
-                        driver.sendStatusUpdate(taskStatus(task.getExecutor().getExecutorId(),
-                            serverTaskId,
-                            TaskState.TASK_FINISHED,
-                            nullSlaveStatusDetails()));
-                        driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
+
+                        serverTask = task;
+                        jmxConnect = objectFactory.newJmxConnect(taskDetails.getCassandraServerRunTask().getJmx());
+                        driver.sendStatusUpdate(taskStatus(serverTask, TaskState.TASK_RUNNING,
+                            SlaveStatusDetails.newBuilder()
+                                .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.CASSANDRA_SERVER_RUN)
+                                .setCassandraServerRunMetadata(CassandraServerRunMetadata.newBuilder().setPid(process.getPid()))
+                                .build()));
+                    } catch (LaunchNodeException e) {
+                        LOGGER.error(taskIdMarker, "Failed to start Cassandra daemon", e);
+                        driver.sendStatusUpdate(slaveErrorDetails(task, "Failed to start Cassandra daemon", e.toString(), SlaveErrorDetails.ErrorType.PROCESS_NOT_RUNNING));
                     }
                     break;
                 case NODE_JOB:
@@ -255,6 +238,49 @@ public final class CassandraExecutor implements Executor {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("killTask(driver : {}, taskId : {})", driver, protoToString(taskId));
         }
+
+        if (serverTask != null && serverTask.getTaskId().equals(taskId)) {
+            killCassandraDaemon(driver);
+        }
+    }
+
+    private void killCassandraDaemon(ExecutorDriver driver) {
+        if (!killDaemonSingleton.compareAndSet(false, true))
+            return;
+        try {
+            TaskInfo task = serverTask;
+            LOGGER.info("Stopping Cassandra Daemon...");
+            try {
+                try {
+                    // note: although we could also use jmxConnect.getStorageServiceProxy().stopDaemon();
+                    // it is safe to do it this way
+                    process.destroy();
+                } catch (Throwable ignored) {
+                    // any kind of strange exception may occur since shutdown closes everything
+                }
+                // TODO make shutdown timeout configurable
+                long timeoutAt = System.currentTimeMillis() + 1800000L;
+                while (true) {
+                    if (timeoutAt < System.currentTimeMillis()) {
+                        process.destroyForcibly();
+                        break;
+                    }
+                    try {
+                        int exitCode = process.exitValue();
+                        LOGGER.info("Cassandra process terminated with exit code {}", exitCode);
+                        break;
+                    } catch (IllegalThreadStateException e) {
+                        // ignore
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("Failed to stop Cassandra daemon - forcing process destroy", e);
+            }
+            safeShutdown(driver);
+            driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
+        } finally {
+            killDaemonSingleton.set(false);
+        }
     }
 
     @Override
@@ -268,15 +294,9 @@ public final class CassandraExecutor implements Executor {
 
             handleProcessNoLongerAlive(driver);
 
-            if (serverTaskStatusOutstanding) {
-                driver.sendStatusUpdate(taskStatus(serverTask, process != null ? TaskState.TASK_RUNNING : TaskState.TASK_ERROR));
-                serverTaskStatusOutstanding = false;
-            }
-
             switch (taskDetails.getTaskType()) {
                 case HEALTH_CHECK:
-                    final HealthCheckTask healthCheckTask = taskDetails.getHealthCheckTask();
-                    LOGGER.info("Received healthCheckTask: {}", protoToString(healthCheckTask));
+                    LOGGER.info("Received healthCheckTask");
                     healthCheck(driver);
                     break;
                 case NODE_JOB_STATUS:
@@ -383,7 +403,6 @@ public final class CassandraExecutor implements Executor {
             // send health check that process is no longer alive
             healthCheck(driver);
         }
-        serverTaskStatusOutstanding = false;
         serverTask = null;
     }
 

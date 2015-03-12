@@ -198,6 +198,12 @@ public final class ApiController {
                 json.writeStringField("hostname", cassandraNode.getHostname());
                 json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
                 json.writeNumberField("jmxPort", cassandraNode.getJmxConnect().getJmxPort());
+                json.writeBooleanField("seedNode", cassandraNode.getSeed());
+                if (!cassandraNode.hasCassandraDaemonPid()) {
+                    json.writeNullField("cassandraDaemonPid");
+                } else {
+                    json.writeNumberField("cassandraDaemonPid", cassandraNode.getCassandraDaemonPid());
+                }
 
                 CassandraFrameworkProtos.HealthCheckHistoryEntry lastHealthCheck =
                     cassandraNode.hasCassandraNodeExecutor() ? cluster.lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId()) : null;

@@ -26,6 +26,7 @@ public class MockSchedulerDriver implements SchedulerDriver {
     private final Protos.MasterInfo masterInfo;
     private Tuple2<Collection<Protos.OfferID>, Collection<Protos.TaskInfo>> launchTasks = clearLaunchTasks();
     private Collection<Tuple2<Protos.ExecutorID, CassandraFrameworkProtos.TaskDetails>> submitTasks = clearSubmitTasks();
+    private Collection<Protos.TaskID> killTasks = clearKillTasks();
 
     private List<Protos.OfferID> declinedOffers = new ArrayList<>();
 
@@ -47,7 +48,8 @@ public class MockSchedulerDriver implements SchedulerDriver {
 
     @Override
     public Protos.Status killTask(Protos.TaskID taskId) {
-        throw new UnsupportedOperationException();
+        killTasks.add(taskId);
+        return Protos.Status.DRIVER_RUNNING;
     }
 
     @Override
@@ -155,6 +157,14 @@ public class MockSchedulerDriver implements SchedulerDriver {
         }
     }
 
+    public Collection<Protos.TaskID> killTasks() {
+        try {
+            return killTasks;
+        } finally {
+            killTasks = clearKillTasks();
+        }
+    }
+
     public Collection<Tuple2<Protos.ExecutorID, CassandraFrameworkProtos.TaskDetails>> submitTasks() {
         try {
             return submitTasks;
@@ -168,6 +178,10 @@ public class MockSchedulerDriver implements SchedulerDriver {
     }
 
     private static Collection<Tuple2<Protos.ExecutorID, CassandraFrameworkProtos.TaskDetails>> clearSubmitTasks() {
+        return new ArrayList<>();
+    }
+
+    private static Collection<Protos.TaskID> clearKillTasks() {
         return new ArrayList<>();
     }
 }

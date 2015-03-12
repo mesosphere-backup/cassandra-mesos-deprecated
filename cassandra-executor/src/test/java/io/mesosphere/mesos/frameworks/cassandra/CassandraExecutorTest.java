@@ -29,7 +29,6 @@ public class CassandraExecutorTest {
     TestObjectFactory objectFactory;
     Protos.TaskID taskIdMetadata;
     Protos.TaskID taskIdServer;
-    Protos.TaskID taskIdShutdown;
 
     @Test
     public void testStartup() throws Exception {
@@ -256,19 +255,18 @@ public class CassandraExecutorTest {
             Collections.<Protos.Resource>emptyList());
 
         taskStatus = driver.taskStatusList();
-        assertEquals(1, taskStatus.size());
+        assertEquals(2, taskStatus.size());
         assertEquals(taskIdServer, taskStatus.get(0).getTaskId());
         assertEquals(Protos.TaskState.TASK_STARTING, taskStatus.get(0).getState());
+        assertEquals(taskIdServer, taskStatus.get(1).getTaskId());
+        assertEquals(Protos.TaskState.TASK_RUNNING, taskStatus.get(1).getState());
 
         driver.frameworkMessage(CassandraFrameworkProtos.TaskDetails.newBuilder()
-            .setHealthCheckTask(CassandraFrameworkProtos.HealthCheckTask.newBuilder())
             .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.HEALTH_CHECK)
             .build());
 
         taskStatus = driver.taskStatusList();
-        assertEquals(1, taskStatus.size());
-        assertEquals(taskIdServer, taskStatus.get(0).getTaskId());
-        assertEquals(Protos.TaskState.TASK_RUNNING, taskStatus.get(0).getState());
+        assertEquals(0, taskStatus.size());
 
         List<CassandraFrameworkProtos.SlaveStatusDetails> slaveStatusDetailsList = driver.frameworkMessages();
         assertEquals(1, slaveStatusDetailsList.size());
@@ -276,31 +274,17 @@ public class CassandraExecutorTest {
         assertTrue(slaveStatusDetailsList.get(0).getHealthCheckDetails().getHealthy());
     }
 
-    private void shutdownServer() throws com.google.protobuf.InvalidProtocolBufferException {
+    private void shutdownServer() {
         List<Protos.TaskStatus> taskStatus = driver.taskStatusList();
         assertEquals(0, taskStatus.size());
 
-        driver.launchTask(
-            taskIdShutdown,
-            Protos.CommandInfo.getDefaultInstance(),
-            CassandraFrameworkProtos.TaskDetails.newBuilder()
-                .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_SHUTDOWN)
-                .setCassandraServerShutdownTask(CassandraFrameworkProtos.CassandraServerShutdownTask.getDefaultInstance())
-                .build(),
-            "server task",
-            Collections.<Protos.Resource>emptyList());
+        driver.killTask(taskIdServer);
 
         taskStatus = driver.taskStatusList();
-        assertEquals(3, taskStatus.size());
-        // shutdown task starting...
-        assertEquals(taskIdShutdown, taskStatus.get(0).getTaskId());
-        assertEquals(Protos.TaskState.TASK_STARTING, taskStatus.get(0).getState());
+        assertEquals(1, taskStatus.size());
         // server task finished...
-        assertEquals(taskIdServer, taskStatus.get(1).getTaskId());
-        assertEquals(Protos.TaskState.TASK_FINISHED, taskStatus.get(1).getState());
-        // shutdown task finished...
-        assertEquals(taskIdShutdown, taskStatus.get(2).getTaskId());
-        assertEquals(Protos.TaskState.TASK_FINISHED, taskStatus.get(2).getState());
+        assertEquals(taskIdServer, taskStatus.get(0).getTaskId());
+        assertEquals(Protos.TaskState.TASK_FINISHED, taskStatus.get(0).getState());
 
         List<CassandraFrameworkProtos.SlaveStatusDetails> slaveStatusDetailsList = driver.frameworkMessages();
         assertEquals(1, slaveStatusDetailsList.size());
@@ -324,7 +308,6 @@ public class CassandraExecutorTest {
         driver = new MockExecutorDriver(executor);
         taskIdMetadata = Protos.TaskID.newBuilder().setValue("executor.metadata").build();
         taskIdServer = Protos.TaskID.newBuilder().setValue("executor").build();
-        taskIdShutdown = Protos.TaskID.newBuilder().setValue("executor.shutdown").build();
     }
 
 }

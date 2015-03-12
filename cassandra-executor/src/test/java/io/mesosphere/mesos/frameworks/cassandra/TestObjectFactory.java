@@ -62,7 +62,17 @@ class TestObjectFactory implements ObjectFactory {
         int exitCode = -1;
 
         @Override
+        public int getPid() {
+            return 42;
+        }
+
+        @Override
         public void destroy() {
+            daemonStopped();
+        }
+
+        @Override
+        public void destroyForcibly() {
             // nop
         }
 

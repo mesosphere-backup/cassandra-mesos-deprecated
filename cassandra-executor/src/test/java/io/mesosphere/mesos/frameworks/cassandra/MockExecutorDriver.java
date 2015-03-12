@@ -120,17 +120,21 @@ public class MockExecutorDriver implements ExecutorDriver {
     public void launchTask(Protos.TaskID taskId, Protos.CommandInfo commandInfo, CassandraFrameworkProtos.TaskDetails taskDetails,
                            String name, Iterable<? extends Protos.Resource> resources) {
         executor.launchTask(this, Protos.TaskInfo.newBuilder()
-                .setTaskId(taskId)
-                .setCommand(commandInfo)
-                .setData(taskDetails.toByteString())
-                .setExecutor(executorInfo)
-                .setName(name)
-                .addAllResources(resources)
-                .setSlaveId(slaveInfo.getId())
-                .build());
+            .setTaskId(taskId)
+            .setCommand(commandInfo)
+            .setData(taskDetails.toByteString())
+            .setExecutor(executorInfo)
+            .setName(name)
+            .addAllResources(resources)
+            .setSlaveId(slaveInfo.getId())
+            .build());
     }
 
     public void frameworkMessage(CassandraFrameworkProtos.TaskDetails taskDetails) {
         executor.frameworkMessage(this, taskDetails.toByteArray());
+    }
+
+    public void killTask(Protos.TaskID taskId) {
+        executor.killTask(this, taskId);
     }
 }

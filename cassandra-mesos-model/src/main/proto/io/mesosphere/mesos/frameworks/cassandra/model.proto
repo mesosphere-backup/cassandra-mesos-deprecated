@@ -175,6 +175,8 @@ message CassandraNode {
     // Indicates whether a node should run or not.
     required TargetRunState targetRunState = 11;
 
+    optional int32 cassandraDaemonPid = 12;
+
     enum TargetRunState {
         // If the server task is not active, it is started.
         // Note that general bootstrap-grace-time settings and other checks (e.g. currently other nodes joining) apply.
@@ -226,8 +228,7 @@ message CassandraNodeTask {
     enum TaskType {
         METADATA = 1;
         SERVER = 2;
-        SERVER_SHUTDOWN = 3;
-        CLUSTER_JOB = 4;
+        CLUSTER_JOB = 3;
     }
 }
 
@@ -235,17 +236,14 @@ message TaskDetails {
     required TaskType taskType = 1;
     optional ExecutorMetadataTask executorMetadataTask = 2;
     optional CassandraServerRunTask cassandraServerRunTask = 3;
-    optional CassandraServerShutdownTask cassandraServerShutdownTask = 4;
-    optional HealthCheckTask healthCheckTask = 5;
-    optional NodeJobTask nodeJobTask = 6;
+    optional NodeJobTask nodeJobTask = 4;
 
     enum TaskType {
         EXECUTOR_METADATA = 1;
         CASSANDRA_SERVER_RUN = 2;
-        CASSANDRA_SERVER_SHUTDOWN = 3;
-        HEALTH_CHECK = 4;
-        NODE_JOB = 5;
-        NODE_JOB_STATUS = 6;
+        HEALTH_CHECK = 3;
+        NODE_JOB = 4;
+        NODE_JOB_STATUS = 5;
     }
 }
 
@@ -261,12 +259,6 @@ message CassandraServerRunTask {
     repeated TaskFile taskFiles = 4;
     required TaskConfig taskConfig = 5;
     required JmxConnect jmx = 6;
-}
-
-message CassandraServerShutdownTask {
-}
-
-message HealthCheckTask {
 }
 
 message NodeJobTask {
@@ -313,22 +305,28 @@ message TaskEnv {
 message SlaveStatusDetails {
     required StatusDetailsType statusDetailsType = 1;
     optional ExecutorMetadata executorMetadata = 2;
-    optional SlaveErrorDetails slaveErrorDetails = 3;
-    optional HealthCheckDetails healthCheckDetails = 4;
-    optional NodeJobStatus nodeJobStatus = 5;
+    optional CassandraServerRunMetadata cassandraServerRunMetadata = 3;
+    optional SlaveErrorDetails slaveErrorDetails = 4;
+    optional HealthCheckDetails healthCheckDetails = 5;
+    optional NodeJobStatus nodeJobStatus = 6;
 
     enum StatusDetailsType {
         NULL_DETAILS = 1;
         EXECUTOR_METADATA = 2;
-        ERROR_DETAILS = 3;
-        HEALTH_CHECK_DETAILS = 4;
-        NODE_JOB_STATUS = 5;
+        CASSANDRA_SERVER_RUN = 3;
+        ERROR_DETAILS = 4;
+        HEALTH_CHECK_DETAILS = 5;
+        NODE_JOB_STATUS = 6;
     }
 }
 
 message ExecutorMetadata {
     required string executorId = 1;
     optional string ip = 2;
+}
+
+message CassandraServerRunMetadata {
+    required int32 pid = 1;
 }
 
 message SlaveErrorDetails {

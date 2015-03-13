@@ -50,7 +50,7 @@
     </issueManagement>
 
     <prerequisites>
-        <maven>3.0.0</maven>
+        <maven>3.2.0</maven>
     </prerequisites>
 
     <properties>

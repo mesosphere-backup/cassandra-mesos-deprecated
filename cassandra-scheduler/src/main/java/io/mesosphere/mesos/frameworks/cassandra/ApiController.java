@@ -27,6 +27,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.List;
 
 @Path("/")
 public final class ApiController {
@@ -301,6 +302,121 @@ public final class ApiController {
         }
         else
             json.writeNullField(name);
+    }
+
+    @GET
+    @Path("/live-nodes")
+    @Produces("application/json")
+    public Response liveEndpointsJson(@QueryParam("limit") @DefaultValue("3") int limit) {
+        return liveEndpoints("json", limit);
+    }
+
+    @GET
+    @Path("/live-nodes/text")
+    @Produces("text/plain")
+    public Response liveEndpointsText(@QueryParam("limit") @DefaultValue("3") int limit) {
+        return liveEndpoints("text", limit);
+    }
+
+    @GET
+    @Path("/live-nodes/cqlsh")
+    @Produces("text/x-cassandra-cqlsh")
+    public Response liveEndpointsCqlsh() {
+        return liveEndpoints("cqlsh", 1);
+    }
+
+    @GET
+    @Path("/live-nodes/nodetool")
+    @Produces("text/x-cassandra-nodetool")
+    public Response liveEndpointsNodetool() {
+        return liveEndpoints("nodetool", 1);
+    }
+
+    @GET
+    @Path("/live-nodes/stress")
+    @Produces("text/x-cassandra-stress")
+    public Response liveEndpointsStress(@QueryParam("limit") @DefaultValue("3") int limit) {
+        return liveEndpoints("stress", 1);
+    }
+
+    private Response liveEndpoints(String forTool, int limit) {
+        List<CassandraFrameworkProtos.CassandraNode> liveNodes = cluster.liveNodes(limit);
+
+        if (liveNodes.isEmpty())
+            return Response.status(400).build();
+
+        CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
+
+        int nativePort = CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_NATIVE);
+        int rpcPort = CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_RPC);
+        int jmxPort = CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_JMX);
+
+        CassandraFrameworkProtos.CassandraNode first = liveNodes.get(0);
+
+        StringWriter sw = new StringWriter();
+        try {
+            switch (forTool) {
+                case "cqlsh":
+                    // return a string: "HOST PORT"
+                    return Response.ok(first.getIp() + ' ' + nativePort).build();
+                case "stress":
+                    // cassandra-stress options:
+                    // -node NODE1,NODE2,...
+                    // -port [native=NATIVE_PORT] [thrift=THRIFT_PORT] [jmx=JMX_PORT]
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("-node ");
+                    for (int i = 0; i < liveNodes.size(); i++) {
+                        if (i > 0)
+                            sb.append(',');
+                        sb.append(liveNodes.get(i).getIp());
+                    }
+                    sb.append(" -port native=")
+                        .append(nativePort)
+                        .append(" thrift=")
+                        .append(rpcPort)
+                        .append(" jmx=")
+                        .append(jmxPort);
+                    return Response.ok(sb.toString()).build();
+                case "nodetool":
+                    // nodetool options:
+                    // -h HOST
+                    // -p JMX_PORT
+                    return Response.ok("-h " + first.getIp() + " -p " + first.getJmxConnect().getJmxPort()).build();
+                case "json":
+                    // produce a simple JSON with the native port and live node IPs
+                    JsonFactory factory = new JsonFactory();
+                    JsonGenerator json = factory.createGenerator(sw);
+                    json.setPrettyPrinter(new DefaultPrettyPrinter());
+                    json.writeStartObject();
+
+                    json.writeNumberField("nativePort", nativePort);
+                    json.writeNumberField("rpcPort", rpcPort);
+                    json.writeNumberField("jmxPort", jmxPort);
+
+                    json.writeArrayFieldStart("liveNodes");
+                    for (CassandraFrameworkProtos.CassandraNode liveNode : liveNodes) {
+                        json.writeString(liveNode.getIp());
+                    }
+                    json.writeEndArray();
+
+                    json.writeEndObject();
+                    json.close();
+                    return Response.ok(sw.toString()).build();
+                case "text":
+                    // produce a simple text with the native port in the first line and one line per live node IP
+                    sb = new StringBuilder();
+                    sb.append(nativePort).append('\n');
+                    for (CassandraFrameworkProtos.CassandraNode liveNode : liveNodes) {
+                        sb.append(liveNode.getIp()).append('\n');
+                    }
+                    return Response.ok(sb.toString()).build();
+            }
+
+            return Response.status(404).build();
+        } catch (Exception e) {
+            LOGGER.error("Failed to all nodes list", e);
+            return Response.serverError().build();
+        }
     }
 
     // cluster scaling

@@ -36,6 +36,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
 import static com.google.common.base.Predicates.not;
@@ -928,5 +929,51 @@ public final class CassandraCluster {
                 .setCassandraDaemonPid(cassandraServerRunMetadata.getPid())
                 .build());
         }
+    }
+
+    public List<CassandraNode> liveNodes(int limit) {
+        CassandraClusterState state = clusterState.get();
+        int total = state.getNodesCount();
+        if (total == 0)
+            return Collections.emptyList();
+
+        int totalLive = 0;
+        for (int i = 0; i < total; i++) {
+            if (isLiveNode(state.getNodes(i)))
+                totalLive++;
+        }
+
+        limit = Math.min(totalLive, limit);
+
+        ThreadLocalRandom tlr = ThreadLocalRandom.current();
+        List<CassandraNode> result = new ArrayList<>(limit);
+        int misses = 0;
+        while (result.size() < limit && misses < 250) { // the check for 250 misses is a poor-man's implementation to prevent a possible race-condition
+            int i = tlr.nextInt(total);
+            CassandraNode node = state.getNodes(i);
+            if (isLiveNode(node) && !result.contains(node)) {
+                result.add(node);
+                misses = 0;
+            } else {
+                misses ++;
+            }
+        }
+
+        return result;
+    }
+
+    private boolean isLiveNode(CassandraNode node) {
+        if (!node.hasCassandraNodeExecutor())
+            return false;
+        HealthCheckHistoryEntry hc = lastHealthCheck(node.getCassandraNodeExecutor().getExecutorId());
+        if (hc == null || !hc.hasDetails())
+            return false;
+        HealthCheckDetails hcd = hc.getDetails();
+        if (!hcd.getHealthy() || !hcd.hasInfo())
+            return false;
+        NodeInfo info = hcd.getInfo();
+        if (!info.hasNativeTransportRunning() || !info.hasRpcServerRunning())
+            return false;
+        return info.getNativeTransportRunning() && info.getRpcServerRunning();
     }
 }

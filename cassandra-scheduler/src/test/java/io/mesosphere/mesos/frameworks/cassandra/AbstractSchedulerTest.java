@@ -118,6 +118,8 @@ public abstract class AbstractSchedulerTest {
                         .setOperationMode(operationMode)
                         .setUptimeMillis(1234)
                         .setVersion("2.1.2")
+                        .setNativeTransportRunning(true)
+                        .setRpcServerRunning(true)
                 )
                 .build();
     }

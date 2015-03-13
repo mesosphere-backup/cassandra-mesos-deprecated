@@ -305,15 +305,42 @@ public final class ApiController {
     }
 
     @GET
-    @Path("/live-nodes/{forTool}")
-    public Response liveEndpoints(@PathParam("forTool") String forTool) {
-        return liveEndpoints(forTool, 1);
+    @Path("/live-nodes")
+    @Produces("application/json")
+    public Response liveEndpointsJson(@QueryParam("limit") @DefaultValue("3") int limit) {
+        return liveEndpoints("json", limit);
     }
 
     @GET
-    @Path("/live-nodes/{forTool}/{nodeCount}")
-    public Response liveEndpoints(@PathParam("forTool") String forTool, @PathParam("nodeCount") Integer nodeCount) {
-        List<CassandraFrameworkProtos.CassandraNode> liveNodes = cluster.liveNodes(nodeCount);
+    @Path("/live-nodes/text")
+    @Produces("text/plain")
+    public Response liveEndpointsText(@QueryParam("limit") @DefaultValue("3") int limit) {
+        return liveEndpoints("text", limit);
+    }
+
+    @GET
+    @Path("/live-nodes/cqlsh")
+    @Produces("text/x-cassandra-cqlsh")
+    public Response liveEndpointsCqlsh() {
+        return liveEndpoints("cqlsh", 1);
+    }
+
+    @GET
+    @Path("/live-nodes/nodetool")
+    @Produces("text/x-cassandra-nodetool")
+    public Response liveEndpointsNodetool() {
+        return liveEndpoints("nodetool", 1);
+    }
+
+    @GET
+    @Path("/live-nodes/stress")
+    @Produces("text/x-cassandra-stress")
+    public Response liveEndpointsStress(@QueryParam("limit") @DefaultValue("3") int limit) {
+        return liveEndpoints("stress", 1);
+    }
+
+    private Response liveEndpoints(String forTool, int limit) {
+        List<CassandraFrameworkProtos.CassandraNode> liveNodes = cluster.liveNodes(limit);
 
         if (liveNodes.isEmpty())
             return Response.status(400).build();
@@ -331,7 +358,7 @@ public final class ApiController {
             switch (forTool) {
                 case "cqlsh":
                     // return a string: "HOST PORT"
-                    return Response.ok(first.getIp() + ' ' + nativePort, "text/plain").build();
+                    return Response.ok(first.getIp() + ' ' + nativePort).build();
                 case "stress":
                     // cassandra-stress options:
                     // -node NODE1,NODE2,...
@@ -349,12 +376,12 @@ public final class ApiController {
                         .append(rpcPort)
                         .append(" jmx=")
                         .append(jmxPort);
-                    return Response.ok(sb.toString(), "text/plain").build();
+                    return Response.ok(sb.toString()).build();
                 case "nodetool":
                     // nodetool options:
                     // -h HOST
                     // -p JMX_PORT
-                    return Response.ok("-h " + first.getIp() + " -p " + first.getJmxConnect().getJmxPort(), "text/plain").build();
+                    return Response.ok("-h " + first.getIp() + " -p " + first.getJmxConnect().getJmxPort()).build();
                 case "json":
                     // produce a simple JSON with the native port and live node IPs
                     JsonFactory factory = new JsonFactory();
@@ -374,15 +401,15 @@ public final class ApiController {
 
                     json.writeEndObject();
                     json.close();
-                    return Response.ok(sw.toString(), "application/json").build();
-                case "ascii":
+                    return Response.ok(sw.toString()).build();
+                case "text":
                     // produce a simple text with the native port in the first line and one line per live node IP
                     sb = new StringBuilder();
                     sb.append(nativePort).append('\n');
                     for (CassandraFrameworkProtos.CassandraNode liveNode : liveNodes) {
                         sb.append(liveNode.getIp()).append('\n');
                     }
-                    return Response.ok(sb.toString(), "text/plain").build();
+                    return Response.ok(sb.toString()).build();
             }
 
             return Response.status(404).build();

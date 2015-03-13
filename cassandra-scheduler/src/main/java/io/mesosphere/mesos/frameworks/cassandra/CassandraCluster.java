@@ -931,7 +931,7 @@ public final class CassandraCluster {
         }
     }
 
-    public List<CassandraNode> liveNodes(int nodeCount) {
+    public List<CassandraNode> liveNodes(int limit) {
         CassandraClusterState state = clusterState.get();
         int total = state.getNodesCount();
         if (total == 0)
@@ -943,12 +943,12 @@ public final class CassandraCluster {
                 totalLive++;
         }
 
-        nodeCount = Math.min(totalLive, nodeCount);
+        limit = Math.min(totalLive, limit);
 
         ThreadLocalRandom tlr = ThreadLocalRandom.current();
-        List<CassandraNode> result = new ArrayList<>(nodeCount);
+        List<CassandraNode> result = new ArrayList<>(limit);
         int misses = 0;
-        while (result.size() < nodeCount && misses < 250) { // the check for 250 misses is a poor-man's implementation to prevent a possible race-condition
+        while (result.size() < limit && misses < 250) { // the check for 250 misses is a poor-man's implementation to prevent a possible race-condition
             int i = tlr.nextInt(total);
             CassandraNode node = state.getNodes(i);
             if (isLiveNode(node) && !result.contains(node)) {

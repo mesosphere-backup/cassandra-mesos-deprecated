@@ -60,8 +60,6 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
         assertEquals("test-cluster", json.get("frameworkName").asText());
         assertEquals("", json.get("frameworkId").asText());
-        assertEquals(3, json.get("numberOfNodes").asInt());
-        assertEquals(2, json.get("numberOfSeeds").asInt());
         assertEquals(9042, json.get("nativePort").asInt());
         assertEquals(9160, json.get("rpcPort").asInt());
     }
@@ -77,7 +75,7 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
     @Test
     public void testLiveNodes() throws Exception {
-        Tuple2<Integer, JsonNode> tup = fetchJson("/live-nodes/json/2");
+        Tuple2<Integer, JsonNode> tup = fetchJson("/live-nodes?limit=2");
 
         // must return HTTP/500 if no nodes are present
         assertEquals(400, tup._1.intValue());
@@ -85,7 +83,7 @@ public class ApiControllerTest extends AbstractSchedulerTest {
         // add one live node
         addNode("exec1", "1.2.3.4");
 
-        tup = fetchJson("/live-nodes/json/2");
+        tup = fetchJson("/live-nodes?limit=2");
         assertEquals(200, tup._1.intValue());
         JsonNode json = tup._2;
         assertEquals(9042, json.get("nativePort").asInt());
@@ -99,35 +97,35 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
         // test more output formats
 
-        Tuple2<Integer, String> str = fetchText("/live-nodes/cqlsh/2");
+        Tuple2<Integer, String> str = fetchText("/live-nodes/cqlsh", "text/x-cassandra-cqlsh");
         assertEquals(200, str._1.intValue());
         assertEquals("1.2.3.4 9042", str._2);
 
-        str = fetchText("/live-nodes/stress/2");
+        str = fetchText("/live-nodes/stress?limit=2", "text/x-cassandra-stress");
         assertEquals(200, str._1.intValue());
         assertEquals("-node 1.2.3.4 -port native=9042 thrift=9160 jmx=7199", str._2);
 
-        str = fetchText("/live-nodes/nodetool/2");
+        str = fetchText("/live-nodes/nodetool", "text/x-cassandra-nodetool");
         assertEquals(200, str._1.intValue());
         assertEquals("-h 1.2.3.4 -p 7199", str._2);
 
-        str = fetchText("/live-nodes/ascii/2");
+        str = fetchText("/live-nodes/text?limit=2", "text/plain");
         assertEquals(200, str._1.intValue());
         assertEquals("9042\n1.2.3.4\n", str._2);
 
-        str = fetchText("/live-nodes/cqlsh");
+        str = fetchText("/live-nodes/cqlsh", "text/x-cassandra-cqlsh");
         assertEquals(200, str._1.intValue());
         assertEquals("1.2.3.4 9042", str._2);
 
-        str = fetchText("/live-nodes/stress");
+        str = fetchText("/live-nodes/stress", "text/x-cassandra-stress");
         assertEquals(200, str._1.intValue());
         assertEquals("-node 1.2.3.4 -port native=9042 thrift=9160 jmx=7199", str._2);
 
-        str = fetchText("/live-nodes/nodetool");
+        str = fetchText("/live-nodes/nodetool", "text/x-cassandra-nodetool");
         assertEquals(200, str._1.intValue());
         assertEquals("-h 1.2.3.4 -p 7199", str._2);
 
-        str = fetchText("/live-nodes/ascii");
+        str = fetchText("/live-nodes/text", "text/plain");
         assertEquals(200, str._1.intValue());
         assertEquals("9042\n1.2.3.4\n", str._2);
 
@@ -136,26 +134,26 @@ public class ApiControllerTest extends AbstractSchedulerTest {
         //
 
         cluster.recordHealthCheck("exec1", healthCheckDetailsFailed());
-        tup = fetchJson("/live-nodes/json/2");
+        tup = fetchJson("/live-nodes?limit=2");
         assertEquals(400, tup._1.intValue());
 
-        str = fetchText("/live-nodes/cqlsh/2");
+        str = fetchText("/live-nodes/cqlsh", "text/x-cassandra-cqlsh");
         assertEquals(400, str._1.intValue());
 
-        str = fetchText("/live-nodes/stress/2");
+        str = fetchText("/live-nodes/stress?limit=2", "text/x-cassandra-stress");
         assertEquals(400, str._1.intValue());
 
-        str = fetchText("/live-nodes/nodetool/2");
+        str = fetchText("/live-nodes/nodetool", "text/x-cassandra-nodetool");
         assertEquals(400, str._1.intValue());
 
-        str = fetchText("/live-nodes/ascii/2");
+        str = fetchText("/live-nodes/text?limit=2", "text/plain");
         assertEquals(400, str._1.intValue());
 
         // add a live nodes
 
         addNode("exec2", "2.2.2.2");
 
-        tup = fetchJson("/live-nodes/json/2");
+        tup = fetchJson("/live-nodes?limit=2");
         assertEquals(200, tup._1.intValue());
         json = tup._2;
         assertEquals(9042, json.get("nativePort").asInt());
@@ -167,19 +165,19 @@ public class ApiControllerTest extends AbstractSchedulerTest {
             .hasSize(1)
             .contains(TextNode.valueOf("2.2.2.2"));
 
-        str = fetchText("/live-nodes/cqlsh/2");
+        str = fetchText("/live-nodes/cqlsh", "text/x-cassandra-cqlsh");
         assertEquals(200, str._1.intValue());
         assertEquals("2.2.2.2 9042", str._2);
 
-        str = fetchText("/live-nodes/stress/2");
+        str = fetchText("/live-nodes/stress?limit=2", "text/x-cassandra-stress");
         assertEquals(200, str._1.intValue());
         assertEquals("-node 2.2.2.2 -port native=9042 thrift=9160 jmx=7199", str._2);
 
-        str = fetchText("/live-nodes/nodetool/2");
+        str = fetchText("/live-nodes/nodetool", "text/x-cassandra-nodetool");
         assertEquals(200, str._1.intValue());
         assertEquals("-h 2.2.2.2 -p 7199", str._2);
 
-        str = fetchText("/live-nodes/ascii/2");
+        str = fetchText("/live-nodes/text?limit=2", "text/plain");
         assertEquals(200, str._1.intValue());
         assertEquals("9042\n2.2.2.2\n", str._2);
 
@@ -187,7 +185,7 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
         cluster.recordHealthCheck("exec1", healthCheckDetailsSuccess("NORMAL", true));
 
-        tup = fetchJson("/live-nodes/json/2");
+        tup = fetchJson("/live-nodes?limit=2");
         assertEquals(200, tup._1.intValue());
         json = tup._2;
         assertEquals(9042, json.get("nativePort").asInt());
@@ -200,16 +198,16 @@ public class ApiControllerTest extends AbstractSchedulerTest {
             .contains(TextNode.valueOf("1.2.3.4"))
             .contains(TextNode.valueOf("2.2.2.2"));
 
-        str = fetchText("/live-nodes/cqlsh/2");
+        str = fetchText("/live-nodes/cqlsh", "text/x-cassandra-cqlsh");
         assertEquals(200, str._1.intValue());
 
-        str = fetchText("/live-nodes/stress/2");
+        str = fetchText("/live-nodes/stress?limit=2", "text/x-cassandra-stress");
         assertEquals(200, str._1.intValue());
 
-        str = fetchText("/live-nodes/nodetool/2");
+        str = fetchText("/live-nodes/nodetool", "text/x-cassandra-nodetool");
         assertEquals(200, str._1.intValue());
 
-        str = fetchText("/live-nodes/ascii/2");
+        str = fetchText("/live-nodes/text?limit=2", "text/plain");
         assertEquals(200, str._1.intValue());
     }
 
@@ -227,6 +225,7 @@ public class ApiControllerTest extends AbstractSchedulerTest {
             .setHostname(ip)
             .setIp(ip)
             .setSeed(false)
+            .setTargetRunState(CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN)
             .setJmxConnect(CassandraFrameworkProtos.JmxConnect.newBuilder()
                 .setIp(ip)
                 .setJmxPort(7199))
@@ -257,6 +256,9 @@ public class ApiControllerTest extends AbstractSchedulerTest {
             if (in == null) {
                 return Tuple2.tuple2(responseCode, (JsonNode) MissingNode.getInstance());
             }
+
+            assertEquals("application/json", conn.getHeaderField("Content-Type"));
+
             try {
                 ObjectMapper om = new ObjectMapper();
                 return Tuple2.tuple2(responseCode, om.reader()
@@ -270,7 +272,7 @@ public class ApiControllerTest extends AbstractSchedulerTest {
         }
     }
 
-    private Tuple2<Integer, String> fetchText(String rel) throws Exception {
+    private Tuple2<Integer, String> fetchText(String rel, String expectedContentType) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) resolve(rel).toURL().openConnection();
         try {
             conn.connect();
@@ -286,6 +288,9 @@ public class ApiControllerTest extends AbstractSchedulerTest {
             if (in == null) {
                 return Tuple2.tuple2(responseCode, "");
             }
+
+            assertEquals(expectedContentType, conn.getHeaderField("Content-Type"));
+
             try {
                 StringBuilder sb = new StringBuilder();
                 int rd;

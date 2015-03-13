@@ -90,9 +90,7 @@ CASSANDRA_FAILOVER_TIMEOUT_SECONDS=604800
 The Cassandra Mesos Framework is a maven project with modules for the Framework, Scheduler, Executor and Model. Standard maven convention applies. The Framework and Executor are both built as `jar-with-dependencies` in addition to their standalone jar, so that they are easy to run and distribute.
 
 ### Install Maven
-The Cassandra Mesos Framework requires an install of Maven between 3.2.1 and 3.2.4 to build.
-
-_NOTE: Maven 3.2.5 has a binary incompatible change with earlier version of Maven 3.2.x and will cause an exception to be thrown when the protobuf tool chain tries to run._
+The Cassandra Mesos Framework requires an install of Maven 3.x.x.
 
 ## Cassandra memory usage
 

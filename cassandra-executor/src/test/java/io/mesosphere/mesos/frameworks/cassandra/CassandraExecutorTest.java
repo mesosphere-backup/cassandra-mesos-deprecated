@@ -38,6 +38,19 @@ public class CassandraExecutorTest {
     }
 
     @Test
+    public void testShutdownAndRestart() throws Exception {
+        cleanState();
+
+        startServer();
+
+        shutdownServer();
+
+        startServer();
+
+        shutdownServer();
+    }
+
+    @Test
     public void testExecutorRepair() throws Exception {
         cleanState();
 
@@ -207,59 +220,76 @@ public class CassandraExecutorTest {
         driver.normalRegister();
 
         driver.launchTask(
-                taskIdMetadata,
-                Protos.CommandInfo.getDefaultInstance(),
-                CassandraFrameworkProtos.TaskDetails.newBuilder()
-                        .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.EXECUTOR_METADATA)
-                        .setExecutorMetadataTask(CassandraFrameworkProtos.ExecutorMetadataTask.newBuilder()
-                                .setExecutorId(driver.executorInfo.getExecutorId().getValue())
-                                .setIp("1.2.3.4")
-                                .build())
-                        .build(),
-                "metadata task",
-                Collections.<Protos.Resource>emptyList());
+            taskIdMetadata,
+            Protos.CommandInfo.getDefaultInstance(),
+            CassandraFrameworkProtos.TaskDetails.newBuilder()
+                .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.EXECUTOR_METADATA)
+                .setExecutorMetadataTask(CassandraFrameworkProtos.ExecutorMetadataTask.newBuilder()
+                    .setExecutorId(driver.executorInfo.getExecutorId().getValue())
+                    .setIp("1.2.3.4")
+                    .build())
+                .build(),
+            "metadata task",
+            Collections.<Protos.Resource>emptyList());
 
         List<Protos.TaskStatus> taskStatus = taskStartingRunning(taskIdMetadata);
         CassandraFrameworkProtos.SlaveStatusDetails slaveStatus = CassandraFrameworkProtos.SlaveStatusDetails.parseFrom(taskStatus.get(1).getData());
         assertNotNull(slaveStatus);
 
         driver.launchTask(
-                taskIdServer,
-                Protos.CommandInfo.getDefaultInstance(),
-                CassandraFrameworkProtos.TaskDetails.newBuilder()
-                        .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN)
-                        .setCassandraServerRunTask(CassandraFrameworkProtos.CassandraServerRunTask.newBuilder()
-                                .setVersion("2.1.2")
-                                .addCommand("somewhere")
-                                .setTaskConfig(CassandraFrameworkProtos.TaskConfig.newBuilder())
-                                .setTaskEnv(CassandraFrameworkProtos.TaskEnv.newBuilder())
-                                .setJmx(CassandraFrameworkProtos.JmxConnect.newBuilder()
-                                        .setIp("1.2.3.4")
-                                        .setJmxPort(42))
-                                .build())
-                        .build(),
-                "server task",
-                Collections.<Protos.Resource>emptyList());
+            taskIdServer,
+            Protos.CommandInfo.getDefaultInstance(),
+            CassandraFrameworkProtos.TaskDetails.newBuilder()
+                .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN)
+                .setCassandraServerRunTask(CassandraFrameworkProtos.CassandraServerRunTask.newBuilder()
+                    .setVersion("2.1.2")
+                    .addCommand("somewhere")
+                    .setTaskConfig(CassandraFrameworkProtos.TaskConfig.newBuilder())
+                    .setTaskEnv(CassandraFrameworkProtos.TaskEnv.newBuilder())
+                    .setJmx(CassandraFrameworkProtos.JmxConnect.newBuilder()
+                        .setIp("1.2.3.4")
+                        .setJmxPort(42))
+                    .build())
+                .build(),
+            "server task",
+            Collections.<Protos.Resource>emptyList());
 
         taskStatus = driver.taskStatusList();
-        assertEquals(1, taskStatus.size());
+        assertEquals(2, taskStatus.size());
         assertEquals(taskIdServer, taskStatus.get(0).getTaskId());
         assertEquals(Protos.TaskState.TASK_STARTING, taskStatus.get(0).getState());
+        assertEquals(taskIdServer, taskStatus.get(1).getTaskId());
+        assertEquals(Protos.TaskState.TASK_RUNNING, taskStatus.get(1).getState());
 
         driver.frameworkMessage(CassandraFrameworkProtos.TaskDetails.newBuilder()
-                .setHealthCheckTask(CassandraFrameworkProtos.HealthCheckTask.newBuilder())
-                .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.HEALTH_CHECK)
-                .build());
+            .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.HEALTH_CHECK)
+            .build());
 
         taskStatus = driver.taskStatusList();
-        assertEquals(1, taskStatus.size());
-        assertEquals(taskIdServer, taskStatus.get(0).getTaskId());
-        assertEquals(Protos.TaskState.TASK_RUNNING, taskStatus.get(0).getState());
+        assertEquals(0, taskStatus.size());
 
         List<CassandraFrameworkProtos.SlaveStatusDetails> slaveStatusDetailsList = driver.frameworkMessages();
         assertEquals(1, slaveStatusDetailsList.size());
         assertTrue(slaveStatusDetailsList.get(0).hasHealthCheckDetails());
         assertTrue(slaveStatusDetailsList.get(0).getHealthCheckDetails().getHealthy());
+    }
+
+    private void shutdownServer() {
+        List<Protos.TaskStatus> taskStatus = driver.taskStatusList();
+        assertEquals(0, taskStatus.size());
+
+        driver.killTask(taskIdServer);
+
+        taskStatus = driver.taskStatusList();
+        assertEquals(1, taskStatus.size());
+        // server task finished...
+        assertEquals(taskIdServer, taskStatus.get(0).getTaskId());
+        assertEquals(Protos.TaskState.TASK_FINISHED, taskStatus.get(0).getState());
+
+        List<CassandraFrameworkProtos.SlaveStatusDetails> slaveStatusDetailsList = driver.frameworkMessages();
+        assertEquals(1, slaveStatusDetailsList.size());
+        assertTrue(slaveStatusDetailsList.get(0).hasHealthCheckDetails());
+        assertFalse(slaveStatusDetailsList.get(0).getHealthCheckDetails().getHealthy());
     }
 
     private List<Protos.TaskStatus> taskStartingRunning(Protos.TaskID taskId) {

@@ -130,6 +130,9 @@ public final class CassandraScheduler implements Scheduler {
                             final ExecutorMetadata executorMetadata = statusDetails.getExecutorMetadata();
                             cassandraCluster.addExecutorMetadata(executorMetadata);
                             break;
+                        case CASSANDRA_SERVER_RUN:
+                            cassandraCluster.updateCassandraProcess(executorId, statusDetails.getCassandraServerRunMetadata());
+                            break;
                         case HEALTH_CHECK_DETAILS:
                             break;
                         case ERROR_DETAILS:
@@ -256,71 +259,90 @@ public final class CassandraScheduler implements Scheduler {
             LOGGER.debug(marker, "> evaluateOffer(driver : {}, offer : {})", protoToString(offer));
         }
 
-        final List<TaskInfo> taskInfos = newArrayList();
-
         TasksForOffer tasksForOffer = cassandraCluster.getTasksForOffer(offer);
-        if (tasksForOffer != null && tasksForOffer.hasExecutor()) {
-            final ExecutorID executorId = executorId(tasksForOffer.getExecutor().getExecutorId());
-            final List<String> fullCommand = newArrayList(tasksForOffer.getExecutor().getCommand());
-            fullCommand.addAll(tasksForOffer.getExecutor().getCommandArgsList());
+        if (tasksForOffer == null || !tasksForOffer.hasAnyTask()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(marker, "< evaluateOffer(driver : {}, offer : {}) = nothing to do", protoToString(offer));
+            }
+            return false;
+        }
 
-            for (final CassandraNodeTask cassandraNodeTask : tasksForOffer.getLaunchTasks()) {
+        final ExecutorID executorId = executorId(tasksForOffer.getExecutor().getExecutorId());
 
-                final TaskDetails taskDetails = cassandraNodeTask.getTaskDetails();
+        // process tasks to kill
+        for (TaskID taskID : tasksForOffer.getKillTasks()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(marker, "killing task {} on executor {}, slave {}", protoToString(taskID), protoToString(executorId), protoToString(offer.getSlaveId()));
+            }
+            driver.killTask(taskID);
+        }
 
-                final ExecutorInfo info = executorInfo(
-                    executorId,
-                    executorId.getValue(),
-                    tasksForOffer.getExecutor().getSource(),
-                    commandInfo(
-                        JOIN_WITH_SPACE.join(fullCommand),
-                        environmentFromTaskEnv(tasksForOffer.getExecutor().getTaskEnv()),
-                        newArrayList(from(tasksForOffer.getExecutor().getResourceList()).transform(uriToCommandInfoUri))
-                    ),
-                    cpu(tasksForOffer.getExecutor().getCpuCores()),
-                    mem(tasksForOffer.getExecutor().getMemMb()),
-                    disk(tasksForOffer.getExecutor().getDiskMb())
-                );
+        // process tasks to submit as framework message
+        for (TaskDetails taskDetails : tasksForOffer.getSubmitTasks()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(marker, "submitting framework message to executor {}, slave {} : {}", protoToString(executorId), protoToString(offer.getSlaveId()), protoToString(taskDetails));
+            }
+            driver.sendFrameworkMessage(executorId, offer.getSlaveId(), taskDetails.toByteArray());
+        }
 
-                final TaskID taskId = taskId(cassandraNodeTask.getTaskId());
-                final List<Resource> resources = newArrayList(
-                    cpu(cassandraNodeTask.getCpuCores()),
-                    mem(cassandraNodeTask.getMemMb()),
-                    disk(cassandraNodeTask.getDiskMb())
-                );
-                if (!cassandraNodeTask.getPortsList().isEmpty()) {
-                    resources.add(ports(cassandraNodeTask.getPortsList()));
-                }
+        if (tasksForOffer.getLaunchTasks().isEmpty()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(marker, "< evaluateOffer(driver : {}, offer : {}) = no tasks to launch", protoToString(offer));
+            }
+            // no tasks to launch
+            return false;
+        }
 
-                final TaskInfo task = TaskInfo.newBuilder()
-                    .setName(taskId.getValue())
-                    .setTaskId(taskId)
-                    .setSlaveId(offer.getSlaveId())
-                    .setData(ByteString.copyFrom(taskDetails.toByteArray()))
-                    .addAllResources(resources)
-                    .setExecutor(info)
-                    .build();
+        final List<TaskInfo> taskInfos = newArrayList();
+        final List<String> fullCommand = newArrayList(tasksForOffer.getExecutor().getCommand());
+        fullCommand.addAll(tasksForOffer.getExecutor().getCommandArgsList());
 
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug(marker, "Launching task {} in executor {}. Details = {}", taskDetails.getTaskType(), cassandraNodeTask.getExecutorId(), protoToString(task));
-                }
-                taskInfos.add(task);
+        for (final CassandraNodeTask cassandraNodeTask : tasksForOffer.getLaunchTasks()) {
+
+            final TaskDetails taskDetails = cassandraNodeTask.getTaskDetails();
+
+            final ExecutorInfo info = executorInfo(
+                executorId,
+                executorId.getValue(),
+                tasksForOffer.getExecutor().getSource(),
+                commandInfo(
+                    JOIN_WITH_SPACE.join(fullCommand),
+                    environmentFromTaskEnv(tasksForOffer.getExecutor().getTaskEnv()),
+                    newArrayList(from(tasksForOffer.getExecutor().getResourceList()).transform(uriToCommandInfoUri))
+                ),
+                cpu(tasksForOffer.getExecutor().getCpuCores()),
+                mem(tasksForOffer.getExecutor().getMemMb()),
+                disk(tasksForOffer.getExecutor().getDiskMb())
+            );
+
+            final TaskID taskId = taskId(cassandraNodeTask.getTaskId());
+            final List<Resource> resources = newArrayList(
+                cpu(cassandraNodeTask.getCpuCores()),
+                mem(cassandraNodeTask.getMemMb()),
+                disk(cassandraNodeTask.getDiskMb())
+            );
+            if (!cassandraNodeTask.getPortsList().isEmpty()) {
+                resources.add(ports(cassandraNodeTask.getPortsList()));
             }
 
-            for (TaskDetails taskDetails : tasksForOffer.getSubmitTasks()) {
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug(marker, "submitting framework message to executor {}, slave {} : {}", protoToString(executorId), protoToString(offer.getSlaveId()), protoToString(taskDetails));
-                }
-                driver.sendFrameworkMessage(executorId, offer.getSlaveId(), taskDetails.toByteArray());
+            final TaskInfo task = TaskInfo.newBuilder()
+                .setName(taskId.getValue())
+                .setTaskId(taskId)
+                .setSlaveId(offer.getSlaveId())
+                .setData(ByteString.copyFrom(taskDetails.toByteArray()))
+                .addAllResources(resources)
+                .setExecutor(info)
+                .build();
+
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(marker, "Launching task {} in executor {}. Details = {}", taskDetails.getTaskType(), cassandraNodeTask.getExecutorId(), protoToString(task));
             }
+            taskInfos.add(task);
         }
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(marker, "< evaluateOffer(driver : {}, offer : {}) = {}", protoToString(offer), protoToString(taskInfos));
         }
-
-        if (taskInfos.isEmpty())
-            return false;
 
         driver.launchTasks(Collections.singleton(offer.getId()), taskInfos);
 

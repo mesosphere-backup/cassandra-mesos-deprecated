@@ -30,7 +30,7 @@ import java.util.Map;
 
 // production object factory - there's another implementation, that's used for mocked unit tests
 final class ProdObjectFactory implements ObjectFactory {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CassandraExecutor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProdObjectFactory.class);
 
     @Override
     public JmxConnect newJmxConnect(CassandraFrameworkProtos.JmxConnect jmx) {
@@ -64,23 +64,11 @@ final class ProdObjectFactory implements ObjectFactory {
         processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
         if (LOGGER.isDebugEnabled())
             LOGGER.debug("Starting Process: {}", processBuilderToString(processBuilder));
-        final Process p;
         try {
-            p = processBuilder.start();
+            return new ProdWrappedProcess(processBuilder.start());
         } catch (IOException e) {
             throw new LaunchNodeException("Failed to start process", e);
         }
-        return new WrappedProcess() {
-            @Override
-            public void destroy() {
-                p.destroy();
-            }
-
-            @Override
-            public int exitValue() {
-                return p.exitValue();
-            }
-        };
     }
 
     @NotNull

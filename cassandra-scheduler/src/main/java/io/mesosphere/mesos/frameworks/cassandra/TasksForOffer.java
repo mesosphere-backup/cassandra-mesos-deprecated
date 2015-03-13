@@ -22,11 +22,13 @@ public class TasksForOffer {
     private final CassandraFrameworkProtos.CassandraNodeExecutor executor;
     private final List<CassandraFrameworkProtos.CassandraNodeTask> launchTasks;
     private final List<CassandraFrameworkProtos.TaskDetails> submitTasks;
+    private final List<Protos.TaskID> killTasks;
 
     public TasksForOffer(CassandraFrameworkProtos.CassandraNodeExecutor executor) {
         this.executor = executor;
         this.launchTasks = new ArrayList<>();
         this.submitTasks = new ArrayList<>();
+        this.killTasks = new ArrayList<>();
     }
 
     public CassandraFrameworkProtos.CassandraNodeExecutor getExecutor() {
@@ -41,8 +43,12 @@ public class TasksForOffer {
         return submitTasks;
     }
 
+    public List<Protos.TaskID> getKillTasks() {
+        return killTasks;
+    }
+
     public boolean hasAnyTask() {
-        return !submitTasks.isEmpty() || !launchTasks.isEmpty();
+        return !submitTasks.isEmpty() || !launchTasks.isEmpty() || !killTasks.isEmpty();
     }
 
     public boolean hasExecutor() {

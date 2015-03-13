@@ -17,12 +17,11 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.google.common.base.Optional;
+import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
@@ -183,17 +182,28 @@ public final class ApiController {
             for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
                 json.writeStartObject();
 
-                writeTask(json, "serverTask", cassandraNode.getServerTask());
-                writeTask(json, "metadataTask", cassandraNode.getMetadataTask());
+                writeTask(json, "serverTask", CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+                writeTask(json, "metadataTask", CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraFrameworkProtos.CassandraNodeTask.TaskType.METADATA));
 // TODO                cassandraNode.getDataVolumesList();
 
-                json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                if (!cassandraNode.hasCassandraNodeExecutor()) {
+                    json.writeNullField("executorId");
+                } else {
+                    json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                }
                 json.writeStringField("ip", cassandraNode.getIp());
                 json.writeStringField("hostname", cassandraNode.getHostname());
+                json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
                 json.writeNumberField("jmxPort", cassandraNode.getJmxConnect().getJmxPort());
-// TODO               json.writeStringField("status", executorMetadata.getStatus().name());
+                json.writeBooleanField("seedNode", cassandraNode.getSeed());
+                if (!cassandraNode.hasCassandraDaemonPid()) {
+                    json.writeNullField("cassandraDaemonPid");
+                } else {
+                    json.writeNumberField("cassandraDaemonPid", cassandraNode.getCassandraDaemonPid());
+                }
 
-                CassandraFrameworkProtos.HealthCheckHistoryEntry lastHealthCheck = cluster.lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                CassandraFrameworkProtos.HealthCheckHistoryEntry lastHealthCheck =
+                    cassandraNode.hasCassandraNodeExecutor() ? cluster.lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId()) : null;
 
                 if (lastHealthCheck != null)
                     json.writeNumberField("lastHealthCheck", lastHealthCheck.getTimestampEnd());
@@ -295,7 +305,7 @@ public final class ApiController {
 
     // cluster scaling
 
-    @GET
+    @POST
     @Path("/scale/nodes")
     public Response updateNodeCount(@QueryParam("nodes") int nodeCount) {
         StringWriter sw = new StringWriter();
@@ -528,5 +538,63 @@ public final class ApiController {
         json.writeEndArray();
 
         json.writeEndObject();
+    }
+
+    // node run / stop / restart
+
+    @POST
+    @Path("/node/stop/{node}")
+    public Response nodeStop(@PathParam("node") String node) {
+        CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeStop(node);
+
+        return nodeStatusUpdate(cassandraNode);
+    }
+
+    @POST
+    @Path("/node/run/{node}")
+    public Response nodeStart(@PathParam("node") String node) {
+        CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeRun(node);
+
+        return nodeStatusUpdate(cassandraNode);
+    }
+
+    @POST
+    @Path("/node/restart/{node}")
+    public Response nodeRestart(@PathParam("node") String node) {
+        CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeRestart(node);
+
+        return nodeStatusUpdate(cassandraNode);
+    }
+
+    private static Response nodeStatusUpdate(CassandraFrameworkProtos.CassandraNode cassandraNode) {
+
+        int status = 200;
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            if (cassandraNode == null) {
+                status = 404;
+            } else {
+                json.writeStringField("ip", cassandraNode.getIp());
+                json.writeStringField("hostname", cassandraNode.getHostname());
+                if (!cassandraNode.hasCassandraNodeExecutor()) {
+                    json.writeNullField("executorId");
+                } else {
+                    json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                }
+                json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
+            }
+
+            json.writeEndObject();
+            json.close();
+        } catch (Exception e) {
+            LOGGER.error("Failed to build JSON response", e);
+            return Response.serverError().build();
+        }
+        return Response.status(status).entity(sw.toString()).type("application/json").build();
     }
 }

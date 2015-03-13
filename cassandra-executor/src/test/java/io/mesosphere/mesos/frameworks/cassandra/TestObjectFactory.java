@@ -45,6 +45,7 @@ class TestObjectFactory implements ObjectFactory {
     final String hostId = UUID.randomUUID().toString();
     final MockStorageService storageServiceProxy = new MockStorageService();
     final MockEndpointSnitchInfo endpointSnitchInfo = new MockEndpointSnitchInfo();
+    TestWrappedProcess process;
 
     @Override
     public JmxConnect newJmxConnect(CassandraFrameworkProtos.JmxConnect jmx) {
@@ -53,18 +54,38 @@ class TestObjectFactory implements ObjectFactory {
 
     @Override
     public WrappedProcess launchCassandraNodeTask(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask) throws LaunchNodeException {
-        return new WrappedProcess() {
+        return process = new TestWrappedProcess();
+    }
 
-            @Override
-            public void destroy() {
-                throw new UnsupportedOperationException();
-            }
+    private static class TestWrappedProcess implements WrappedProcess {
 
-            @Override
-            public int exitValue() {
+        int exitCode = -1;
+
+        @Override
+        public int getPid() {
+            return 42;
+        }
+
+        @Override
+        public void destroy() {
+            daemonStopped();
+        }
+
+        @Override
+        public void destroyForcibly() {
+            // nop
+        }
+
+        @Override
+        public int exitValue() {
+            if (exitCode == -1)
                 throw new IllegalThreadStateException();
-            }
-        };
+            return exitCode;
+        }
+
+        public void daemonStopped() {
+            exitCode = 0;
+        }
     }
 
     final class TestJmxConnect implements JmxConnect {
@@ -253,6 +274,11 @@ class TestObjectFactory implements ObjectFactory {
             for (NotificationListener listener : new ArrayList<>(listeners)) {
                 listener.handleNotification(notification, null);
             }
+        }
+
+        @Override
+        public void stopDaemon() {
+            process.daemonStopped();
         }
 
         //
@@ -501,11 +527,6 @@ class TestObjectFactory implements ObjectFactory {
 
         @Override
         public void startGossiping() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void stopDaemon() {
             throw new UnsupportedOperationException();
         }
 

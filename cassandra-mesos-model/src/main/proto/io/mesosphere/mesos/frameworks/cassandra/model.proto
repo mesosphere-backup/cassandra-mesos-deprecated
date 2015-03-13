@@ -166,12 +166,28 @@ message CassandraNode {
     repeated DataVolume dataVolumes = 4;
     optional CassandraNodeExecutor cassandraNodeExecutor = 5;
 
-    optional CassandraNodeTask metadataTask = 6;
-    optional CassandraNodeTask serverTask = 7;
+    repeated CassandraNodeTask tasks = 6;
 
     required bool seed = 8;
     optional int64 lastRepairTimestamp = 9;
     optional int64 lastCleanupTimestamp = 10;
+
+    // Indicates whether a node should run or not.
+    required TargetRunState targetRunState = 11;
+
+    optional int32 cassandraDaemonPid = 12;
+
+    enum TargetRunState {
+        // If the server task is not active, it is started.
+        // Note that general bootstrap-grace-time settings and other checks (e.g. currently other nodes joining) apply.
+        RUN = 0;
+        // If the server-task is active, a server-task shutdown is initiated.
+        STOP = 1;
+        // If the server task is not active, the state is immediately set to RUN.
+        // If the server-task is active, a server-task shutdown is initiated.
+        // Note that general bootstrap-grace-time settings and other checks (e.g. currently other nodes joining) apply.
+        RESTART = 2;
+    }
 }
 message DataVolume {
     required string path = 1;
@@ -199,31 +215,35 @@ message URI {
 }
 
 message CassandraNodeTask {
-    required string taskId = 1;
-    required string executorId = 2;
-    required double cpuCores = 3;
-    required int64 memMb = 4;
-    required int64 diskMb = 5;
-    repeated int64 ports = 6;
+    required TaskType taskType = 1;
+    required string taskId = 2;
+    required string executorId = 3;
+    required double cpuCores = 4;
+    required int64 memMb = 5;
+    required int64 diskMb = 6;
+    repeated int64 ports = 7;
 
-    optional TaskDetails taskDetails = 7;
+    optional TaskDetails taskDetails = 8;
+
+    enum TaskType {
+        METADATA = 1;
+        SERVER = 2;
+        CLUSTER_JOB = 3;
+    }
 }
 
 message TaskDetails {
     required TaskType taskType = 1;
     optional ExecutorMetadataTask executorMetadataTask = 2;
     optional CassandraServerRunTask cassandraServerRunTask = 3;
-    optional CassandraServerShutdownTask cassandraServerShutdownTask = 4;
-    optional HealthCheckTask healthCheckTask = 5;
-    optional NodeJobTask nodeJobTask = 6;
+    optional NodeJobTask nodeJobTask = 4;
 
     enum TaskType {
         EXECUTOR_METADATA = 1;
         CASSANDRA_SERVER_RUN = 2;
-        CASSANDRA_SERVER_SHUTDOWN = 3;
-        HEALTH_CHECK = 4;
-        NODE_JOB = 5;
-        NODE_JOB_STATUS = 6;
+        HEALTH_CHECK = 3;
+        NODE_JOB = 4;
+        NODE_JOB_STATUS = 5;
     }
 }
 
@@ -239,12 +259,6 @@ message CassandraServerRunTask {
     repeated TaskFile taskFiles = 4;
     required TaskConfig taskConfig = 5;
     required JmxConnect jmx = 6;
-}
-
-message CassandraServerShutdownTask {
-}
-
-message HealthCheckTask {
 }
 
 message NodeJobTask {
@@ -291,22 +305,28 @@ message TaskEnv {
 message SlaveStatusDetails {
     required StatusDetailsType statusDetailsType = 1;
     optional ExecutorMetadata executorMetadata = 2;
-    optional SlaveErrorDetails slaveErrorDetails = 3;
-    optional HealthCheckDetails healthCheckDetails = 4;
-    optional NodeJobStatus nodeJobStatus = 5;
+    optional CassandraServerRunMetadata cassandraServerRunMetadata = 3;
+    optional SlaveErrorDetails slaveErrorDetails = 4;
+    optional HealthCheckDetails healthCheckDetails = 5;
+    optional NodeJobStatus nodeJobStatus = 6;
 
     enum StatusDetailsType {
         NULL_DETAILS = 1;
         EXECUTOR_METADATA = 2;
-        ERROR_DETAILS = 3;
-        HEALTH_CHECK_DETAILS = 4;
-        NODE_JOB_STATUS = 5;
+        CASSANDRA_SERVER_RUN = 3;
+        ERROR_DETAILS = 4;
+        HEALTH_CHECK_DETAILS = 5;
+        NODE_JOB_STATUS = 6;
     }
 }
 
 message ExecutorMetadata {
     required string executorId = 1;
     optional string ip = 2;
+}
+
+message CassandraServerRunMetadata {
+    required int32 pid = 1;
 }
 
 message SlaveErrorDetails {

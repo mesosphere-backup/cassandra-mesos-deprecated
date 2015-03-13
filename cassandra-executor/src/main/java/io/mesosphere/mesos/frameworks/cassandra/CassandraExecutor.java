@@ -244,45 +244,6 @@ public final class CassandraExecutor implements Executor {
         }
     }
 
-    private void killCassandraDaemon(ExecutorDriver driver) {
-        if (!killDaemonSingleton.compareAndSet(false, true))
-            return;
-        try {
-            TaskInfo task = serverTask;
-            LOGGER.info("Stopping Cassandra Daemon...");
-            try {
-                try {
-                    // note: although we could also use jmxConnect.getStorageServiceProxy().stopDaemon();
-                    // it is safe to do it this way
-                    process.destroy();
-                } catch (Throwable ignored) {
-                    // any kind of strange exception may occur since shutdown closes everything
-                }
-                // TODO make shutdown timeout configurable
-                long timeoutAt = System.currentTimeMillis() + 1800000L;
-                while (true) {
-                    if (timeoutAt < System.currentTimeMillis()) {
-                        process.destroyForcibly();
-                        break;
-                    }
-                    try {
-                        int exitCode = process.exitValue();
-                        LOGGER.info("Cassandra process terminated with exit code {}", exitCode);
-                        break;
-                    } catch (IllegalThreadStateException e) {
-                        // ignore
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.error("Failed to stop Cassandra daemon - forcing process destroy", e);
-            }
-            safeShutdown(driver);
-            driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
-        } finally {
-            killDaemonSingleton.set(false);
-        }
-    }
-
     @Override
     public void frameworkMessage(final ExecutorDriver driver, final byte[] data) {
         if (LOGGER.isDebugEnabled()) {
@@ -307,15 +268,6 @@ public final class CassandraExecutor implements Executor {
             final String msg = "Error handling framework message due to exception.";
             LOGGER.error(msg, e);
         }
-    }
-
-    private void healthCheck(ExecutorDriver driver) {
-        final HealthCheckDetails healthCheck = performHealthCheck();
-        final SlaveStatusDetails healthCheckDetails = SlaveStatusDetails.newBuilder()
-                .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.HEALTH_CHECK_DETAILS)
-                .setHealthCheckDetails(healthCheck)
-                .build();
-        driver.sendFrameworkMessage(healthCheckDetails.toByteArray());
     }
 
     @Override
@@ -374,6 +326,54 @@ public final class CassandraExecutor implements Executor {
     }
 
     //
+
+    private void killCassandraDaemon(ExecutorDriver driver) {
+        if (!killDaemonSingleton.compareAndSet(false, true))
+            return;
+        try {
+            TaskInfo task = serverTask;
+            LOGGER.info("Stopping Cassandra Daemon...");
+            try {
+                try {
+                    // note: although we could also use jmxConnect.getStorageServiceProxy().stopDaemon();
+                    // it is safe to do it this way
+                    process.destroy();
+                } catch (Throwable ignored) {
+                    // any kind of strange exception may occur since shutdown closes everything
+                }
+                // TODO make shutdown timeout configurable
+                long timeoutAt = System.currentTimeMillis() + 1800000L;
+                while (true) {
+                    if (timeoutAt < System.currentTimeMillis()) {
+                        process.destroyForcibly();
+                        break;
+                    }
+                    try {
+                        int exitCode = process.exitValue();
+                        LOGGER.info("Cassandra process terminated with exit code {}", exitCode);
+                        break;
+                    } catch (IllegalThreadStateException e) {
+                        // ignore
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("Failed to stop Cassandra daemon - forcing process destroy", e);
+            }
+            safeShutdown(driver);
+            driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
+        } finally {
+            killDaemonSingleton.set(false);
+        }
+    }
+
+    private void healthCheck(ExecutorDriver driver) {
+        final HealthCheckDetails healthCheck = performHealthCheck();
+        final SlaveStatusDetails healthCheckDetails = SlaveStatusDetails.newBuilder()
+            .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.HEALTH_CHECK_DETAILS)
+            .setHealthCheckDetails(healthCheck)
+            .build();
+        driver.sendFrameworkMessage(healthCheckDetails.toByteArray());
+    }
 
     @NotNull
     private static ExecutorMetadata collectSlaveMetadata(@NotNull final ExecutorMetadataTask executorMetadata) {

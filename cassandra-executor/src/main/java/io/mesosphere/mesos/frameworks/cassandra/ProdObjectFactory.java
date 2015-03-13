@@ -27,6 +27,7 @@ import java.io.*;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 // production object factory - there's another implementation, that's used for mocked unit tests
 final class ProdObjectFactory implements ObjectFactory {
@@ -50,6 +51,7 @@ final class ProdObjectFactory implements ObjectFactory {
 
             modifyCassandraYaml(taskIdMarker, cassandraNodeTask);
             modifyCassandraEnvSh(taskIdMarker, cassandraNodeTask);
+            modifyCassandraRackdc(taskIdMarker, cassandraNodeTask);
         } catch (IOException e) {
             throw new LaunchNodeException("Failed to prepare instance files", e);
         }
@@ -77,6 +79,24 @@ final class ProdObjectFactory implements ObjectFactory {
                 "directory() = " + builder.directory() + ",\n" +
                 "command() = " + Joiner.on(" ").join(builder.command()) + ",\n" +
                 "environment() = " + Joiner.on("\n").withKeyValueSeparator("->").join(builder.environment()) + "\n}";
+    }
+
+    private static void modifyCassandraRackdc(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask) throws IOException {
+        CassandraFrameworkProtos.NodeLocation location = cassandraNodeTask.hasLocation() ? cassandraNodeTask.getLocation() : null;
+
+        LOGGER.info(taskIdMarker, "Building cassandra-rackdc.properties");
+
+        Properties props = new Properties();
+        props.put("dc", location != null && !location.getDatacenter().isEmpty() ? location.getDatacenter() : "DC1");
+        props.put("rack", location != null && !location.getRack().isEmpty() ? location.getRack() : "RAC1");
+        // Add a suffix to a datacenter name. Used by the Ec2Snitch and Ec2MultiRegionSnitch to append a string to the EC2 region name.
+        //props.put("dc_suffix", "");
+        // Uncomment the following line to make this snitch prefer the internal ip when possible, as the Ec2MultiRegionSnitch does.
+        //props.put("prefer_local", "true");
+        File cassandraRackDc = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra-rackdc.properties");
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(cassandraRackDc))) {
+            props.store(bw, "Created by Apache Mesos Cassandra framework");
+        }
     }
 
     private static void modifyCassandraEnvSh(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask) throws IOException {

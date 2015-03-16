@@ -25,8 +25,15 @@ import org.apache.mesos.Protos.FrameworkInfo;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.state.State;
 import org.apache.mesos.state.ZooKeeperState;
+import org.glassfish.grizzly.http.server.HttpHandlerRegistration;
 import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.glassfish.grizzly.http.server.NetworkListener;
+import org.glassfish.grizzly.http.server.ServerConfiguration;
+import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
+import org.glassfish.grizzly.nio.transport.TCPNIOTransportBuilder;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpContainer;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpContainerProvider;
+import org.glassfish.jersey.grizzly2.httpserver.internal.LocalizationMessages;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.NotNull;
@@ -35,6 +42,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
+import javax.ws.rs.ProcessingException;
+import java.io.IOException;
 import java.net.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Handler;
@@ -173,8 +182,7 @@ public final class Main {
         final ResourceConfig rc = new ResourceConfig()
             .register(new FileResourceController())
             .register(new ApiController(cassandraCluster));
-            //.packages("io.mesosphere.mesos.frameworks.cassandra");
-        final HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
+        final HttpServer httpServer = createHttpServer(port0, rc);
 
         final MesosSchedulerDriver driver;
         final Optional<Credential> credentials = getCredential();
@@ -206,6 +214,47 @@ public final class Main {
         // Ensure that the driver process terminates.
         driver.stop();
         return status;
+    }
+
+    private static HttpServer createHttpServer(int port, ResourceConfig rc) {
+        GrizzlyHttpContainer handler = new GrizzlyHttpContainerProvider().createContainer(GrizzlyHttpContainer.class, rc);
+
+        String contextPath = "";
+
+        TCPNIOTransport transport = TCPNIOTransportBuilder.newInstance()
+            .build();
+
+        final NetworkListener listener = new NetworkListener("grizzly", false);
+        listener.setTransport(transport);
+        listener.setSecure(false);
+
+        final HttpServer server = new HttpServer();
+        server.addListener(listener);
+
+        // Map the path to the processor.
+        final ServerConfiguration config = server.getServerConfiguration();
+        if (handler != null) {
+            config.addHttpHandler(handler,
+                HttpHandlerRegistration.bulder()
+                    .contextPath(contextPath)
+                    .build()
+            );
+        }
+
+        config.setPassTraceRequest(true);
+
+        try {
+            // Not a clean hack, but this is a trick to bind the transport to any address (0.0.0.0)
+            transport.bind(port);
+
+            // Start the server.
+            server.start();
+        } catch (final IOException ex) {
+            server.shutdownNow();
+            throw new ProcessingException(LocalizationMessages.FAILED_TO_START_SERVER(ex.getMessage()), ex);
+        }
+
+        return server;
     }
 
     static String frameworkName(final Optional<String> clusterName) {

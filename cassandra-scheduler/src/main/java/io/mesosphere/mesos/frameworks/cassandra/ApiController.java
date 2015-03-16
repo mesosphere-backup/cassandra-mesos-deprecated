@@ -26,6 +26,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
 
@@ -154,6 +155,99 @@ public final class ApiController {
             writeClusterJob(json, "lastCleanup", lastCleanup);
 
             json.writeNumberField("nextPossibleServerLaunchTimestamp", cluster.nextPossibleServerLaunchTimestamp());
+
+            json.writeEndObject();
+            json.close();
+        } catch (Exception e) {
+            LOGGER.error("Failed to all nodes list", e);
+            return Response.serverError().build();
+        }
+
+        return Response.ok(sw.toString(), "application/json").build();
+    }
+
+    @GET
+    @Path("/qaReportResources/text")
+    public Response qaReportResourcesText() {
+        StringWriter sw = new StringWriter();
+        try (PrintWriter pw = new PrintWriter(sw)) {
+            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
+
+            CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
+            for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
+
+                if (!cassandraNode.hasCassandraNodeExecutor()) {
+                    continue;
+                }
+
+                CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                if (executorMetadata == null) {
+                    continue;
+                }
+
+                String workdir = executorMetadata.getWorkdir();
+                pw.println("IP: " + cassandraNode.getIp());
+                pw.println("BASE: http://" + cassandraNode.getIp() + ":5051/");
+
+                pw.println("LOG: " + workdir + "/executor.log");
+                pw.println("LOG: " + workdir + "/apache-cassandra-" + cluster.getConfiguration().getDefaultConfigRole().getCassandraVersion() + "/logs/system.log");
+
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to all nodes list", e);
+            return Response.serverError().build();
+        }
+
+        return Response.ok(sw.toString(), "text/plain").build();
+    }
+
+    @GET
+    @Path("/qaReportResources")
+    public Response qaReportResources() {
+        StringWriter sw = new StringWriter();
+        try {
+            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
+
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+
+            json.writeStartObject();
+            CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
+            json.writeObjectFieldStart("nodes");
+            for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
+
+                if (!cassandraNode.hasCassandraNodeExecutor()) {
+                    continue;
+                }
+
+                CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                if (executorMetadata == null) {
+                    continue;
+                }
+
+                json.writeObjectFieldStart(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                String workdir = executorMetadata.getWorkdir();
+                json.writeStringField("workdir", workdir);
+
+                json.writeStringField("slaveBaseUri", "http://" + cassandraNode.getIp() + ":5051/");
+
+                json.writeStringField("ip", cassandraNode.getIp());
+                json.writeStringField("hostname", cassandraNode.getHostname());
+                json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
+                json.writeNumberField("jmxPort", cassandraNode.getJmxConnect().getJmxPort());
+
+                json.writeBooleanField("live", cluster.isLiveNode(cassandraNode));
+
+                json.writeObjectFieldStart("logfiles");
+                json.writeStringField("executor", workdir + "/executor.log");
+                json.writeStringField("cassandraSystemLog", workdir + "/apache-cassandra-" + cluster.getConfiguration().getDefaultConfigRole().getCassandraVersion() + "/logs/system.log");
+                json.writeEndObject();
+
+                json.writeEndObject();
+
+            }
+            json.writeEndObject();
 
             json.writeEndObject();
             json.close();

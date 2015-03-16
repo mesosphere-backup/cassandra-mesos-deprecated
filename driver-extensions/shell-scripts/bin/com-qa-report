@@ -1,0 +1,40 @@
+#!/bin/sh
+
+_BINARY=bin/cqlsh
+. `dirname $0`/com.api.in.sh
+
+targetDir="qa-report-`date '+%Y-%m-%d-%H-%M-%S'`"
+if [ ! -z $1 ] ; then
+    targetDir="$1"
+fi
+
+echo "Downloading QA report files to ${targetDir}"
+
+curl -s "${API_BASE_URI}qaReportResources/text" | while read ln ; do
+    case $ln in
+        IP:*)
+            currentIp="`echo $ln | cut -d\  -f 2`"
+            echo "Retrieving log files from ${currentIp}"
+            mkdir -p ${targetDir}/${currentIp}
+            ;;
+        BASE:*)
+            currentBaseUri="`echo $ln | cut -d\  -f 2`"
+            ;;
+        LOG:*)
+            log="`echo $ln | cut -d\  -f 2`"
+            file="`basename ${log}`"
+            echo "   retrieving file ${file} ..."
+            curl -s "${currentBaseUri}files/download.json?path=${log}" > ${targetDir}/${currentIp}/${file}
+            curlExitCode=${PIPESTATUS[0]}
+            if [ "0" != "${curlExitCode}" ] ; then
+                echo "Failed to download ${file} from ${currentIp}. Curl exited with code ${curlExitCode}" > /dev/stderr
+            fi
+            ;;
+    esac
+done
+
+curlExitCode=${PIPESTATUS[0]}
+if [ "0" != "${curlExitCode}" ] ; then
+    echo "Could not retrieve list of executors and log files. Curl exited with code ${curlExitCode}" > /dev/stderr
+    exit ${curlExitCode}
+fi

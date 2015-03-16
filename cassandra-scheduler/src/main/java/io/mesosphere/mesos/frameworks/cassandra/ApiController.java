@@ -199,10 +199,18 @@ public final class ApiController {
                 writeTask(json, "metadataTask", CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraFrameworkProtos.CassandraNodeTask.TaskType.METADATA));
 // TODO                cassandraNode.getDataVolumesList();
 
+
                 if (!cassandraNode.hasCassandraNodeExecutor()) {
                     json.writeNullField("executorId");
+                    json.writeNullField("workdir");
                 } else {
                     json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                    CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                    if (executorMetadata != null) {
+                        json.writeStringField("workdir", executorMetadata.getWorkdir());
+                    } else {
+                        json.writeNullField("workdir");
+                    }
                 }
                 json.writeStringField("ip", cassandraNode.getIp());
                 json.writeStringField("hostname", cassandraNode.getHostname());

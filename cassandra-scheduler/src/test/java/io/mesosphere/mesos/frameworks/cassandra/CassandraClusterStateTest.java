@@ -206,6 +206,7 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         return CassandraFrameworkProtos.ExecutorMetadata.newBuilder()
                 .setExecutorId(executorID)
                 .setIp(slave._2)
+                .setWorkdir("/foo/bar/baz")
                 .build();
     }
 

@@ -1087,7 +1087,8 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
                     .setStatusDetailsType(CassandraFrameworkProtos.SlaveStatusDetails.StatusDetailsType.EXECUTOR_METADATA)
                     .setExecutorMetadata(CassandraFrameworkProtos.ExecutorMetadata.newBuilder()
                         .setExecutorId(executorIdValue(taskInfo))
-                        .setIp("NO_IP!!!"))
+                        .setIp("NO_IP!!!")
+                        .setWorkdir("/foo/bar/baz"))
                     .build().toByteString())
                 .build());
     }

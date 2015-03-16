@@ -238,33 +238,35 @@ CASSANDRA_FILE_PATH=${PROJECT_DIR}/target/framework-package/cassandra.tar.gz
 
 ## Using Cassandra tools
 
-You can use standard command line tools delivered with Apache Cassandra against clusters running on
-Apache Mesos.
+Support for standard command line tools delivered with Apache Cassandra against clusters running on
+Apache Mesos is provided using the provided shell scripts starting with `com-`. These tools use the
+_live nodes API_ discussed below.
+
+These are:
+
+* `com-cqlsh` to invoke `cqlsh` without bothering about actual endpoints. It connects to any (random)
+  live Cassandra node.
+* `com-nodetool` to invoke `nodetool` without bothering about actual endpoints. It connects to any (random)
+  live Cassandra node.
+* `com-stress` to invoke `cassandra-stress` without bothering about actual endpoints. It connects to any (random)
+  live Cassandra node.
+
+All these tools are configured using environment variables and special command line options. These command
+line options must be specified directly after the command name.
+ 
+Environment variables:
+
+* `CASSANDRA_HOME` path to where your local unpacked Apache Cassandra distribution lives. Defaults to `.`
+* `API_HOST` host name where the Cassandra-on-Mesos scheduler is running. Defaults to `127.0.0.1`
+* `API_PORT` port on which the Cassandra-on-Mesos scheduler is listening. Defaults to `18080`
+
+Command line options:
+* `--limit N` the number of live nodes to use. Has no effect for cqlsh or nodetool.
+
+## Live Cassandra nodes API
 
 This framework provides API endpoints for most tools. All you need is `curl` and the hostname/IP of
 the node running the scheduler of this framework.
-
-An example how to invoke `nodetool`:
-
-```
-cassandra/2.1/bin/nodetool `curl -s http://192.168.5.101:18080/live-nodes/nodetool` status
-Datacenter: datacenter1
-=======================
-Status=Up/Down
-|/ State=Normal/Leaving/Joining/Moving
---  Address    Load       Tokens  Owns (effective)  Host ID                               Rack
-UN  127.0.0.1  41,12 KB   256     100,0%            dc04253f-d878-4d44-acf3-dc014e058b03  rack1
-UN  127.0.0.2  55,51 KB   256     100,0%            685e82e9-fa26-4d12-bee3-13d4f823f5c9  rack1
-```
-
-More examples (note that you have to adjust the path `cassandra/2.1` to where your Apache Cassandra
-distribution lives):
-
-```
-cassandra/2.1/bin/cqlsh `curl -s http://192.168.5.101:18080/live-nodes/cqlsh`
-cassandra/2.1/bin/nodetool `curl -s http://192.168.5.101:18080/live-nodes/nodetool` status
-cassandra/2.1/tools/bin/cassandra-stress read `curl -s http://192.168.5.101:18080/live-nodes/stress`
-```
 
 There are also two endpoints - one returns a simple JSON structure and one just plain ASCII with the native port
 in the first line and node IP addresses on each following line. The number as the last part of the path determines

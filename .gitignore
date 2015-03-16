@@ -30,3 +30,6 @@ target/
 **/cassandra-executor.log*.zip
 **/executor.log
 **/executor.log*.zip
+
+driver-extensions/cluster-loadtest/cassandra.logdir_IS_UNDEFINED/**
+driver-extensions/cluster-loadtest/loadtest-*/**

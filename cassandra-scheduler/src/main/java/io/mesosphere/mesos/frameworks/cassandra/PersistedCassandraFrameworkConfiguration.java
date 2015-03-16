@@ -1,3 +1,16 @@
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import com.google.common.base.Function;
@@ -15,13 +28,9 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     public PersistedCassandraFrameworkConfiguration(
         @NotNull final State state,
         @NotNull final String frameworkName,
-        @NotNull final String cassandraVersion,
-        final int numberOfNodes,
-        final double cpuCores,
-        final long memMb,
-        final long diskMb,
+        @NotNull final CassandraFrameworkProtos.CassandraConfigRole defaultConfigRole,
         final long healthCheckIntervalSeconds,
-        final String mesosRoles
+        final long bootstrapGraceTimeSec
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -31,13 +40,9 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                 public CassandraFrameworkConfiguration get() {
                     return CassandraFrameworkConfiguration.newBuilder()
                         .setFrameworkName(frameworkName)
-                        .setCassandraVersion(cassandraVersion)
-                        .setNumberOfNodes(numberOfNodes)
-                        .setCpuCores(cpuCores)
-                        .setMemMb(memMb)
-                        .setDiskMb(diskMb)
+                        .setDefaultConfigRole(fillConfigRoleGaps(defaultConfigRole))
                         .setHealthCheckIntervalSeconds(healthCheckIntervalSeconds)
-                        .setMesosRole(mesosRoles)
+                        .setBootstrapGraceTimeSeconds(bootstrapGraceTimeSec)
                         .build();
                 }
             },
@@ -60,6 +65,32 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         );
     }
 
+    public static CassandraFrameworkProtos.CassandraConfigRole fillConfigRoleGaps(CassandraFrameworkProtos.CassandraConfigRole configRole) {
+        CassandraFrameworkProtos.CassandraConfigRole.Builder builder = CassandraFrameworkProtos.CassandraConfigRole.newBuilder(configRole);
+        if (builder.hasMemMb()) {
+            if (!builder.hasMemJavaHeapMb()) {
+                builder.setMemJavaHeapMb(Math.min(builder.getMemMb() / 2, 16384));
+            }
+            if (!builder.hasMemAssumeOffHeapMb()) {
+                builder.setMemAssumeOffHeapMb(builder.getMemMb() - builder.getMemJavaHeapMb());
+            }
+        } else  {
+            if (builder.hasMemJavaHeapMb()) {
+                if (!builder.hasMemAssumeOffHeapMb()) {
+                    builder.setMemAssumeOffHeapMb(builder.getMemJavaHeapMb());
+                }
+            } else {
+                if (builder.hasMemAssumeOffHeapMb()) {
+                    builder.setMemJavaHeapMb(builder.getMemAssumeOffHeapMb());
+                } else {
+                    throw new IllegalArgumentException("Config role is missing memory configuration");
+                }
+            }
+            builder.setMemMb(builder.getMemJavaHeapMb() + builder.getMemAssumeOffHeapMb());
+        }
+        return builder.build();
+    }
+
     @NotNull
     public Optional<String> frameworkId() {
         return Optional.fromNullable(get().getFrameworkId());
@@ -67,22 +98,14 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
 
     public void frameworkId(@NotNull final String frameworkId) {
         setValue(
-            CassandraFrameworkConfiguration.newBuilder(get())
-                .setFrameworkId(frameworkId)
-                .build()
+                CassandraFrameworkConfiguration.newBuilder(get())
+                        .setFrameworkId(frameworkId)
+                        .build()
         );
     }
 
-    public double cpuCores() {
-        return get().getCpuCores();
-    }
-
-    public long memMb() {
-        return get().getMemMb();
-    }
-
-    public long diskMb() {
-        return get().getDiskMb();
+    public CassandraFrameworkProtos.CassandraConfigRole getDefaultConfigRole() {
+        return get().getDefaultConfigRole();
     }
 
     @NotNull
@@ -90,22 +113,52 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         return Duration.standardSeconds(get().getHealthCheckIntervalSeconds());
     }
 
+    public void healthCheckInterval(Duration interval) {
+        setValue(
+                CassandraFrameworkConfiguration.newBuilder(get())
+                        .setHealthCheckIntervalSeconds(interval.getStandardSeconds())
+                        .build()
+        );
+    }
+
+    @NotNull
+    public Duration bootstrapGraceTimeSeconds() {
+        return Duration.standardSeconds(get().getBootstrapGraceTimeSeconds());
+    }
+
+    public void bootstrapGraceTimeSeconds(Duration interval) {
+        setValue(
+                CassandraFrameworkConfiguration.newBuilder(get())
+                        .setBootstrapGraceTimeSeconds(interval.getStandardSeconds())
+                        .build()
+        );
+    }
+
     @NotNull
     public String frameworkName() {
         return get().getFrameworkName();
     }
 
-    public int numberOfNodes() {
-        return get().getNumberOfNodes();
+    public void numberOfNodes(int numberOfNodes) {
+        CassandraFrameworkProtos.CassandraConfigRole configRole = getDefaultConfigRole();
+        if (numberOfNodes <= 0 || configRole.getNumberOfSeeds() > numberOfNodes || numberOfNodes < configRole.getNumberOfNodes())
+            throw new IllegalArgumentException("Cannot set number of nodes to " + numberOfNodes + ", current #nodes=" + configRole.getNumberOfNodes() + " #seeds=" + configRole.getNumberOfSeeds());
+
+        setDefaultConfigRole(CassandraFrameworkProtos.CassandraConfigRole.newBuilder(configRole)
+            .setNumberOfNodes(numberOfNodes)
+            .build());
     }
 
-    @NotNull
-    public String cassandraVersion() {
-        return get().getCassandraVersion();
+    private void setDefaultConfigRole(CassandraFrameworkProtos.CassandraConfigRole configRole) {
+        setValue(
+            CassandraFrameworkConfiguration.newBuilder(get())
+                .setDefaultConfigRole(configRole)
+                .build()
+        );
     }
 
     @NotNull
     public String mesosRole() {
-        return get().getMesosRole();
+        return getDefaultConfigRole().getMesosRole();
     }
 }

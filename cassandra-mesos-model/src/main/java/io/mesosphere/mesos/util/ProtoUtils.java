@@ -42,7 +42,7 @@ public final class ProtoUtils {
 
     @NotNull
     public static String protoToString(@NotNull final Object any) {
-        return any.toString().replaceAll(" *\\n *", " ");
+        return any.toString().replaceAll(" *\\n *", " ").trim();
     }
 
     @NotNull

@@ -13,8 +13,11 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.mesos.Protos;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,8 +28,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static io.mesosphere.mesos.util.ProtoUtils.protoToString;
+
 public abstract class AbstractNodeJob implements Closeable {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractNodeJob.class);
+
+    private static final Joiner JOINER = Joiner.on("},{");
 
     protected final long startTimestamp = System.currentTimeMillis();
 
@@ -95,7 +102,13 @@ public abstract class AbstractNodeJob implements Closeable {
     protected void cleanupAfterJobFinished() {
         finishedTimestamp = System.currentTimeMillis();
         long duration = System.currentTimeMillis() - startTimestamp;
-        LOGGER.info("{} finished in {} seconds : {}", getClass().getSimpleName(), duration / 1000L, keyspaceStatus);
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("{} finished in {} seconds : {}",
+                getClass().getSimpleName(),
+                duration / 1000L,
+                keyspaceStatusLogString(keyspaceStatus)
+            );
+        }
     }
 
     protected void keyspaceStarted() {
@@ -123,5 +136,18 @@ public abstract class AbstractNodeJob implements Closeable {
 
     public void forceAbort() {
         cleanupAfterJobFinished();
+    }
+
+    private static String keyspaceStatusLogString(@NotNull final Map<String, CassandraFrameworkProtos.ClusterJobKeyspaceStatus> map) {
+        final List<String> strings = Lists.newArrayList();
+        for (final Map.Entry<String, CassandraFrameworkProtos.ClusterJobKeyspaceStatus> entry : map.entrySet()) {
+            strings.add(String.format("%s -> {%s}", entry.getKey(), protoToString(entry.getValue())));
+        }
+
+        if (strings.isEmpty()) {
+            return "[]";
+        } else {
+            return "[{" + JOINER.join(strings) + "}]";
+        }
     }
 }

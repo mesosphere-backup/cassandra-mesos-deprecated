@@ -95,7 +95,7 @@ public final class FileResourceController {
     }
 
     private static File verifyFileExistsAndCanRead(File file) {
-        if (!file.exists() || !file.canRead()) {
+        if (!file.exists() || !file.canRead() || !file.isFile()) {
             throw new IllegalArgumentException("Unable to read specified resource: " + file);
         }
         return file;

@@ -519,9 +519,11 @@ public final class ApiController {
                 case "text":
                     // produce a simple text with the native port in the first line and one line per live node IP
                     sb = new StringBuilder();
-                    sb.append(nativePort).append('\n');
+                    sb.append("NATIVE: ").append(nativePort).append('\n');
+                    sb.append("RPC: ").append(rpcPort).append('\n');
+                    sb.append("JMX: ").append(jmxPort).append('\n');
                     for (CassandraFrameworkProtos.CassandraNode liveNode : liveNodes) {
-                        sb.append(liveNode.getIp()).append('\n');
+                        sb.append("IP: ").append(liveNode.getIp()).append('\n');
                     }
                     return Response.ok(sb.toString()).build();
             }

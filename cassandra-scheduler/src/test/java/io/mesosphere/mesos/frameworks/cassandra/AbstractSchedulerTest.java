@@ -52,6 +52,7 @@ public abstract class AbstractSchedulerTest {
             .setNumberOfSeeds(2)
             .setName("default")
             .setMemMb(4096)
+            .setMesosRole("*")
             .build();
         configuration = new PersistedCassandraFrameworkConfiguration(
                 state,
@@ -81,18 +82,22 @@ public abstract class AbstractSchedulerTest {
 
         builder.addResources(Protos.Resource.newBuilder()
                 .setName("cpus")
+                .setRole("*")
                 .setType(Protos.Value.Type.SCALAR)
                 .setScalar(Protos.Value.Scalar.newBuilder().setValue(8d)));
         builder.addResources(Protos.Resource.newBuilder()
                 .setName("mem")
+                .setRole("*")
                 .setType(Protos.Value.Type.SCALAR)
                 .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)));
         builder.addResources(Protos.Resource.newBuilder()
                 .setName("disk")
+                .setRole("*")
                 .setType(Protos.Value.Type.SCALAR)
                 .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)));
         builder.addResources(Protos.Resource.newBuilder()
                         .setName("ports")
+                        .setRole("*")
                         .setType(Protos.Value.Type.RANGES)
                         .setRanges(Protos.Value.Ranges.newBuilder()
                                 .addRange(Protos.Value.Range.newBuilder().setBegin(7000).setEnd(10000)))

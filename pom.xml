@@ -281,7 +281,6 @@
                     <target>${version.java}</target>
                 </configuration>
             </plugin>
-            <!--
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>ideauidesigner-maven-plugin</artifactId>
@@ -306,7 +305,6 @@
                     </dependency>
                 </dependencies>
             </plugin>
-            -->
 
             <!-- required for release to Maven Central -->
             <plugin>

@@ -33,9 +33,13 @@ import org.jetbrains.annotations.NotNull;
 import org.joda.time.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.net.*;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -58,6 +62,12 @@ public final class Main {
     public static void main(final String[] args) {
         int status;
         try {
+            final Handler[] handlers = LogManager.getLogManager().getLogger("").getHandlers();
+            for (final Handler handler : handlers) {
+                handler.setLevel(Level.OFF);
+            }
+            org.slf4j.LoggerFactory.getLogger("slf4j-logging").debug("Installing SLF4JLogging");
+            SLF4JBridgeHandler.install();
             status = _main();
         } catch (SystemExitException e) {
             LOGGER.error(e.getMessage());

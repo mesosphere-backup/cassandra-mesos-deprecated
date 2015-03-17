@@ -53,25 +53,26 @@ public final class ProtoUtils {
     }
 
     @NotNull
-    public static Resource cpu(final double value) {
-        return scalarResource("cpus", value);
+    public static Resource cpu(@NotNull final double value, @NotNull final String role) {
+        return scalarResource("cpus", value, role);
     }
 
     @NotNull
-    public static Resource mem(final double value) {
-        return scalarResource("mem", value);
+    public static Resource mem(@NotNull final double value, @NotNull final String role) {
+        return scalarResource("mem", value, role);
     }
 
     @NotNull
-    public static Resource disk(final double value) {
-        return scalarResource("disk", value);
+    public static Resource disk(@NotNull final double value, @NotNull final String role) {
+        return scalarResource("disk", value, role);
     }
 
     @NotNull
-    public static Resource ports(@NotNull final Iterable<Long> ports) {
+    public static Resource ports(@NotNull final Iterable<Long> ports, @NotNull final String role) {
         return Resource.newBuilder()
             .setName("ports")
             .setType(Value.Type.RANGES)
+            .setRole(role)
             .setRanges(
                 Value.Ranges.newBuilder().addAllRange(
                     from(ports).transform(longToRange())
@@ -82,10 +83,11 @@ public final class ProtoUtils {
     }
 
     @NotNull
-    public static Resource scalarResource(@NotNull final String name, final double value) {
+    public static Resource scalarResource(@NotNull final String name, final double value, @NotNull final String role) {
         return Resource.newBuilder()
             .setName(name)
             .setType(Value.Type.SCALAR)
+            .setRole(role)
             .setScalar(
                 Value.Scalar.newBuilder()
                     .setValue(value)

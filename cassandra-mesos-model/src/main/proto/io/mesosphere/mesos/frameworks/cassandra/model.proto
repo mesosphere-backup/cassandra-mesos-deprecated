@@ -86,6 +86,8 @@ message CassandraConfigRole {
     optional TaskEnv taskEnv = 10;
     // cassandra.yaml configuration
     optional TaskConfig cassandraYamlConfig = 11;
+    // mesos role to be used to receive resource offers
+    optional string mesosRole = 12;
 }
 
 message PortMapping {

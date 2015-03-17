@@ -224,7 +224,7 @@ public final class ApiController {
                     json.writeStringField("clusterName", hcd.getInfo().getClusterName());
                     json.writeStringField("dataCenter", hcd.getInfo().getDataCenter());
                     json.writeStringField("rack", hcd.getInfo().getRack());
-                    json.writeStringField("endoint", hcd.getInfo().getEndpoint());
+                    json.writeStringField("endpoint", hcd.getInfo().getEndpoint());
                     json.writeStringField("hostId", hcd.getInfo().getHostId());
                     json.writeBooleanField("joined", hcd.getInfo().getJoined());
                     json.writeBooleanField("gossipInitialized", hcd.getInfo().getGossipInitialized());

@@ -40,7 +40,6 @@ public final class ApiController {
     }
 
     @GET
-    @Path("/")
     public Response indexPage(@Context UriInfo uriInfo) {
         StringWriter sw = new StringWriter();
         try {

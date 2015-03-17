@@ -32,11 +32,13 @@ public abstract class AbstractSchedulerTest {
 
     CassandraCluster cluster;
 
+    int activeNodes;
     @SuppressWarnings("unchecked")
     final Tuple2<Protos.SlaveID, String>[] slaves = new Tuple2[]{
             Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.1.1.1"),
             Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.2.2.2"),
-            Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.3.3.3")
+            Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.3.3.3"),
+            Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.4.4.4")
     };
 
     protected void cleanState() {
@@ -65,7 +67,7 @@ public abstract class AbstractSchedulerTest {
         cluster = new CassandraCluster(new SystemClock(),
                 "http://127.0.0.1:65535",
                 new ExecutorCounter(state, 0L),
-                new PersistedCassandraClusterState(state),
+                new PersistedCassandraClusterState(state, defaultConfigRole.getNumberOfNodes()),
                 new PersistedCassandraClusterHealthCheckHistory(state),
                 new PersistedCassandraClusterJobs(state),
                 configuration);

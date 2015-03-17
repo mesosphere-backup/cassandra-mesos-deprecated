@@ -27,6 +27,7 @@ public class CassandraExecutorTest {
     CassandraExecutor executor;
     MockExecutorDriver driver;
     TestObjectFactory objectFactory;
+    Protos.TaskID taskIdExecutor;
     Protos.TaskID taskIdMetadata;
     Protos.TaskID taskIdServer;
 
@@ -35,6 +36,17 @@ public class CassandraExecutorTest {
         cleanState();
 
         startServer();
+    }
+
+    @Test
+    public void testTerminate() throws Exception {
+        cleanState();
+
+        startServer();
+
+        shutdownServer();
+
+        terminateExecutor();
     }
 
     @Test
@@ -292,6 +304,22 @@ public class CassandraExecutorTest {
         assertFalse(slaveStatusDetailsList.get(0).getHealthCheckDetails().getHealthy());
     }
 
+    private void terminateExecutor() {
+        List<Protos.TaskStatus> taskStatus = driver.taskStatusList();
+        assertEquals(0, taskStatus.size());
+
+        driver.killTask(taskIdExecutor);
+
+        taskStatus = driver.taskStatusList();
+        assertEquals(1, taskStatus.size());
+        // server task finished...
+        assertEquals(taskIdExecutor, taskStatus.get(0).getTaskId());
+        assertEquals(Protos.TaskState.TASK_FINISHED, taskStatus.get(0).getState());
+
+        List<CassandraFrameworkProtos.SlaveStatusDetails> slaveStatusDetailsList = driver.frameworkMessages();
+        assertEquals(0, slaveStatusDetailsList.size());
+    }
+
     private List<Protos.TaskStatus> taskStartingRunning(Protos.TaskID taskId) {
         List<Protos.TaskStatus> taskStatus = driver.taskStatusList();
         assertEquals(2, taskStatus.size());
@@ -305,9 +333,10 @@ public class CassandraExecutorTest {
     private void cleanState() {
         objectFactory = new TestObjectFactory();
         executor = new CassandraExecutor(objectFactory);
-        driver = new MockExecutorDriver(executor);
+        driver = new MockExecutorDriver(executor, Protos.ExecutorID.newBuilder().setValue("executor").build());
+        taskIdExecutor = Protos.TaskID.newBuilder().setValue("executor").build();
         taskIdMetadata = Protos.TaskID.newBuilder().setValue("executor.metadata").build();
-        taskIdServer = Protos.TaskID.newBuilder().setValue("executor").build();
+        taskIdServer = Protos.TaskID.newBuilder().setValue("executor.server").build();
     }
 
 }

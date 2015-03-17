@@ -23,15 +23,19 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.mesosphere.mesos.util.Functions.append;
+
 final class PersistedCassandraClusterState extends StatePersistedObject<CassandraFrameworkProtos.CassandraClusterState> {
-    public PersistedCassandraClusterState(@NotNull final State state) {
+    public PersistedCassandraClusterState(@NotNull final State state, final int nodesToAcquire) {
         super(
             "CassandraClusterState",
             state,
             new Supplier<CassandraFrameworkProtos.CassandraClusterState>() {
                 @Override
                 public CassandraFrameworkProtos.CassandraClusterState get() {
-                    return CassandraFrameworkProtos.CassandraClusterState.newBuilder().build();
+                    return CassandraFrameworkProtos.CassandraClusterState.newBuilder()
+                        .setNodesToAcquire(nodesToAcquire)
+                        .build();
                 }
             },
             new Function<byte[], CassandraFrameworkProtos.CassandraClusterState>() {
@@ -102,6 +106,11 @@ final class PersistedCassandraClusterState extends StatePersistedObject<Cassandr
         int nodeCount = 0;
         int seedCount = 0;
         for (CassandraFrameworkProtos.CassandraNode n : nodes()) {
+            if (n.getTargetRunState() == CassandraFrameworkProtos.CassandraNode.TargetRunState.TERMINATE) {
+                // not a live node - do not count
+                continue;
+            }
+
             nodeCount++;
             if (n.getSeed())
                 seedCount++;
@@ -115,5 +124,67 @@ final class PersistedCassandraClusterState extends StatePersistedObject<Cassandr
                         .setLastServerLaunchTimestamp(lastServerLaunchTimestamp)
                         .build()
         );
+    }
+
+    public void replaceNode(String ip) {
+        CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(get());
+        setValue(
+            builder
+                .addReplaceNodeIps(ip)
+                .setNodesToAcquire(builder.getNodesToAcquire() + 1)
+                .build()
+        );
+    }
+
+    public void nodeAcquired(CassandraFrameworkProtos.CassandraNode newNode) {
+        CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(get());
+
+        if (newNode.hasReplacementForIp()) {
+            List<String> replacements = new ArrayList<>(builder.getReplaceNodeIpsList());
+            replacements.remove(newNode.getReplacementForIp());
+            builder.clearReplaceNodeIps().addAllReplaceNodeIps(replacements);
+        }
+
+        setValue(
+            builder
+                .clearNodes()
+                .addAllNodes(append(
+                    nodes(),
+                    newNode
+                ))
+                .setNodesToAcquire(builder.getNodesToAcquire() - 1)
+                .build()
+        );
+    }
+
+    public String nextReplacementIp() {
+        List<String> list = get().getReplaceNodeIpsList();
+        return list.isEmpty() ? null : list.get(0);
+    }
+
+    public void acquireNewNodes(int newNodeCount) {
+        CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(get());
+        setValue(
+            builder
+                .setNodesToAcquire(builder.getNodesToAcquire() + newNodeCount)
+                .build()
+        );
+    }
+
+    public void nodeReplaced(CassandraFrameworkProtos.CassandraNode cassandraNode) {
+        CassandraFrameworkProtos.CassandraClusterState prev = get();
+        CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(prev)
+            .clearNodes();
+
+        for (CassandraFrameworkProtos.CassandraNode node : prev.getNodesList()) {
+            // add all but the node that has been replaced (effectively removing it)
+            if (node.getIp().equals(cassandraNode.getIp())) {
+                builder.addNodes(CassandraFrameworkProtos.CassandraNode.newBuilder(cassandraNode).clearReplacementForIp());
+            } else if (!node.getIp().equals(cassandraNode.getReplacementForIp())) {
+                builder.addNodes(node);
+            }
+        }
+
+        setValue(builder.build());
     }
 }

@@ -179,9 +179,22 @@ public final class ApiController {
 
             json.writeStartObject();
             CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
+
+            json.writeArrayFieldStart("replaceNodes");
+            for (String ip : clusterState.getReplaceNodeIpsList()) {
+                json.writeString(ip);
+            }
+            json.writeEndArray();
+
+            json.writeNumberField("nodesToAcquire", clusterState.getNodesToAcquire());
+
             json.writeArrayFieldStart("nodes");
             for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
                 json.writeStartObject();
+
+                if (cassandraNode.hasReplacementForIp()) {
+                    json.writeStringField("replacementForIp", cassandraNode.getReplacementForIp());
+                }
 
                 writeTask(json, "serverTask", CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
                 writeTask(json, "metadataTask", CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraFrameworkProtos.CassandraNodeTask.TaskType.METADATA));
@@ -682,6 +695,14 @@ public final class ApiController {
         return nodeStatusUpdate(cassandraNode);
     }
 
+    @POST
+    @Path("/node/terminate/{node}")
+    public Response nodeTerminate(@PathParam("node") String node) {
+        CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeTerminate(node);
+
+        return nodeStatusUpdate(cassandraNode);
+    }
+
     private static Response nodeStatusUpdate(CassandraFrameworkProtos.CassandraNode cassandraNode) {
 
         int status = 200;
@@ -703,6 +724,46 @@ public final class ApiController {
                     json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
                 }
                 json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
+            }
+
+            json.writeEndObject();
+            json.close();
+        } catch (Exception e) {
+            LOGGER.error("Failed to build JSON response", e);
+            return Response.serverError().build();
+        }
+        return Response.status(status).entity(sw.toString()).type("application/json").build();
+    }
+
+    @POST
+    @Path("/node/replace/{node}")
+    public Response nodeReplace(@PathParam("node") String node) {
+        int status = 200;
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.findNode(node);
+
+            if (cassandraNode == null) {
+                status = 404;
+                json.writeBooleanField("success", false);
+                json.writeStringField("reason", "No such node");
+            } else {
+                json.writeStringField("ipToReplace", cassandraNode.getIp());
+                try {
+                    cluster.replaceNode(node);
+
+                    json.writeBooleanField("success", true);
+                    json.writeStringField("hostname", cassandraNode.getHostname());
+                    json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
+                } catch (ReplaceNodePreconditionFailed e) {
+                    json.writeBooleanField("success", false);
+                    json.writeStringField("reason", e.getMessage());
+                }
             }
 
             json.writeEndObject();

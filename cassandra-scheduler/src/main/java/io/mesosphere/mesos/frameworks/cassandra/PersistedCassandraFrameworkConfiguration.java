@@ -139,14 +139,17 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         return get().getFrameworkName();
     }
 
-    public void numberOfNodes(int numberOfNodes) {
+    public int numberOfNodes(int numberOfNodes) {
         CassandraFrameworkProtos.CassandraConfigRole configRole = getDefaultConfigRole();
-        if (numberOfNodes <= 0 || configRole.getNumberOfSeeds() > numberOfNodes || numberOfNodes < configRole.getNumberOfNodes())
+        int newNodeCount = numberOfNodes - configRole.getNumberOfNodes();
+        if (numberOfNodes <= 0 || configRole.getNumberOfSeeds() > numberOfNodes || newNodeCount <= 0)
             throw new IllegalArgumentException("Cannot set number of nodes to " + numberOfNodes + ", current #nodes=" + configRole.getNumberOfNodes() + " #seeds=" + configRole.getNumberOfSeeds());
 
         setDefaultConfigRole(CassandraFrameworkProtos.CassandraConfigRole.newBuilder(configRole)
             .setNumberOfNodes(numberOfNodes)
             .build());
+
+        return newNodeCount;
     }
 
     private void setDefaultConfigRole(CassandraFrameworkProtos.CassandraConfigRole configRole) {

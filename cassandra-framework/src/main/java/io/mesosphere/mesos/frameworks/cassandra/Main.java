@@ -150,7 +150,7 @@ public final class Main {
             clock,
             httpServerBaseUri.toString(),
             new ExecutorCounter(state, 0L),
-            new PersistedCassandraClusterState(state),
+            new PersistedCassandraClusterState(state, executorCount),
             new PersistedCassandraClusterHealthCheckHistory(state),
             new PersistedCassandraClusterJobs(state),
             configuration

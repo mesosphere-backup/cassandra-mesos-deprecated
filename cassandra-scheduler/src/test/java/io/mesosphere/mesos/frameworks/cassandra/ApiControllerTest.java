@@ -229,6 +229,13 @@ public class ApiControllerTest extends AbstractSchedulerTest {
             .setJmxConnect(CassandraFrameworkProtos.JmxConnect.newBuilder()
                 .setIp(ip)
                 .setJmxPort(7199))
+            .addTasks(CassandraFrameworkProtos.CassandraNodeTask.newBuilder()
+                .setExecutorId(executorId)
+                .setTaskId(executorId + ".server")
+                .setTaskType(CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER)
+                .setCpuCores(1)
+                .setMemMb(1)
+                .setDiskMb(1))
             .build());
         cluster.recordHealthCheck(executorId, healthCheckDetailsSuccess("NORMAL", true));
     }

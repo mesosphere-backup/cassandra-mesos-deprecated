@@ -169,9 +169,14 @@ public final class ApiController {
     @GET
     @Path("/qaReportResources/text")
     public Response qaReportResourcesText() {
+        CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
+        int jmxPort = CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_JMX);
+
         StringWriter sw = new StringWriter();
         try (PrintWriter pw = new PrintWriter(sw)) {
             // TODO don't write to StringWriter - stream to response as the nodes list might get very long
+
+            pw.println("JMX: " + jmxPort);
 
             CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
             for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
@@ -204,6 +209,9 @@ public final class ApiController {
     @GET
     @Path("/qaReportResources")
     public Response qaReportResources() {
+        CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
+        int jmxPort = CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_JMX);
+
         StringWriter sw = new StringWriter();
         try {
             // TODO don't write to StringWriter - stream to response as the nodes list might get very long
@@ -213,6 +221,9 @@ public final class ApiController {
             json.setPrettyPrinter(new DefaultPrettyPrinter());
 
             json.writeStartObject();
+
+            json.writeNumberField("jmxPort", jmxPort);
+
             CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
             json.writeObjectFieldStart("nodes");
             for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {

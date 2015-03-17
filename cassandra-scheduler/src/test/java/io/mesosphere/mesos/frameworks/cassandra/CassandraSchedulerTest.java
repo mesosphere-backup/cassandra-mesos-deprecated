@@ -37,6 +37,170 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
     Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails>[] executorServer;
 
     @Test
+    public void testIsLiveNode() throws Exception {
+        cleanState();
+
+        CassandraFrameworkProtos.CassandraNode.Builder node = CassandraFrameworkProtos.CassandraNode.newBuilder()
+            .setHostname("bart")
+            .setIp("1.2.3.4")
+            .setSeed(false)
+            .setTargetRunState(CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN)
+            .setJmxConnect(CassandraFrameworkProtos.JmxConnect.newBuilder().setIp("1.2.3.4").setJmxPort(7199));
+
+        assertFalse(node.hasCassandraNodeExecutor());
+        assertFalse(cluster.isLiveNode(node.build()));
+
+        node.setCassandraNodeExecutor(CassandraFrameworkProtos.CassandraNodeExecutor.newBuilder()
+            .setCommand("cmd")
+            .setCpuCores(1)
+            .setDiskMb(1)
+            .setMemMb(1)
+            .setExecutorId("exec")
+            .setSource("src"));
+
+        assertTrue(node.hasCassandraNodeExecutor());
+        assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+        assertFalse(cluster.isLiveNode(node.build()));
+
+        node.addTasks(CassandraFrameworkProtos.CassandraNodeTask.newBuilder()
+            .setCpuCores(1)
+            .setDiskMb(1)
+            .setMemMb(1)
+            .setExecutorId("exec")
+            .setTaskId("task")
+            .setTaskType(CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+        assertFalse(cluster.isLiveNode(node.build()));
+
+        CassandraFrameworkProtos.HealthCheckDetails.Builder hcd = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
+            .setHealthy(false);
+        cluster.recordHealthCheck("exec", hcd.build());
+        assertNotNull(cluster.lastHealthCheck("exec"));
+        assertFalse(cluster.isLiveNode(node.build()));
+
+        hcd.setHealthy(true);
+        cluster.recordHealthCheck("exec", hcd.build());
+        assertNotNull(cluster.lastHealthCheck("exec"));
+        assertFalse(cluster.isLiveNode(node.build()));
+
+        CassandraFrameworkProtos.NodeInfo.Builder ni = CassandraFrameworkProtos.NodeInfo.newBuilder();
+        hcd.setInfo(ni);
+        cluster.recordHealthCheck("exec", hcd.build());
+        assertFalse(cluster.isLiveNode(node.build()));
+
+        ni.setRpcServerRunning(true);
+        hcd.setInfo(ni);
+        cluster.recordHealthCheck("exec", hcd.build());
+        assertFalse(cluster.isLiveNode(node.build()));
+
+        ni.setNativeTransportRunning(true);
+        hcd.setInfo(ni);
+        cluster.recordHealthCheck("exec", hcd.build());
+        assertTrue(cluster.isLiveNode(node.build()));
+    }
+
+    @Test
+    public void testReplaceNodePrerequirements() throws Exception {
+        cleanState();
+
+        try {
+            // non-existing node
+            cluster.replaceNode("foobar");
+            fail();
+        } catch (ReplaceNodePreconditionFailed e) {
+            assertTrue(e.getMessage().startsWith("Non-existing node "));
+        }
+
+        CassandraFrameworkProtos.CassandraNode.Builder node = CassandraFrameworkProtos.CassandraNode.newBuilder()
+            .setHostname("bart")
+            .setIp("1.2.3.4")
+            .setSeed(true)
+            .setTargetRunState(CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN)
+            .setJmxConnect(CassandraFrameworkProtos.JmxConnect.newBuilder().setIp("1.2.3.4").setJmxPort(7199))
+            .setCassandraNodeExecutor(CassandraFrameworkProtos.CassandraNodeExecutor.newBuilder()
+                .setCommand("cmd")
+                .setCpuCores(1)
+                .setDiskMb(1)
+                .setMemMb(1)
+                .setExecutorId("exec")
+                .setSource("src"))
+            .addTasks(CassandraFrameworkProtos.CassandraNodeTask.newBuilder()
+                .setCpuCores(1)
+                .setDiskMb(1)
+                .setMemMb(1)
+                .setExecutorId("exec")
+                .setTaskId("task")
+                .setTaskType(CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+        cluster.getClusterState().addOrSetNode(node.build());
+        CassandraFrameworkProtos.HealthCheckDetails.Builder hcd = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
+            .setHealthy(true)
+            .setInfo(CassandraFrameworkProtos.NodeInfo.newBuilder()
+                .setRpcServerRunning(true)
+                .setNativeTransportRunning(true));
+        cluster.recordHealthCheck("exec", hcd.build());
+        assertTrue(cluster.isLiveNode(cluster.findNode("exec")));
+        assertTrue(cluster.isLiveNode(cluster.findNode("bart")));
+        assertTrue(cluster.isLiveNode(cluster.findNode("1.2.3.4")));
+
+        try {
+            cluster.replaceNode("bart");
+            fail();
+        } catch (ReplaceNodePreconditionFailed e) {
+            assertTrue(e.getMessage().endsWith("to replace is a seed node"));
+        }
+
+        cluster.getClusterState().addOrSetNode(node
+            .setSeed(false)
+            .build());
+
+        try {
+            cluster.replaceNode("bart");
+            fail();
+        } catch (ReplaceNodePreconditionFailed e) {
+            assertTrue(e.getMessage().startsWith("Cannot replace live node "));
+        }
+
+        hcd.setHealthy(false)
+            .setInfo(CassandraFrameworkProtos.NodeInfo.newBuilder()
+                .setRpcServerRunning(false)
+                .setNativeTransportRunning(false));
+        cluster.recordHealthCheck("exec", hcd.build());
+
+        try {
+            cluster.replaceNode("bart");
+            fail();
+        } catch (ReplaceNodePreconditionFailed e) {
+            assertTrue(e.getMessage().startsWith("Cannot replace non-terminated node "));
+        }
+
+        cluster.getClusterState().addOrSetNode(node
+            .setTargetRunState(CassandraFrameworkProtos.CassandraNode.TargetRunState.TERMINATE)
+            .build());
+
+        try {
+            cluster.replaceNode("1.2.3.4");
+            fail();
+        } catch (ReplaceNodePreconditionFailed e) {
+            assertTrue(e.getMessage().endsWith(" to replace has active tasks"));
+        }
+
+        cluster.getClusterState().addOrSetNode(node
+            .clearTasks()
+            .build());
+
+        cluster.replaceNode("exec");
+
+        try {
+            cluster.replaceNode("bart");
+            fail();
+        } catch (ReplaceNodePreconditionFailed e) {
+            assertTrue(e.getMessage().endsWith(" already in replace-list"));
+        }
+
+    }
+
+    @Test
     public void testNodeReplace() throws Exception {
 
         threeNodeCluster();

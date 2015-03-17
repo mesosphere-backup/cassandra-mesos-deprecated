@@ -1023,7 +1023,7 @@ public final class CassandraCluster {
         return result;
     }
 
-    private boolean isLiveNode(CassandraNode node) {
+    public boolean isLiveNode(CassandraNode node) {
         if (!node.hasCassandraNodeExecutor())
             return false;
         if (getTaskForNode(node, CassandraNodeTask.TaskType.SERVER) == null)
@@ -1052,6 +1052,10 @@ public final class CassandraCluster {
 
         if (isLiveNode(cassandraNode)) {
             throw new ReplaceNodePreconditionFailed("Cannot replace live node " + node + " - terminate it first");
+        }
+
+        if (cassandraNode.getTargetRunState() != CassandraNode.TargetRunState.TERMINATE) {
+            throw new ReplaceNodePreconditionFailed("Cannot replace non-terminated node " + node + " - terminate it first");
         }
 
         if (!cassandraNode.getTasksList().isEmpty()) {

@@ -284,7 +284,92 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         node3 = cluster.findNode(slaves[3]._2);
         assertNotNull(node3);
         assertFalse(node3.hasReplacementForIp());
+    }
 
+    @Test
+    public void testSeedChanged() throws Exception {
+
+        cleanState();
+
+        assertEquals(2, clusterState.get().getSeedsToAcquire());
+
+        // rollout slaves
+        executorMetadata = new Protos.TaskInfo[slaves.length];
+        executorMetadata[0] = launchExecutor(slaves[0], 1);
+
+        try {
+            cluster.setNodeSeed(cluster.findNode(slaves[0]._2), false);
+            fail();
+        } catch (SeedChangeException e) {
+            assertEquals("Must not change seed status while initial number of seed nodes has not been acquired", e.getMessage());
+        }
+
+        assertEquals(1, clusterState.get().getSeedsToAcquire());
+        executorMetadata[1] = launchExecutor(slaves[1], 2);
+        assertEquals(0, clusterState.get().getSeedsToAcquire());
+        executorMetadata[2] = launchExecutor(slaves[2], 3);
+        assertEquals(0, clusterState.get().getSeedsToAcquire());
+
+        threeNodeClusterPost();
+
+        assertFalse(cluster.setNodeSeed(cluster.findNode(slaves[0]._2), true));
+        assertFalse(cluster.setNodeSeed(cluster.findNode(slaves[1]._2), true));
+        assertFalse(cluster.setNodeSeed(cluster.findNode(slaves[2]._2), false));
+
+        for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.nodes()) {
+            assertFalse(cassandraNode.getNeedsConfigUpdate());
+        }
+
+        noopOnOffer(slaves[0], 3);
+        noopOnOffer(slaves[1], 3);
+        noopOnOffer(slaves[2], 3);
+
+        // make 3rd node a seed
+
+        assertTrue(cluster.setNodeSeed(cluster.findNode(slaves[2]._2), true));
+        for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.nodes()) {
+            assertTrue(cassandraNode.getNeedsConfigUpdate());
+        }
+
+        // verify UPDATE_CONFIG tasks are launched
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
+        launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
+        launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
+        noopOnOffer(slaves[0], 3);
+        noopOnOffer(slaves[1], 3);
+        noopOnOffer(slaves[2], 3);
+
+        for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.nodes()) {
+            assertFalse(cassandraNode.getNeedsConfigUpdate());
+        }
+
+        // make 1st node not a seed
+        assertTrue(cluster.setNodeSeed(cluster.findNode(slaves[0]._2), false));
+        for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.nodes()) {
+            assertTrue(cassandraNode.getNeedsConfigUpdate());
+        }
+
+        // verify UPDATE_CONFIG tasks are launched
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
+        launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
+        launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
+        noopOnOffer(slaves[0], 3);
+        noopOnOffer(slaves[1], 3);
+        noopOnOffer(slaves[2], 3);
+
+        for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.nodes()) {
+            assertFalse(cassandraNode.getNeedsConfigUpdate());
+        }
+
+        // mark two nodes as deas so that last remaining (seed) cannot be made non-seed
+        sendHealthCheckResult(executorMetadata[0], healthCheckDetailsFailed());
+
+        try {
+            cluster.setNodeSeed(cluster.findNode(slaves[1]._2), false);
+            fail();
+        } catch (SeedChangeException e) {
+            assertEquals("Must not remove the last live seed node", e.getMessage());
+        }
     }
 
     @Test
@@ -427,7 +512,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         executorTaskRunning(executorMetadata1);
         noopOnOffer(slaves[0], 1);
-        assertEquals(Collections.singletonList("127.1.1.1"), cluster.getSeedNodes());
+        assertEquals(Collections.singletonList("127.1.1.1"), cluster.getSeedNodeIps());
         assertThat(clusterState.nodeCounts()).isEqualTo(new NodeCounts(1, 1));
 
         // rollout slave #2
@@ -1036,6 +1121,10 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         executorMetadata[1] = launchExecutor(slaves[1], 2);
         executorMetadata[2] = launchExecutor(slaves[2], 3);
 
+        return threeNodeClusterPost();
+    }
+
+    private Protos.TaskInfo[] threeNodeClusterPost() throws InvalidProtocolBufferException {
         executorTaskRunning(executorMetadata[0]);
         executorTaskRunning(executorMetadata[1]);
         executorTaskRunning(executorMetadata[2]);

@@ -38,29 +38,20 @@ final class ProdObjectFactory implements ObjectFactory {
         return new ProdJmxConnect(jmx);
     }
 
+    @Override
     @NotNull
-    public WrappedProcess launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask) throws LaunchNodeException {
+    public WrappedProcess launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraFrameworkProtos.CassandraServerRunTask serverRunTask) throws LaunchNodeException {
         try {
-            for (final CassandraFrameworkProtos.TaskFile taskFile : cassandraNodeTask.getTaskFilesList()) {
-                final File file = new File(taskFile.getOutputPath());
-                if (LOGGER.isDebugEnabled())
-                    LOGGER.debug(taskIdMarker, "Overwriting file {}", file);
-                Files.createParentDirs(file);
-                Files.write(taskFile.getData().toByteArray(), file);
-            }
-
-            modifyCassandraYaml(taskIdMarker, cassandraNodeTask);
-            modifyCassandraEnvSh(taskIdMarker, cassandraNodeTask);
-            modifyCassandraRackdc(taskIdMarker, cassandraNodeTask);
+            writeCassandraServerConfig(taskIdMarker, serverRunTask, serverRunTask.getCassandraServerConfig());
         } catch (IOException e) {
             throw new LaunchNodeException("Failed to prepare instance files", e);
         }
 
-        final ProcessBuilder processBuilder = new ProcessBuilder(cassandraNodeTask.getCommandList())
+        final ProcessBuilder processBuilder = new ProcessBuilder(serverRunTask.getCommandList())
                 .directory(new File(System.getProperty("user.dir")))
                 .redirectOutput(new File("cassandra-stdout.log"))
                 .redirectError(new File("cassandra-stderr.log"));
-        for (final CassandraFrameworkProtos.TaskEnv.Entry entry : cassandraNodeTask.getTaskEnv().getVariablesList()) {
+        for (final CassandraFrameworkProtos.TaskEnv.Entry entry : serverRunTask.getTaskEnv().getVariablesList()) {
             processBuilder.environment().put(entry.getName(), entry.getValue());
         }
         processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
@@ -73,6 +64,32 @@ final class ProdObjectFactory implements ObjectFactory {
         }
     }
 
+    @Override
+    public void updateCassandraServerConfig(@NotNull Marker taskIdMarker, @NotNull CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask, @NotNull CassandraFrameworkProtos.UpdateConfigTask updateConfigTask) throws ConfigChangeException {
+        try {
+            writeCassandraServerConfig(taskIdMarker, cassandraServerRunTask, updateConfigTask.getCassandraServerConfig());
+        } catch (IOException e) {
+            throw new ConfigChangeException("Failed to update instance files", e);
+        }
+    }
+
+    private static void writeCassandraServerConfig(
+            @NotNull Marker taskIdMarker,
+            @NotNull CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask,
+            @NotNull CassandraFrameworkProtos.CassandraServerConfig serverConfig) throws IOException {
+        for (final CassandraFrameworkProtos.TaskFile taskFile : serverConfig.getTaskFilesList()) {
+            final File file = new File(taskFile.getOutputPath());
+            if (LOGGER.isDebugEnabled())
+                LOGGER.debug(taskIdMarker, "Overwriting file {}", file);
+            Files.createParentDirs(file);
+            Files.write(taskFile.getData().toByteArray(), file);
+        }
+
+        modifyCassandraYaml(taskIdMarker, cassandraNodeTask, serverConfig);
+        modifyCassandraEnvSh(taskIdMarker, cassandraNodeTask);
+        modifyCassandraRackdc(taskIdMarker, cassandraNodeTask, serverConfig);
+    }
+
     @NotNull
     private static String processBuilderToString(@NotNull final ProcessBuilder builder) {
         return "ProcessBuilder{\n" +
@@ -81,8 +98,8 @@ final class ProdObjectFactory implements ObjectFactory {
                 "environment() = " + Joiner.on("\n").withKeyValueSeparator("->").join(builder.environment()) + "\n}";
     }
 
-    private static void modifyCassandraRackdc(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask) throws IOException {
-        CassandraFrameworkProtos.NodeLocation location = cassandraNodeTask.hasLocation() ? cassandraNodeTask.getLocation() : null;
+    private static void modifyCassandraRackdc(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask, CassandraFrameworkProtos.CassandraServerConfig serverConfig) throws IOException {
+        CassandraFrameworkProtos.NodeLocation location = serverConfig.hasLocation() ? serverConfig.getLocation() : null;
 
         LOGGER.info(taskIdMarker, "Building cassandra-rackdc.properties");
 
@@ -135,7 +152,7 @@ final class ProdObjectFactory implements ObjectFactory {
     }
 
     @SuppressWarnings("unchecked")
-    private static void modifyCassandraYaml(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask) throws IOException {
+    private static void modifyCassandraYaml(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask, CassandraFrameworkProtos.CassandraServerConfig serverConfig) throws IOException {
         LOGGER.info(taskIdMarker, "Building cassandra.yaml");
 
         File cassandraYaml = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra.yaml");
@@ -147,7 +164,7 @@ final class ProdObjectFactory implements ObjectFactory {
             yamlMap = (Map<String, Object>) yaml.load(br);
         }
         LOGGER.info(taskIdMarker, "Modifying cassandra.yaml");
-        for (CassandraFrameworkProtos.TaskConfig.Entry entry : cassandraNodeTask.getTaskConfig().getVariablesList()) {
+        for (CassandraFrameworkProtos.TaskConfig.Entry entry : serverConfig.getTaskConfig().getVariablesList()) {
             switch (entry.getName()) {
                 case "seeds":
                     List<Map<String, Object>> seedProviderList = (List<Map<String, Object>>) yamlMap.get("seed_provider");

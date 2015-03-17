@@ -101,6 +101,7 @@ message CassandraClusterState {
     optional int64 lastServerLaunchTimestamp = 3;
     repeated string replaceNodeIps = 4;
     required int32 nodesToAcquire = 5;
+    required int32 seedsToAcquire = 6;
 }
 
 message CassandraClusterHealthCheckHistory {
@@ -199,6 +200,10 @@ message CassandraNode {
     }
 
     optional NodeLocation location = 14;
+
+    // The configuration files of this node need to be updated, but the Cassandra server process does not
+    // need to be restarted.
+    optional bool needsConfigUpdate = 15;
 }
 message NodeLocation {
     required string datacenter = 1;
@@ -244,6 +249,7 @@ message CassandraNodeTask {
         METADATA = 1;
         SERVER = 2;
         CLUSTER_JOB = 3;
+        CONFIG = 4;
     }
 }
 
@@ -252,6 +258,7 @@ message TaskDetails {
     optional ExecutorMetadataTask executorMetadataTask = 2;
     optional CassandraServerRunTask cassandraServerRunTask = 3;
     optional NodeJobTask nodeJobTask = 4;
+    optional UpdateConfigTask updateConfigTask = 5;
 
     enum TaskType {
         EXECUTOR_METADATA = 1;
@@ -259,6 +266,7 @@ message TaskDetails {
         HEALTH_CHECK = 3;
         NODE_JOB = 4;
         NODE_JOB_STATUS = 5;
+        UPDATE_CONFIG = 6;
     }
 }
 
@@ -271,11 +279,19 @@ message CassandraServerRunTask {
     required string version = 1;
     repeated string command = 2;
     optional TaskEnv taskEnv = 3;
-    repeated TaskFile taskFiles = 4;
-    required TaskConfig taskConfig = 5;
-    required JmxConnect jmx = 6;
+    required CassandraServerConfig cassandraServerConfig = 4;
+    required JmxConnect jmx = 5;
+}
 
-    optional NodeLocation location = 7;
+message UpdateConfigTask {
+    required CassandraServerConfig cassandraServerConfig = 1;
+}
+
+message CassandraServerConfig {
+    repeated TaskFile taskFiles = 1;
+    required TaskConfig taskConfig = 2;
+
+    optional NodeLocation location = 3;
 }
 
 message NodeJobTask {

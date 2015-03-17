@@ -155,6 +155,14 @@ public final class CassandraExecutor implements Executor {
                         driver.sendStatusUpdate(slaveErrorDetails(task, "Failed to start Cassandra daemon", e.toString(), SlaveErrorDetails.ErrorType.PROCESS_NOT_RUNNING));
                     }
                     break;
+                case UPDATE_CONFIG:
+                    if (serverTask == null) {
+                        driver.sendStatusUpdate(slaveErrorDetails(task, "Failed to update config - no Cassandra daemon running", "-", SlaveErrorDetails.ErrorType.PROCESS_NOT_RUNNING));
+                    } else {
+                        TaskDetails serverTaskDetails = TaskDetails.parseFrom(serverTask.getData());
+                        objectFactory.updateCassandraServerConfig(taskIdMarker, serverTaskDetails.getCassandraServerRunTask(), taskDetails.getUpdateConfigTask());
+                    }
+                    break;
                 case NODE_JOB:
                     startJob(driver, task, taskDetails);
                     break;

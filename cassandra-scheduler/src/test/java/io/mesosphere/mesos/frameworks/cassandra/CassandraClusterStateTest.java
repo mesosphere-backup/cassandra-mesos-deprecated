@@ -46,7 +46,7 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
 
         cluster.addExecutorMetadata(executorMetadata1);
         noopOnOffer(cluster, slaves[0], 1);
-        assertEquals(Collections.singletonList("127.1.1.1"), cluster.getSeedNodes());
+        assertEquals(Collections.singletonList("127.1.1.1"), cluster.getSeedNodeIps());
         assertThat(clusterState.nodeCounts()).isEqualTo(new NodeCounts(1, 1));
 
         // rollout slave #2

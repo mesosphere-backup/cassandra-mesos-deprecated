@@ -107,7 +107,7 @@ public final class ApiController {
 
     private void writeSeedIps(JsonGenerator json) throws IOException {
         json.writeArrayFieldStart("seeds");
-        for (String seed : cluster.getSeedNodes())
+        for (String seed : cluster.getSeedNodeIps())
             json.writeString(seed);
         json.writeEndArray();
     }
@@ -777,6 +777,72 @@ public final class ApiController {
         json.writeEndArray();
 
         json.writeEndObject();
+    }
+
+    //
+
+    @POST
+    @Path("/node/seed/{node}")
+    public Response nodeMakeSeed(@PathParam("node") String node) {
+        return nodeUpdateSeed(node, true);
+    }
+
+    @POST
+    @Path("/node/non-seed/{node}")
+    public Response nodeMakeNonSeed(@PathParam("node") String node) {
+        return nodeUpdateSeed(node, false);
+    }
+
+    private Response nodeUpdateSeed(String node, boolean seed) {
+        CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.findNode(node);
+        if (cassandraNode == null) {
+            Response.status(404).build();
+        }
+
+        int status = 200;
+        StringWriter sw = new StringWriter();
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+            json.writeStartObject();
+
+            if (cassandraNode == null) {
+                status = 404;
+            } else {
+
+                json.writeStringField("ip", cassandraNode.getIp());
+                json.writeStringField("hostname", cassandraNode.getHostname());
+                if (!cassandraNode.hasCassandraNodeExecutor()) {
+                    json.writeNullField("executorId");
+                } else {
+                    json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                }
+                json.writeBooleanField("oldSeedState", cassandraNode.getSeed());
+
+                try {
+                    if (cluster.setNodeSeed(cassandraNode, false)) {
+                        json.writeBooleanField("success", true);
+                        json.writeBooleanField("seedState", seed);
+                    } else {
+                        json.writeBooleanField("success", false);
+                        json.writeBooleanField("seedState", cassandraNode.getSeed());
+                    }
+                } catch (SeedChangeException e) {
+                    status = 400;
+                    json.writeBooleanField("success", false);
+                    json.writeStringField("error", e.getMessage());
+                }
+
+            }
+
+            json.writeEndObject();
+            json.close();
+        } catch (Exception e) {
+            LOGGER.error("Failed to build JSON response", e);
+            return Response.serverError().build();
+        }
+        return Response.status(status).entity(sw.toString()).type("application/json").build();
     }
 
     // node run / stop / restart

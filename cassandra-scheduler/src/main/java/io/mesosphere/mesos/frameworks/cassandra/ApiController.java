@@ -695,7 +695,7 @@ public final class ApiController {
         return nodeStatusUpdate(cassandraNode);
     }
 
-    @GET
+    @POST
     @Path("/node/terminate/{node}")
     public Response nodeTerminate(@PathParam("node") String node) {
         CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeTerminate(node);
@@ -735,7 +735,7 @@ public final class ApiController {
         return Response.status(status).entity(sw.toString()).type("application/json").build();
     }
 
-    @GET
+    @POST
     @Path("/node/replace/{node}")
     public Response nodeReplace(@PathParam("node") String node) {
         int status = 200;

@@ -403,7 +403,7 @@ public final class CassandraCluster {
                                 break;
                         }
 
-                        if (clusterState.nodeCounts().getSeedCount() < defaultConfigRole.getNumberOfSeeds()) {
+                        if (clusterState.get().getSeedsToAcquire() > 0) {
                             // we do not have enough executor metadata records to fulfil seed node requirement
                             LOGGER.debug(marker, "Cannot launch non-seed node (seed node requirement not fulfilled)");
                             return null;

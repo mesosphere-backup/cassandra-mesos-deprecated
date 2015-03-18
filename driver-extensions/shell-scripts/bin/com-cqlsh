@@ -1,0 +1,8 @@
+#!/bin/sh
+
+_BINARY=bin/cqlsh
+_LIVE_NODES_TYPE=cqlsh
+. `dirname $0`/com.in.sh
+#exec `dirname $0`/com_bin bin/cqlsh cqlsh "$@"
+
+exec ${EXEC} ${ARGS} "$@"

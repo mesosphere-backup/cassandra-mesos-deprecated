@@ -348,7 +348,7 @@ public final class ApiController {
     @Path("/live-nodes/stress")
     @Produces("text/x-cassandra-stress")
     public Response liveEndpointsStress(@QueryParam("limit") @DefaultValue("3") int limit) {
-        return liveEndpoints("stress", 1);
+        return liveEndpoints("stress", limit);
     }
 
     private Response liveEndpoints(String forTool, int limit) {

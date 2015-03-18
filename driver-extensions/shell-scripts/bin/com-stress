@@ -1,0 +1,17 @@
+#!/bin/sh
+
+_BINARY=tools/bin/cassandra-stress
+_LIVE_NODES_TYPE=stress
+. `dirname $0`/com.in.sh
+
+# cassandra-stress
+# (node/port options after other command and options)
+case $1 in
+    help)
+        # cassandra-stress doesn't like node/port options for help command :(
+        exec ${EXEC} "$@"
+        ;;
+    *)
+        exec ${EXEC} "$@" ${ARGS}
+        ;;
+esac

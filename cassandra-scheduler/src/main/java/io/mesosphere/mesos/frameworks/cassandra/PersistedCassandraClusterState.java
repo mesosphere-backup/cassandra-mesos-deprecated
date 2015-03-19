@@ -26,7 +26,7 @@ import java.util.List;
 import static io.mesosphere.mesos.util.Functions.append;
 
 final class PersistedCassandraClusterState extends StatePersistedObject<CassandraFrameworkProtos.CassandraClusterState> {
-    public PersistedCassandraClusterState(@NotNull final State state, final int nodesToAcquire) {
+    public PersistedCassandraClusterState(@NotNull final State state, @NotNull final CassandraFrameworkProtos.CassandraConfigRole defaultConfigRole) {
         super(
             "CassandraClusterState",
             state,
@@ -34,7 +34,8 @@ final class PersistedCassandraClusterState extends StatePersistedObject<Cassandr
                 @Override
                 public CassandraFrameworkProtos.CassandraClusterState get() {
                     return CassandraFrameworkProtos.CassandraClusterState.newBuilder()
-                        .setNodesToAcquire(nodesToAcquire)
+                        .setNodesToAcquire(defaultConfigRole.getNumberOfNodes())
+                        .setSeedsToAcquire(defaultConfigRole.getNumberOfSeeds())
                         .build();
                 }
             },
@@ -99,6 +100,28 @@ final class PersistedCassandraClusterState extends StatePersistedObject<Cassandr
             }
         }
         nodeList.add(node);
+        nodes(nodeList);
+    }
+
+    /**
+     * Sets the {@code needsConfigUpdate} flag on all nodes and update the given {@code node}.
+     */
+    public void setNodeAndUpdateConfig(CassandraFrameworkProtos.CassandraNode.Builder node) {
+        List<CassandraFrameworkProtos.CassandraNode> nodeList = new ArrayList<>();
+        for (CassandraFrameworkProtos.CassandraNode candidate : nodes()) {
+            if (node.getHostname().equals(candidate.getHostname())) {
+                nodeList.add(node
+                    .setNeedsConfigUpdate(true)
+                    .build());
+                nodes(nodeList);
+                return;
+            } else {
+                candidate = CassandraFrameworkProtos.CassandraNode.newBuilder(candidate)
+                    .setNeedsConfigUpdate(true)
+                    .build();
+                nodeList.add(candidate);
+            }
+        }
         nodes(nodeList);
     }
 
@@ -186,5 +209,15 @@ final class PersistedCassandraClusterState extends StatePersistedObject<Cassandr
         }
 
         setValue(builder.build());
+    }
+    public boolean doAcquireNewNodeAsSeed() {
+        CassandraFrameworkProtos.CassandraClusterState value = get();
+        if (value.getSeedsToAcquire() == 0) {
+            return false;
+        }
+        setValue(CassandraFrameworkProtos.CassandraClusterState.newBuilder(value)
+            .setSeedsToAcquire(value.getSeedsToAcquire() - 1)
+            .build());
+        return true;
     }
 }

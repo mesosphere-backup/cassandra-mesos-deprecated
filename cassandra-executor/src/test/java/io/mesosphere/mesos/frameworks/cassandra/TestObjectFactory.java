@@ -23,6 +23,7 @@ import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
 import org.apache.cassandra.net.MessagingServiceMBean;
 import org.apache.cassandra.service.*;
 import org.apache.cassandra.streaming.StreamManagerMBean;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Marker;
 
 import javax.management.*;
@@ -55,6 +56,11 @@ class TestObjectFactory implements ObjectFactory {
     @Override
     public WrappedProcess launchCassandraNodeTask(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask) throws LaunchNodeException {
         return process = new TestWrappedProcess();
+    }
+
+    @Override
+    public void updateCassandraServerConfig(@NotNull Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask, @NotNull CassandraFrameworkProtos.UpdateConfigTask updateConfigTask) {
+        // nop
     }
 
     private static class TestWrappedProcess implements WrappedProcess {

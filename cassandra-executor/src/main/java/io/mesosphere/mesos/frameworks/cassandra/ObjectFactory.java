@@ -14,6 +14,7 @@
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import io.mesosphere.mesos.frameworks.cassandra.jmx.JmxConnect;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Marker;
 
 import java.io.IOException;
@@ -22,6 +23,10 @@ public interface ObjectFactory {
 
     JmxConnect newJmxConnect(CassandraFrameworkProtos.JmxConnect jmx);
 
-    WrappedProcess launchCassandraNodeTask(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask) throws LaunchNodeException;
+    WrappedProcess launchCassandraNodeTask(@NotNull Marker taskIdMarker,
+                                           @NotNull CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask) throws LaunchNodeException;
 
+    void updateCassandraServerConfig(@NotNull Marker taskIdMarker,
+                                     @NotNull CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask,
+                                     @NotNull CassandraFrameworkProtos.UpdateConfigTask updateConfigTask) throws ConfigChangeException;
 }

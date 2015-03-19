@@ -309,8 +309,19 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    public List<String> getSeedNodes() {
+    public List<String> getSeedNodeIps() {
         return CassandraFrameworkProtosUtils.getSeedNodeIps(clusterState.nodes());
+    }
+
+    @NotNull
+    public List<CassandraNode> getLiveSeedNodes() {
+        List<CassandraNode> nodes = new ArrayList<>();
+        for (CassandraNode n : clusterState.nodes()) {
+            if (n.getSeed() && isLiveNode(n)) {
+                nodes.add(n);
+            }
+        }
+        return nodes;
     }
 
     public TasksForOffer getTasksForOffer(@NotNull final Protos.Offer offer) {
@@ -339,7 +350,7 @@ public final class CassandraCluster {
 
                 String replacementForIp = clusterState.nextReplacementIp();
 
-                boolean buildSeedNode = nodeCounts.getSeedCount() < defaultConfigRole.getNumberOfSeeds();
+                boolean buildSeedNode = clusterState.doAcquireNewNodeAsSeed();
                 CassandraNode newNode = buildCassandraNode(offer, buildSeedNode, replacementForIp);
                 clusterState.nodeAcquired(newNode);
                 node = CassandraNode.newBuilder(newNode);
@@ -392,7 +403,7 @@ public final class CassandraCluster {
                                 break;
                         }
 
-                        if (clusterState.nodeCounts().getSeedCount() < defaultConfigRole.getNumberOfSeeds()) {
+                        if (clusterState.get().getSeedsToAcquire() > 0) {
                             // we do not have enough executor metadata records to fulfil seed node requirement
                             LOGGER.debug(marker, "Cannot launch non-seed node (seed node requirement not fulfilled)");
                             return null;
@@ -451,12 +462,20 @@ public final class CassandraCluster {
                         } else {
                             final ExecutorMetadata metadata = maybeMetadata.get();
                             final CassandraNodeTask task = getServerTask(executorId, serverTaskId(node), metadata, node);
-                            node.addTasks(task);
+                            node.addTasks(task)
+                                .setNeedsConfigUpdate(false);
                             result.getLaunchTasks().add(task);
 
                             clusterState.updateLastServerLaunchTimestamp(clock.now().getMillis());
                         }
                     } else {
+                        if (node.getNeedsConfigUpdate()) {
+                            CassandraNodeTask task = getConfigUpdateTask(executorId, configUpdateTaskId(node), maybeMetadata.get());
+                            node.addTasks(task)
+                                .setNeedsConfigUpdate(false);
+                            result.getLaunchTasks().add(task);
+                        }
+
                         switch (node.getTargetRunState()) {
                             case RUN:
                                 if (shouldRunHealthCheck(executorId)) {
@@ -503,8 +522,13 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private String serverTaskId(@NotNull CassandraNode.Builder node) {
-        return executorTaskId(node) + ".server";
+    private static String configUpdateTaskId(CassandraNode.Builder node) {
+        return node.getCassandraNodeExecutor().getExecutorId() + ".config";
+    }
+
+    @NotNull
+    private static String serverTaskId(CassandraNode.Builder node) {
+        return node.getCassandraNodeExecutor().getExecutorId() + ".server";
     }
 
     private boolean canLaunchServerTask() {
@@ -597,6 +621,35 @@ public final class CassandraCluster {
     }
 
     @NotNull
+    private CassandraNodeTask getConfigUpdateTask(
+        @NotNull final String executorId,
+        @NotNull final String taskId,
+        @NotNull final ExecutorMetadata metadata) {
+        CassandraFrameworkConfiguration config = configuration.get();
+        CassandraConfigRole configRole = config.getDefaultConfigRole();
+
+        CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, TaskEnv.getDefaultInstance());
+
+        final TaskDetails taskDetails = TaskDetails.newBuilder()
+            .setTaskType(TaskDetails.TaskType.UPDATE_CONFIG)
+            .setUpdateConfigTask(UpdateConfigTask.newBuilder()
+                    .setCassandraServerConfig(cassandraServerConfig)
+            )
+            .build();
+
+        return CassandraNodeTask.newBuilder()
+            .setTaskType(CassandraNodeTask.TaskType.CONFIG)
+            .setTaskId(taskId)
+            .setExecutorId(executorId)
+            .setCpuCores(configRole.getCpuCores())
+            .setMemMb(configRole.getMemMb())
+            .setDiskMb(configRole.getDiskMb())
+            .addAllPorts(portMappings(config).values())
+            .setTaskDetails(taskDetails)
+            .build();
+    }
+
+    @NotNull
     private CassandraNodeTask getServerTask(
         @NotNull final String executorId,
         @NotNull final String taskId,
@@ -604,17 +657,7 @@ public final class CassandraCluster {
         @NotNull final CassandraNode.Builder node) {
         CassandraFrameworkConfiguration config = configuration.get();
         CassandraConfigRole configRole = config.getDefaultConfigRole();
-        final TaskConfig.Builder taskConfig = TaskConfig.newBuilder(configRole.getCassandraYamlConfig());
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("cluster_name", config.getFrameworkName()));
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("broadcast_address", metadata.getIp()));
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("rpc_address", metadata.getIp()));
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("listen_address", metadata.getIp()));
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("storage_port", getPortMapping(config, PORT_STORAGE)));
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("ssl_storage_port", getPortMapping(config, PORT_STORAGE_SSL)));
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("native_transport_port", getPortMapping(config, PORT_NATIVE)));
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("rpc_port", getPortMapping(config, PORT_RPC)));
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("seeds", SEEDS_FORMAT_JOINER.join(getSeedNodes())));
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("endpoint_snitch", config.hasSnitch() ? config.getSnitch() : "GossipingPropertyFileSnitch"));
+
         final TaskEnv.Builder taskEnv = TaskEnv.newBuilder();
         for (TaskEnv.Entry entry : configRole.getTaskEnv().getVariablesList()) {
             if (!"JMX_PORT".equals(entry.getName()) && !"MAX_HEAP_SIZE".equals(entry.getName())) {
@@ -634,15 +677,18 @@ public final class CassandraCluster {
         if (node.hasReplacementForIp()) {
             command.add("-Dcassandra.replace_address=" + node.getReplacementForIp());
         }
+
+        CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, taskEnv.build());
+
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setTaskType(TaskDetails.TaskType.CASSANDRA_SERVER_RUN)
             .setCassandraServerRunTask(
                 CassandraServerRunTask.newBuilder()
                     // have to start it in foreground in order to be able to detect runtime status in the executor
                     .addAllCommand(command)
-                    .setTaskConfig(taskConfig)
                     .setVersion(configRole.getCassandraVersion())
-                    .setTaskEnv(taskEnv)
+                    .setCassandraServerConfig(cassandraServerConfig)
+                    .setVersion(configRole.getCassandraVersion())
                     .setJmx(node.getJmxConnect())
             )
             .build();
@@ -656,6 +702,30 @@ public final class CassandraCluster {
             .setDiskMb(configRole.getDiskMb())
             .addAllPorts(portMappings(config).values())
             .setTaskDetails(taskDetails)
+            .build();
+    }
+
+    @NotNull
+    private CassandraServerConfig buildCassandraServerConfig(
+            @NotNull ExecutorMetadata metadata,
+            @NotNull CassandraFrameworkConfiguration config,
+            @NotNull CassandraConfigRole configRole,
+            @NotNull TaskEnv taskEnv) {
+        final TaskConfig.Builder taskConfig = TaskConfig.newBuilder(configRole.getCassandraYamlConfig());
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("cluster_name", config.getFrameworkName()));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("broadcast_address", metadata.getIp()));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("rpc_address", metadata.getIp()));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("listen_address", metadata.getIp()));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("storage_port", getPortMapping(config, PORT_STORAGE)));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("ssl_storage_port", getPortMapping(config, PORT_STORAGE_SSL)));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("native_transport_port", getPortMapping(config, PORT_NATIVE)));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("rpc_port", getPortMapping(config, PORT_RPC)));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("seeds", SEEDS_FORMAT_JOINER.join(getSeedNodeIps())));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("endpoint_snitch", config.hasSnitch() ? config.getSnitch() : "GossipingPropertyFileSnitch"));
+
+        return CassandraServerConfig.newBuilder()
+            .setTaskConfig(taskConfig)
+            .setTaskEnv(taskEnv)
             .build();
     }
 
@@ -675,19 +745,22 @@ public final class CassandraCluster {
 
         CassandraConfigRole configRole = configuration.getDefaultConfigRole();
 
+        List<String> command = newArrayList(
+            javaExec,
+//            "agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005",
+            "-XX:+PrintCommandLineFlags",
+            "$JAVA_OPTS",
+            "-classpath",
+            "cassandra-executor.jar",
+            "io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor");
+
         return CassandraNodeExecutor.newBuilder()
             .setExecutorId(executorId)
             .setSource(configuration.frameworkName())
             .setCpuCores(0.1)
             .setMemMb(16)
             .setDiskMb(16)
-            .setCommand(javaExec)
-//            .addCommandArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
-            .addCommandArgs("-XX:+PrintCommandLineFlags")
-            .addCommandArgs("$JAVA_OPTS")
-            .addCommandArgs("-classpath")
-            .addCommandArgs("cassandra-executor.jar")
-            .addCommandArgs("io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor")
+            .addAllCommand(command)
             .setTaskEnv(taskEnvFromMap(executorEnv))
             .addAllResource(newArrayList(
                 resourceUri(getUrlForResource("/jre-7-" + osName + ".tar.gz"), true),
@@ -704,7 +777,7 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private CassandraNodeTask getMetadataTask(@NotNull final String executorId, String ip) {
+    private static CassandraNodeTask getMetadataTask(@NotNull final String executorId, String ip) {
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setTaskType(TaskDetails.TaskType.EXECUTOR_METADATA)
             .setExecutorMetadataTask(
@@ -1095,5 +1168,27 @@ public final class CassandraCluster {
         return newArrayList(
             workdir + "/executor.log",
             workdir + "/apache-cassandra-" + getConfiguration().getDefaultConfigRole().getCassandraVersion() + "/logs/system.log");
+    }
+
+    public boolean setNodeSeed(CassandraNode cassandraNode, boolean seed) throws SeedChangeException {
+        if (cassandraNode.getSeed() == seed) {
+            return false;
+        }
+
+        List<CassandraNode> liveSeedNodes = getLiveSeedNodes();
+
+        if (clusterState.get().getSeedsToAcquire() > 0) {
+            throw new SeedChangeException("Must not change seed status while initial number of seed nodes has not been acquired");
+        }
+
+        if (liveSeedNodes.size() == 1 && liveSeedNodes.get(0).getHostname().equals(cassandraNode.getHostname())) {
+            // node to change is the last live seed node - abort
+            throw new SeedChangeException("Must not remove the last live seed node");
+        }
+
+        clusterState.setNodeAndUpdateConfig(CassandraNode.newBuilder()
+            .setSeed(seed));
+
+        return true;
     }
 }

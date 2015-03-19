@@ -85,7 +85,7 @@ final class ProdObjectFactory implements ObjectFactory {
             Files.write(taskFile.getData().toByteArray(), file);
         }
 
-        modifyCassandraYaml(taskIdMarker, cassandraNodeTask, serverConfig);
+        modifyCassandraYaml(taskIdMarker, cassandraNodeTask);
         modifyCassandraEnvSh(taskIdMarker, cassandraNodeTask);
         modifyCassandraRackdc(taskIdMarker, cassandraNodeTask, serverConfig);
     }
@@ -104,8 +104,8 @@ final class ProdObjectFactory implements ObjectFactory {
         LOGGER.info(taskIdMarker, "Building cassandra-rackdc.properties");
 
         Properties props = new Properties();
-        props.put("dc", location != null && !location.getDatacenter().isEmpty() ? location.getDatacenter() : "DC1");
-        props.put("rack", location != null && !location.getRack().isEmpty() ? location.getRack() : "RAC1");
+        props.put("dc", location != null && location.hasDatacenter() ? location.getDatacenter() : "DC1");
+        props.put("rack", location != null && !location.hasRack() ? location.getRack() : "RAC1");
         // Add a suffix to a datacenter name. Used by the Ec2Snitch and Ec2MultiRegionSnitch to append a string to the EC2 region name.
         //props.put("dc_suffix", "");
         // Uncomment the following line to make this snitch prefer the internal ip when possible, as the Ec2MultiRegionSnitch does.
@@ -152,7 +152,7 @@ final class ProdObjectFactory implements ObjectFactory {
     }
 
     @SuppressWarnings("unchecked")
-    private static void modifyCassandraYaml(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask, CassandraFrameworkProtos.CassandraServerConfig serverConfig) throws IOException {
+    private static void modifyCassandraYaml(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask) throws IOException {
         LOGGER.info(taskIdMarker, "Building cassandra.yaml");
 
         File cassandraYaml = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra.yaml");
@@ -164,7 +164,7 @@ final class ProdObjectFactory implements ObjectFactory {
             yamlMap = (Map<String, Object>) yaml.load(br);
         }
         LOGGER.info(taskIdMarker, "Modifying cassandra.yaml");
-        for (CassandraFrameworkProtos.TaskConfig.Entry entry : serverConfig.getTaskConfig().getVariablesList()) {
+        for (CassandraFrameworkProtos.TaskConfig.Entry entry : cassandraNodeTask.getCassandraServerConfig().getCassandraYamlConfig().getVariablesList()) {
             switch (entry.getName()) {
                 case "seeds":
                     List<Map<String, Object>> seedProviderList = (List<Map<String, Object>>) yamlMap.get("seed_provider");

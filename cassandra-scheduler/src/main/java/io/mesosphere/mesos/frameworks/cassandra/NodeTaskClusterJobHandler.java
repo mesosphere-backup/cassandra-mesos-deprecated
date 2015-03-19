@@ -34,7 +34,7 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
             if (executorId.equals(nodJobStatus.getExecutorId())) {
                 // submit status request
                 tasksForOffer.getSubmitTasks().add(CassandraFrameworkProtos.TaskDetails.newBuilder()
-                    .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB_STATUS)
+                    .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS)
                     .build());
 
                 LOGGER.info("Inquiring cluster job status for {} from {}", currentJob.getJobType().name(),
@@ -74,22 +74,22 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
             CassandraFrameworkProtos.CassandraNode node = nodeForExecutorId.get();
 
             final CassandraFrameworkProtos.TaskDetails taskDetails = CassandraFrameworkProtos.TaskDetails.newBuilder()
-                .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB)
+                .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB)
                 .setNodeJobTask(CassandraFrameworkProtos.NodeJobTask.newBuilder().setJobType(currentJob.getJobType()))
                 .build();
             CassandraFrameworkProtos.CassandraNodeTask cassandraNodeTask = CassandraFrameworkProtos.CassandraNodeTask.newBuilder()
-                .setTaskType(CassandraFrameworkProtos.CassandraNodeTask.TaskType.CLUSTER_JOB)
+                .setType(CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.CLUSTER_JOB)
                 .setTaskId(executorId + '.' + currentJob.getJobType().name())
-                .setExecutorId(executorId)
-                .setCpuCores(0.1)
-                .setMemMb(16)
-                .setDiskMb(16)
+                .setResources(CassandraFrameworkProtos.TaskResources.newBuilder()
+                    .setCpuCores(0.1)
+                    .setMemMb(16)
+                    .setDiskMb(16))
                 .setTaskDetails(taskDetails)
                 .build();
             tasksForOffer.getLaunchTasks().add(cassandraNodeTask);
 
             CassandraFrameworkProtos.NodeJobStatus currentNode = CassandraFrameworkProtos.NodeJobStatus.newBuilder()
-                .setExecutorId(cassandraNodeTask.getExecutorId())
+                .setExecutorId(node.getCassandraNodeExecutor().getExecutorId())
                 .setTaskId(cassandraNodeTask.getTaskId())
                 .setJobType(currentJob.getJobType())
                 .setStartedTimestamp(System.currentTimeMillis())

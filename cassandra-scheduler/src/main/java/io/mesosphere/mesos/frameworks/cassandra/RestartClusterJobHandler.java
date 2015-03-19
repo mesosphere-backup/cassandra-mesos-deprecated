@@ -44,7 +44,7 @@ public class RestartClusterJobHandler extends ClusterJobHandler {
 
                         CassandraFrameworkProtos.HealthCheckHistoryEntry lastHC = cluster.lastHealthCheck(executorId);
 
-                        if (CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER) != null &&
+                        if (CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER) != null &&
                             lastHC.hasTimestampEnd() &&
                             lastHC.getTimestampEnd() > nodeJobStatus.getStartedTimestamp() &&
                             cluster.isLiveNode(lastHC)) {

@@ -47,17 +47,19 @@ public abstract class AbstractSchedulerTest {
 
         CassandraFrameworkProtos.CassandraConfigRole defaultConfigRole = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
             .setCassandraVersion("2.1.2")
-            .setCpuCores(2)
-            .setDiskMb(4096)
+            .setResources(CassandraFrameworkProtos.TaskResources.newBuilder()
+                .setCpuCores(2)
+                .setDiskMb(4096)
+                .setMemMb(4096))
             .setMesosRole("*")
             .setNumberOfNodes(3)
             .setNumberOfSeeds(2)
             .setName("default")
-            .setMemMb(4096)
             .setMesosRole("*")
             .build();
         configuration = new PersistedCassandraFrameworkConfiguration(
                 state,
+                "test-cluster",
                 "test-cluster",
                 defaultConfigRole,
                 0, // health-check

@@ -99,12 +99,15 @@ public final class Main {
         final long      healthCheckIntervalSec  = Long.parseLong(       Env.option("CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS").or("60"));
         final long      bootstrapGraceTimeSec   = Long.parseLong(       Env.option("CASSANDRA_BOOTSTRAP_GRACE_TIME_SECONDS").or("120"));
         final String    cassandraVersion        =                       "2.1.2"; // TODO Env.option("CASSANDRA_VERSION").or("2.1.2");
-        final String    frameworkName           = frameworkName(        Env.option("CASSANDRA_CLUSTER_NAME"));
+        final String    clusterName             = frameworkName(        Env.option("CASSANDRA_CLUSTER_NAME"));
+        final String    frameworkName           = frameworkName(        Env.option("FRAMEWORK_NAME").or(Env.option("CASSANDRA_CLUSTER_NAME")));
         final String    zkUrl                   =                       Env.option("CASSANDRA_ZK").or("zk://localhost:2181/cassandra-mesos");
         final long      zkTimeoutMs             = Long.parseLong(       Env.option("CASSANDRA_ZK_TIMEOUT_MS").or("10000"));
         final String    mesosMasterZkUrl        =                       Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");
         final long      failoverTimeout         = Long.parseLong(       Env.option("CASSANDRA_FAILOVER_TIMEOUT_SECONDS").or(String.valueOf(Period.days(7).toStandardSeconds().getSeconds())));
         final String    mesosRole               =                       Env.option("CASSANDRA_FRAMEWORK_MESOS_ROLE").or("*");
+        final String    datacenter              =                       Env.option("CASSANDRA_DATACENTER").orNull();
+        final String    rack                    =                       Env.option("CASSANDRA_RACK").orNull();
 
         final Matcher matcher = validateZkUrl(zkUrl);
 
@@ -112,26 +115,37 @@ public final class Main {
             matcher.group(1),
             zkTimeoutMs,
             TimeUnit.MILLISECONDS,
-            matcher.group(2)
+            matcher.group(2) + '/' + frameworkName
         );
 
         if (seedCount > executorCount || seedCount <= 0 || executorCount <= 0) {
             throw new IllegalArgumentException("number of nodes (" + executorCount + ") and/or number of seeds (" + seedCount + ") invalid");
         }
 
-        CassandraFrameworkProtos.CassandraConfigRole defaultConfigRole = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
+        CassandraFrameworkProtos.CassandraConfigRole.Builder defaultConfigRole = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
             .setCassandraVersion(cassandraVersion)
-            .setCpuCores(resourceCpuCores)
-            .setDiskMb(resourceDiskMegabytes)
+            .setResources(CassandraFrameworkProtos.TaskResources.newBuilder()
+                .setCpuCores(resourceCpuCores)
+                .setDiskMb(resourceDiskMegabytes)
+                .setMemMb(resourceMemoryMegabytes))
             .setNumberOfNodes(executorCount)
             .setNumberOfSeeds(seedCount)
-            .setMemMb(resourceMemoryMegabytes)
-            .setMesosRole(mesosRole)
-            .build();
+            .setMesosRole(mesosRole);
+        if (datacenter != null || rack != null) {
+            CassandraFrameworkProtos.NodeLocation.Builder locationBuilder = CassandraFrameworkProtos.NodeLocation.newBuilder();
+            if (datacenter != null) {
+                locationBuilder.setDatacenter(datacenter);
+            }
+            if (rack != null) {
+                locationBuilder.setRack(rack);
+            }
+            defaultConfigRole.setNodeLocation(locationBuilder);
+        }
         final PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
             state,
             frameworkName,
-            defaultConfigRole,
+            clusterName,
+            defaultConfigRole.build(),
             healthCheckIntervalSec,
             bootstrapGraceTimeSec
         );
@@ -157,7 +171,7 @@ public final class Main {
             clock,
             httpServerBaseUri.toString(),
             new ExecutorCounter(state, 0L),
-            new PersistedCassandraClusterState(state, defaultConfigRole),
+            new PersistedCassandraClusterState(state, defaultConfigRole.build()),
             new PersistedCassandraClusterHealthCheckHistory(state),
             new PersistedCassandraClusterJobs(state),
             configuration

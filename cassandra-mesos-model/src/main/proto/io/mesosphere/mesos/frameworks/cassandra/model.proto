@@ -15,44 +15,95 @@ package io.mesosphere.mesos.frameworks.cassandra;
 
 option java_outer_classname = "CassandraFrameworkProtos";
 
+/**
+ * Base configuration object.
+ * This is a top-level object in the state hierarchy.
+ */
 message CassandraFrameworkConfiguration {
+    /**
+     * ID of the framework. Assigned by Mesos when the scheduler is registered.
+     */
     optional string frameworkId = 1;
-    optional string frameworkName = 2;
-    optional int64 healthCheckIntervalSeconds = 3;
-    optional int64 bootstrapGraceTimeSeconds = 4;
-    repeated PortMapping portMapping = 5;
-    optional string snitch = 6;
+    /**
+     * Name of the framework - must be unique for each framework instance.
+     * This is different from cluster since if you have setup multiple Cassandra-on-Mesos
+     * frameworks for each logical data center (with different frameworkName and frameworkId) you
+     * still have the same Cassandra cluster name.
+     */
+    required string frameworkName = 2;
+    /**
+     * Name of the Cassandra cluster.
+     * This is different from frameworkName since if you have setup multiple Cassandra-on-Mesos
+     * frameworks for each logical data center (with different frameworkName and frameworkId) you
+     * still have the same Cassandra cluster name.
+     */
+    required string clusterName = 3;
+    /**
+     * Minimum interval in seconds to ask each executor for a health check response of the Cassandra
+     * server task (= Cassandra process).
+     */
+    required int64 healthCheckIntervalSeconds = 4;
+    /**
+     * Minimum interval in seconds between two starts of a Cassandra server task (= Cassandra process).
+     */
+    required int64 bootstrapGraceTimeSeconds = 5;
+    /**
+     * Globally shared mapping of ports required by Cassandra.
+     * Currently there are port mappings for these kinds of ports and respective default values:
+     * storage_port=7000, ssl_storage_port=7001, native_transport_port=9042, rpc_port=9160, jmx_port=7199
+     */
+    repeated PortMapping portMapping = 6;
+    /**
+     * The class name of the snitch used. Defaults to GossipingPropertyFileSnitch.
+     */
+    optional string snitch = 7;
 
-    // default configuration
-    required CassandraConfigRole defaultConfigRole = 7;
+    /**
+     * Default configuration role.
+     */
+    required CassandraConfigRole defaultConfigRole = 8;
 }
 
-// CassandraConfigRole is currently only used once. But different nodes may require different sizings -
-// e.g. when replacing old metal with new metal. Different DCs may also have different sizings.
-// Individual nodes just reference a "config role".
+/**
+ * CassandraConfigRole is currently only used once. But different nodes may require different sizings -
+ * e.g. when replacing old metal with new metal. Different DCs may also have different sizings.
+ * Individual nodes just reference a "config role".
+ */
 message CassandraConfigRole {
-    // arbitrary name of this configuration - usually "default" but could be something like "16core-128g-4x500gSSD"
+    /**
+     * Arbitrary name of this configuration - usually "default" but could be something like "16core-128g-4x500gSSD".
+     */
     optional string name = 1;
 
+    /**
+     * Cassandra version string. Example: 2.1.4
+     */
     optional string cassandraVersion = 2;
+    /**
+     * Initial target number of Cassandra nodes.
+     */
     optional int32 numberOfNodes = 3;
-    optional double cpuCores = 4;
-    optional int64 diskMb = 6;
-    optional int32 numberOfSeeds = 7;
+    /**
+     * Initial target number of seed nodes.
+     */
+    optional int32 numberOfSeeds = 4;
 
-
-    // total memory required (must be greater than memJavaHeapMb + memAssumeOffHeapMb)
-    optional int64 memMb = 5;
+    /**
+     * The resource to provision.
+     * Total memory must be greater or equal to memJavaHeapMb + memAssumeOffHeapMb.
+     * The field ports is not used in this context.
+     */
+    required TaskResources resources = 5;
 
     // Cassandra memory usage can be categorized into
     // 1. Java heap (MAX_HEAP_SIZE) - including new-gen (HEAP_NEWSIZE)
     //    Amount of Java heap in MB.
     //    (defaults to 50% of memMb, max 16384, if not present)
-    optional int64 memJavaHeapMb = 8;
+    optional int64 memJavaHeapMb = 6;
     // 2. Off-Heap
     //    Amount of Off heap in MB.
     //    (defaults to memMb - memJavaHeapMb, if not present)
-    optional int64 memAssumeOffHeapMb = 9;
+    optional int64 memAssumeOffHeapMb = 7;
     // 3. OS (add as much as possible for OS block cache)
     //    This is just the difference between memMb and memJavaHeapMb + memAssumeOffHeapMb
 
@@ -83,36 +134,94 @@ message CassandraConfigRole {
 
     // additional configuration
     // process environment
-    optional TaskEnv taskEnv = 10;
+    optional TaskEnv taskEnv = 8;
     // cassandra.yaml configuration
-    optional TaskConfig cassandraYamlConfig = 11;
+    optional TaskConfig cassandraYamlConfig = 9;
     // mesos role to be used to receive resource offers
-    optional string mesosRole = 12;
+    optional string mesosRole = 10;
+
+    /**
+     * The default location for nodes.
+     */
+    optional NodeLocation nodeLocation = 11;
 }
 
+/**
+ * One port mapping consisting of a port name and value.
+ */
 message PortMapping {
     required string name = 1;
     required int32 port = 2;
 }
 
+/**
+ * Current status of the cluster.
+ * This is a top-level object in the state hierarchy.
+ */
 message CassandraClusterState {
+    /**
+     * List of all known nodes.
+     */
     repeated CassandraNode nodes = 1;
+    /**
+     * List of all known executors.
+     */
     repeated ExecutorMetadata executorMetadata = 2;
+    /**
+     * Timestamp when the last Cassandra server run task has been submitted.
+     */
     optional int64 lastServerLaunchTimestamp = 3;
+    /**
+     * List of IP addresses of nodes that need to be replaced.
+     */
     repeated string replaceNodeIps = 4;
+    /**
+     * Number of new nodes that have to be acquired.
+     * If replaceNodeIps is not empty, new nodes will start with the -Dcassandra.replace_address=<IP>
+     * option passed to the Cassandra process.
+     */
     required int32 nodesToAcquire = 5;
     required int32 seedsToAcquire = 6;
 }
 
+/**
+ * Contains a history of the last health-checks that were received from all nodes.
+ * The implementation should not add a new entry when it is similar to the previous one.
+ * Instead it should update the timespan in the previous one.
+ * This is a top-level object in the state hierarchy.
+ */
 message CassandraClusterHealthCheckHistory {
+    /**
+     * Configuration option that determines how many entries should be recorded per node.
+     */
     required int32 maxEntriesPerNode = 1;
+    /**
+     * Health check history entries.
+     */
     repeated HealthCheckHistoryEntry entries = 2;
 }
 
+/**
+ * Health check history entry as part of CassandraClusterHealthCheckHistory message.
+ */
 message HealthCheckHistoryEntry {
+    /**
+     * Executor ID from which this entry has been received.
+     */
     required string executorId = 1;
+    /**
+     * First occurence of this entry.
+     * This field differs from timestampEnd when multiple, similar HealthCheckDetails have been received.
+     */
     required int64 timestampStart = 2;
+    /**
+     * Last occurence of this entry.
+     * This field differs from timestampStart when multiple, similar HealthCheckDetails have been received.
+     */
     required int64 timestampEnd = 3;
+    /**
+     * Health check details for this entry.
+     */
     required HealthCheckDetails details = 4;
 }
 
@@ -121,69 +230,176 @@ enum ClusterJobType {
     REPAIR = 2;
     RESTART = 3;
 }
-message CassandraClusterJobs {
-    repeated ScheduledJob jobs = 1;
 
-    optional ClusterJobStatus currentClusterJob = 3;
-    repeated ClusterJobStatus lastClusterJobs = 4;
+/**
+ * State object that contains the current cluster-wide job and the last job status (one per job type).
+ * This is a top-level object in the state hierarchy.
+ */
+message CassandraClusterJobs {
+    /**
+     * The currently executing cluster-wide job.
+     */
+    optional ClusterJobStatus currentClusterJob = 1;
+    /**
+     * List with the last job status per job-type.
+     */
+    repeated ClusterJobStatus lastClusterJobs = 2;
 }
-message ScheduledJob {
-    required ClusterJobType jobType = 1;
-    required int64 scheduledTime = 2;
-    optional RepairScheduledJob repairTask = 3;
-    optional CleanupScheduledJob cleanupTask = 4;
-}
-message CleanupScheduledJob {
-}
-message RepairScheduledJob {
-}
+/**
+ * Status information on a cluster-wide job.
+ */
 message ClusterJobStatus {
+    /**
+     * Type of the cluster-wide job.
+     */
     required ClusterJobType jobType = 1;
+    /**
+     * Timestamp when the cluster-wide job has been started.
+     */
     required int64 startedTimestamp = 2;
+    /**
+     * Timestamp when the cluster-wide job has finished.
+     */
     optional int64 finishedTimestamp = 3;
+    /**
+     * List containing the executor IDs of the nodes that still have to execute the job.
+     */
     repeated string remainingNodes = 4;
+    /**
+     * List with the per-node status of the nodes that finished the job.
+     */
     repeated NodeJobStatus completedNodes = 5;
+    /**
+     * Flag whether the cluster-job should be or has been aborted.
+     */
     optional bool aborted = 6;
+    /**
+     * Job status of the node currently executing.
+     */
     optional NodeJobStatus currentNode = 7;
 }
+/**
+ * Per-node status of a cluster-wide job in ClusterJobStatus.
+ */
 message NodeJobStatus {
+    /**
+     * Executor ID of the node.
+     */
     required string executorId = 1;
+    /**
+     * Task ID of the node-job.
+     */
     required string taskId = 2;
+    /**
+     * Type of the job.
+     */
     required ClusterJobType jobType = 3;
+    /**
+     * Timestamp when the job has been started on the node.
+     */
     optional int64 startedTimestamp = 4;
+    /**
+     * Timestamp when the job has finished on the node.
+     */
     optional int64 finishedTimestamp = 5;
+    /**
+     * Flag whether the job is still running on the node.
+     */
     optional bool running = 6;
+    /**
+     * Flag whether the job failed on the node.
+     */
     optional bool failed = 7;
+    /**
+     * Optional failure message, if failed field is true.
+     */
     optional string failureMessage = 8;
 
+    /**
+     * List of per-keyspace status information.
+     */
     repeated ClusterJobKeyspaceStatus processedKeyspaces = 9;
+    /**
+     * List of remaining keyspaces to process.
+     */
     repeated string remainingKeyspaces = 10;
 }
+/**
+ * Per-keyspace status in NodeJobStatus.
+ */
 message ClusterJobKeyspaceStatus {
+    /**
+     * Name of the keyspace.
+     */
     required string keyspace = 1;
+    /**
+     * Status (depends on job type).
+     */
     required string status = 2;
+    /**
+     * Duration in milliseconds.
+     */
     required int64 duration = 3;
 }
 
+/**
+ * Describes a node.
+ */
 message CassandraNode {
+    /**
+     * Hostname as provided in the Mesos Offer message.
+     */
     required string hostname = 1;
+    /**
+     * IP resolved by the scheduler from hostname as provided in the Mesos Offer message.
+     */
     required string ip = 2;
+    /**
+     * Information how to access JMX on that node.
+     */
     required JmxConnect jmxConnect = 3;
 
+    /**
+     * List of data volumes for the node.
+     * Each DataVolume correspons to a Cassandra JBOD data directory.
+     */
     repeated DataVolume dataVolumes = 4;
+    /**
+     * Information about the executor for this node.
+     */
     optional CassandraNodeExecutor cassandraNodeExecutor = 5;
 
+    /**
+     * Tasks submitted to this node.
+     */
     repeated CassandraNodeTask tasks = 6;
 
+    /**
+     * Flag whether the node is a seed node.
+     */
     required bool seed = 8;
+    /**
+     * Timestamp when the last repair ran on this node.
+     */
     optional int64 lastRepairTimestamp = 9;
+    /**
+     * Timestamp when the last cleanup ran on this node.
+     */
     optional int64 lastCleanupTimestamp = 10;
 
-    // Indicates whether a node should run or not.
+    /**
+     * Indicates whether a node should run or not.
+     */
     required TargetRunState targetRunState = 11;
 
+    /**
+     * The process ID of the Cassandra process.
+     */
     optional int32 cassandraDaemonPid = 12;
 
+    /**
+     * IP of the node that this node is about to replace.
+     */
     optional string replacementForIp = 13;
 
     enum TargetRunState {
@@ -200,85 +416,240 @@ message CassandraNode {
         TERMINATE = 3;
     }
 
+    /**
+     * Location (data center + rack) of this node.
+     */
     optional NodeLocation location = 14;
 
     // The configuration files of this node need to be updated, but the Cassandra server process does not
     // need to be restarted.
     optional bool needsConfigUpdate = 15;
 }
+/**
+ * Contains data center + rack information.
+ */
 message NodeLocation {
-    required string datacenter = 1;
-    required string rack = 2;
+    /**
+     * Name of the data center.
+     */
+    optional string datacenter = 1;
+    /**
+     * Name of the rack.
+     */
+    optional string rack = 2;
 }
+/**
+ * Describes a data volume for a node.
+ */
 message DataVolume {
+    /**
+     * Data volume (= Cassandra data directory) path.
+     */
     required string path = 1;
+    /**
+     * Size in MB.
+     */
     required int64 sizeMb = 2;
 }
+/**
+ * Holder for resources to be provisioned for a task.
+ */
+message TaskResources {
+    /**
+     * Number of CPU cores to provision.
+     */
+    optional double cpuCores = 1;
+    /**
+     * Amount of disk space to provision.
+     */
+    optional int64 diskMb = 2;
+    /**
+     * Amount of memory to provision.
+     */
+    required int64 memMb = 3;
+    /**
+     * Port ranges to provision.
+     */
+    repeated int64 ports = 4;
+}
+/**
+ * Describes the executor process on a node.
+ */
 message CassandraNodeExecutor {
+    /**
+     * ID of the executor.
+     */
     required string executorId = 1;
+    /**
+     * Source (= framework name).
+     */
     required string source = 2;
-    required double cpuCores = 3;
-    required int64 memMb = 4;
-    required int64 diskMb = 5;
-    repeated int64 ports = 6;
+    /**
+     * Resources to be provisioned for the executor process.
+     */
+    required TaskResources resources = 3;
 
+    /**
+     * Executor process command and arguments.
+     */
     repeated string command = 7;
 
+    /**
+     * Executor process environment.
+     */
     optional TaskEnv taskEnv = 8;
 
-    repeated URI resource = 9;
+    /**
+     * Required resources that must be downloaded.
+     */
+    repeated FileDownload download = 5;
 }
-message URI {
-    required string value = 1;
+
+/**
+ * File to be downloaded.
+ */
+message FileDownload {
+    /**
+     * URL to download the file from.
+     */
+    required string downloadUrl = 1;
+    /**
+     * Flag whether the file is executable.
+     */
     optional bool executable = 2;
+    /**
+     * Flag whether to extract the file (for example .tar.gz bundles)
+     */
     optional bool extract = 3;
 }
 
+/**
+ * Describes a task for a node.
+ */
 message CassandraNodeTask {
-    required TaskType taskType = 1;
+    /**
+     * Type of task.
+     */
+    required NodeTaskType type = 1;
+    /**
+     * ID of the task.
+     */
     required string taskId = 2;
-    required string executorId = 3;
-    required double cpuCores = 4;
-    required int64 memMb = 5;
-    required int64 diskMb = 6;
-    repeated int64 ports = 7;
+    /**
+     * Resources to be provisioned for this task.
+     */
+    required TaskResources resources = 3;
 
-    optional TaskDetails taskDetails = 8;
+    /**
+     * Details for the task - depending on taskType.
+     */
+    optional TaskDetails taskDetails = 4;
 
-    enum TaskType {
+    enum NodeTaskType {
+        /**
+         * Inquire some meta information from the executor.
+         */
         METADATA = 1;
+        /**
+         * Start the Cassandra process.
+         */
         SERVER = 2;
+        /**
+         * Start the node's part of a cluster wide job.
+         */
         CLUSTER_JOB = 3;
         CONFIG = 4;
     }
 }
 
+/**
+ * Details for a task to launch on a node or a task submitted via Mesos framework messages.
+ * Tasks are guaranteed to execute or fail with a status sent to the scheduler.
+ * Framework messages are much like UDP packages - no delivery guarantee - messages might be received
+ * out-of-order.
+ */
 message TaskDetails {
-    required TaskType taskType = 1;
+    /**
+     * Type of the task.
+     */
+    required TaskDetailsType type = 1;
+    /**
+     * ???
+     */
     optional ExecutorMetadataTask executorMetadataTask = 2;
+    /**
+     * Start the Cassandra process.
+     */
     optional CassandraServerRunTask cassandraServerRunTask = 3;
+    /**
+     * Start a node's part of a cluster wide job.
+     */
     optional NodeJobTask nodeJobTask = 4;
     optional UpdateConfigTask updateConfigTask = 5;
 
-    enum TaskType {
+    enum TaskDetailsType {
+        /**
+         * ???
+         * Via launchTask.
+         */
         EXECUTOR_METADATA = 1;
+        /**
+         * Start the Cassandra process.
+         * Via launchTask.
+         */
         CASSANDRA_SERVER_RUN = 2;
+        /**
+         * Ask executor to perform a health check and return the result to its scheduler.
+         * Via framework message from scheduler to executor.
+         */
         HEALTH_CHECK = 3;
+        /**
+         * Start a node's part of a cluster-wide job.
+         * Via launchTask.
+         */
         NODE_JOB = 4;
+        /**
+         * Ask executor to return the status of its current node-job to its scheduler.
+         * Via framework message from scheduler to executor.
+         */
         NODE_JOB_STATUS = 5;
         UPDATE_CONFIG = 6;
     }
 }
 
+/**
+ * ???
+ */
 message ExecutorMetadataTask {
+    /**
+     * ???
+     */
     required string executorId = 1;
+    /**
+     * ???
+     */
     required string ip = 2;
 }
 
+/**
+ * Cassandra process start task.
+ */
 message CassandraServerRunTask {
+    /**
+     * Cassandra version.
+     */
     required string version = 1;
+    /**
+     * Cassandra server process command and arguments.
+     */
     repeated string command = 2;
+    /**
+     * Cassandra server configuration.
+     */
     required CassandraServerConfig cassandraServerConfig = 3;
+    /**
+     * Information how to connect to Cassandra's JMX server.
+     */
     required JmxConnect jmx = 4;
 }
 
@@ -287,19 +658,48 @@ message UpdateConfigTask {
 }
 
 message CassandraServerConfig {
+    /**
+     * Required files.
+     */
     repeated TaskFile taskFiles = 1;
+    /**
+     * Cassandra server process environment.
+     */
     optional TaskEnv taskEnv = 2;
-    required TaskConfig taskConfig = 3;
-
+    /**
+     * Cassandra.yaml configuration details.
+     */
+    required TaskConfig cassandraYamlConfig = 3;
+    /**
+     * Logical location of the node.
+     */
     optional NodeLocation location = 4;
 }
 
+/**
+ * Contains information what kind of cluster job a node should start.
+ */
 message NodeJobTask {
+    /**
+     * Cluster job type.
+     */
     required ClusterJobType jobType = 1;
 }
 
+/**
+ * Information how to connect to Cassandra's JMX server.
+ */
 message JmxConnect {
+    /**
+     * The TCP port the JMX server uses. Usually this port equals to the default port in
+     * CassandraFrameworkConfiguration.portMapping. In a development environment where all nodes are running on
+     * the same machine, the JMX port differs per node (thanks to Sun/Oracle, who didn't made it possible to
+     * bind JMX server to an IP address).
+     */
     required int32 jmxPort = 1;
+    /**
+     * IP address where the JMX server runs. This is usually the IP address of the node.
+     */
     required string ip = 2;
     // TODO add JMX auth params
 }
@@ -309,17 +709,41 @@ message JmxConnect {
  * with provided data
  */
 message TaskFile {
+    /**
+     * Target path name.
+     */
     required string outputPath = 1;
+    /**
+     * File contents.
+     */
     required bytes data = 2;
 }
 
+/**
+ * Configuration for a configuration file - usually cassandra.yaml.
+ */
 message TaskConfig {
+    /**
+     * A single config item.
+     */
     message Entry {
+        /**
+         * Config item name.
+         */
         required string name = 1;
+        /**
+         * Either a string value ...
+         */
         optional string stringValue = 2;
+        /**
+         * ... or an integer value.
+         */
         optional int64 longValue = 3;
     }
 
+    /**
+     * List of config items.
+     */
     repeated Entry variables = 1;
 }
 
@@ -328,19 +752,50 @@ message TaskConfig {
  */
 message TaskEnv {
     message Entry {
+        /**
+         * Environment variable name.
+         */
         required string name = 1;
+        /**
+         * Environment variable value.
+         */
         required string value = 2;
     }
 
+    /**
+     * List of environment variables.
+     */
     repeated Entry variables = 1;
 }
 
+/**
+ * Status details sent back from the executor to the scheduler either as a status-update for a
+ * launched task or as a framework message in reply to a status inquiry.
+ */
 message SlaveStatusDetails {
+    /**
+     * Type of status details.
+     */
     required StatusDetailsType statusDetailsType = 1;
+    /**
+     * ???
+     */
     optional ExecutorMetadata executorMetadata = 2;
+    /**
+     * Information about the launched Cassandra process.
+     */
     optional CassandraServerRunMetadata cassandraServerRunMetadata = 3;
+    /**
+     * Error information.
+     */
     optional SlaveErrorDetails slaveErrorDetails = 4;
+    /**
+     * Health check details (only via framework messages).
+     */
     optional HealthCheckDetails healthCheckDetails = 5;
+    /**
+     * Node job status (only via framework messages).
+     */
     optional NodeJobStatus nodeJobStatus = 6;
 
     enum StatusDetailsType {
@@ -353,20 +808,50 @@ message SlaveStatusDetails {
     }
 }
 
+/**
+ * ???
+ */
 message ExecutorMetadata {
+    /**
+     * ???
+     */
     required string executorId = 1;
+    /**
+     * ???
+     */
     optional string ip = 2;
     required string workdir = 3;
 }
 
+/**
+ * Information about the launched Cassandra process.
+ */
 message CassandraServerRunMetadata {
+    /**
+     * Process ID of the Cassandra process.
+     */
     required int32 pid = 1;
 }
 
+/**
+ * Error information sent as status update from executor to scheduler.
+ */
 message SlaveErrorDetails {
+    /**
+     * Error message.
+     */
     optional string msg = 1;
+    /**
+     * Error details (if available).
+     */
     optional string details = 2;
+    /**
+     * Error type.
+     */
     optional ErrorType errorType = 3;
+    /**
+     * Exit code of the process.
+     */
     optional int32 processExitCode = 4;
 
     enum ErrorType {
@@ -383,26 +868,82 @@ message SlaveErrorDetails {
     }
 }
 
+/**
+ * Health check information.
+ */
 message HealthCheckDetails {
+    /**
+     * Flag whether the Cassandra process can be considered healthy.
+     */
     required bool healthy = 1;
+    /**
+     * May contain reason why the Cassandra process is not considered healthy
+     */
     optional string msg = 2;
+    /**
+     * Optional details.
+     */
     optional NodeInfo info = 3;
 }
 
+/**
+ * Cassandra process information as inquired by JMX.
+ */
 message NodeInfo {
-    // extracted this information because it could be meaningful outside of a health-check
+    /**
+     * Name of the cluster.
+     */
     optional string clusterName = 1;
+    /**
+     * Operation mode as reported by Cassandra.
+     */
     optional string operationMode = 2;
+    /**
+     * Flag whether the node has joined the cluster.
+     */
     optional bool joined = 3;
+    /**
+     * Flag whether the Thrift (RPC) server is running.
+     */
     optional bool rpcServerRunning = 4;
+    /**
+     * Flag whether the native protocol server is running.
+     */
     optional bool nativeTransportRunning = 5;
+    /**
+     * Flag whether gossip is initialized.
+     */
     optional bool gossipInitialized = 6;
+    /**
+     * Flag whether gossip is running.
+     */
     optional bool gossipRunning = 7;
+    /**
+     * Uptime of the JVM in milliseconds.
+     */
     optional int64 uptimeMillis = 8;
+    /**
+     * ID of the Cassandra host.
+     */
     optional string hostId = 9;
+    /**
+     * Endpoint of the Cassandra host.
+     */
     optional string endpoint = 10;
+    /**
+     * Number of tokens managed by this node.
+     */
     optional int32 tokenCount = 11;
+    /**
+     * Name of the data center of this node.
+     */
     optional string dataCenter = 12;
+    /**
+     * Name of the rack of this node.
+     */
     optional string rack = 13;
+    /**
+     * Cassandra version string (as returned by Cassandra).
+     */
     optional string version = 14;
 }

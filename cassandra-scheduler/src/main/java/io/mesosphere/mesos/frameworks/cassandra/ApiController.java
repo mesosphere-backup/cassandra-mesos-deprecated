@@ -17,7 +17,6 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.google.common.base.Optional;
-import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +39,9 @@ public final class ApiController {
         this.cluster = cluster;
     }
 
+    /**
+     * Basially a poor man's index page.
+     */
     @GET
     public Response indexPage(@Context UriInfo uriInfo) {
         StringWriter sw = new StringWriter();
@@ -52,6 +54,7 @@ public final class ApiController {
             String baseUrl = uriInfo.getBaseUri().toString();
 
             json.writeStringField("configuration", baseUrl + "config");
+            json.writeStringField("seedNodes", baseUrl + "seed-nodes");
             json.writeStringField("allNodes", baseUrl + "nodes");
 
             json.writeObjectFieldStart("repair");
@@ -78,6 +81,17 @@ public final class ApiController {
         return Response.ok(sw.toString(), "application/json").build();
     }
 
+    /**
+     * Returns a JSON with the IP addresses of all seed nodes and native, thrift and JMX port numbers.
+     *
+     *     Example:
+     *     <pre>{@code {
+     * "nativePort" : 9042,
+     * "rpcPort" : 9160,
+     * "jmxPort" : 7199,
+     * "seeds" : [ "127.0.0.1" ]
+     * }}</pre>
+     */
     @GET
     @Path("/seed-nodes")
     public Response seedNodes() {
@@ -92,6 +106,7 @@ public final class ApiController {
 
             json.writeNumberField("nativePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_NATIVE));
             json.writeNumberField("rpcPort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_RPC));
+            json.writeNumberField("jmxPort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_JMX));
 
             writeSeedIps(json);
 
@@ -113,6 +128,36 @@ public final class ApiController {
         json.writeEndArray();
     }
 
+    /**
+     * Returns the configuration as JSON.
+     *
+     *     Example: <pre>{@code {
+     * "frameworkName" : "cassandra",
+     * "frameworkId" : "20150318-143436-16777343-5050-5621-0000",
+     * "defaultConfigRole" : {
+     *     "cassandraVersion" : "2.1.2",
+     *     "targetNodeCount" : 2,
+     *     "seedNodeCount" : 1,
+     *     "diskMb" : 2048,
+     *     "cpuCores" : 2.0,
+     *     "memJavaHeapMb" : 1024,
+     *     "memAssumeOffHeapMb" : 1024,
+     *     "memMb" : 2048,
+     *     "taskEnv" : null
+     * },
+     * "nativePort" : 9042,
+     * "rpcPort" : 9160,
+     * "storagePort" : 7000,
+     * "sslStoragePort" : 7001,
+     * "seeds" : [ "127.0.0.1" ],
+     * "healthCheckIntervalSeconds" : 10,
+     * "bootstrapGraceTimeSeconds" : 0,
+     * "currentClusterTask" : null,
+     * "lastRepair" : null,
+     * "lastCleanup" : null,
+     * "nextPossibleServerLaunchTimestamp" : 1426685858805
+     * }}</pre>
+     */
     @GET
     @Path("/config")
     public Response config() {
@@ -129,7 +174,7 @@ public final class ApiController {
 
             json.writeStringField("frameworkName", configuration.getFrameworkName());
             json.writeStringField("frameworkId", configuration.getFrameworkId());
-// TODO          json.writeStringField("clusterName", configuration.getFrameworkId());
+            json.writeStringField("clusterName", configuration.getClusterName());
 
             CassandraFrameworkProtos.CassandraConfigRole configRole = configuration.getDefaultConfigRole();
             json.writeObjectFieldStart("defaultConfigRole");
@@ -167,6 +212,97 @@ public final class ApiController {
         return Response.ok(sw.toString(), "application/json").build();
     }
 
+    /**
+     * Retrieve a list of all nodes including their status.
+     *
+     *     <pre>{@code {
+     * "replaceNodes" : [ ],
+     * "nodesToAcquire" : 0,
+     * "nodes" : [ {
+     *     "tasks" : {
+     *         "METADATA" : {
+     *             "cpuCores" : 0.1,
+     *             "diskMb" : 16,
+     *             "memMb" : 16,
+     *             "taskId" : "cassandra.node.0.executor"
+     *         },
+     *         "SERVER" : {
+     *             "cpuCores" : 2.0,
+     *             "diskMb" : 2048,
+     *             "memMb" : 2048,
+     *             "taskId" : "cassandra.node.0.executor.server"
+     *         }
+     *     },
+     *     "executorId" : "cassandra.node.0.executor",
+     *     "ip" : "127.0.0.2",
+     *     "hostname" : "127.0.0.2",
+     *     "targetRunState" : "RUN",
+     *     "jmxPort" : 64112,
+     *     "seedNode" : true,
+     *     "cassandraDaemonPid" : 6104,
+     *     "lastHealthCheck" : 1426686217128,
+     *     "healthCheckDetails" : {
+     *         "healthy" : true,
+     *         "msg" : "",
+     *         "version" : "2.1.2",
+     *         "operationMode" : "NORMAL",
+     *         "clusterName" : "cassandra",
+     *         "dataCenter" : "DC1",
+     *         "rack" : "RAC1",
+     *         "endpoint" : "127.0.0.2",
+     *         "hostId" : "4207396e-6aa0-432e-97d9-1a4df3c1057f",
+     *         "joined" : true,
+     *         "gossipInitialized" : true,
+     *         "gossipRunning" : true,
+     *         "nativeTransportRunning" : true,
+     *         "rpcServerRunning" : true,
+     *         "tokenCount" : 256,
+     *         "uptimeMillis" : 29072
+     *     }
+     * }, {
+     *     "tasks" : {
+     *     "METADATA" : {
+     *         "cpuCores" : 0.1,
+     *         "diskMb" : 16,
+     *         "memMb" : 16,
+     *         "taskId" : "cassandra.node.1.executor"
+     *     },
+     *     "SERVER" : {
+     *         "cpuCores" : 2.0,
+     *         "diskMb" : 2048,
+     *         "memMb" : 2048,
+     *         "taskId" : "cassandra.node.1.executor.server"
+     *     }
+     *     },
+     *     "executorId" : "cassandra.node.1.executor",
+     *     "ip" : "127.0.0.1",
+     *     "hostname" : "localhost",
+     *     "targetRunState" : "RUN",
+     *     "jmxPort" : 64113,
+     *     "seedNode" : false,
+     *     "cassandraDaemonPid" : 6127,
+     *     "lastHealthCheck" : 1426686217095,
+     *     "healthCheckDetails" : {
+     *         "healthy" : true,
+     *         "msg" : "",
+     *         "version" : "2.1.2",
+     *         "operationMode" : "JOINING",
+     *         "clusterName" : "cassandra",
+     *         "dataCenter" : "",
+     *         "rack" : "",
+     *         "endpoint" : "",
+     *         "hostId" : "",
+     *         "joined" : true,
+     *         "gossipInitialized" : true,
+     *         "gossipRunning" : true,
+     *         "nativeTransportRunning" : false,
+     *         "rpcServerRunning" : false,
+     *         "tokenCount" : 0,
+     *         "uptimeMillis" : 16936
+     *     }
+     * } ]
+     * }}</pre>
+     */
     @GET
     @Path("/qaReportResources/text")
     public Response qaReportResourcesText() {
@@ -297,8 +433,11 @@ public final class ApiController {
                     json.writeStringField("replacementForIp", cassandraNode.getReplacementForIp());
                 }
 
-                writeTask(json, "serverTask", CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
-                writeTask(json, "metadataTask", CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraFrameworkProtos.CassandraNodeTask.TaskType.METADATA));
+                json.writeObjectFieldStart("tasks");
+                for (CassandraFrameworkProtos.CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
+                    writeTask(json, cassandraNodeTask);
+                }
+                json.writeEndObject();
 // TODO                cassandraNode.getDataVolumesList();
 
 
@@ -376,21 +515,19 @@ public final class ApiController {
         return Response.ok(sw.toString(), "application/json").build();
     }
 
-    private void writeConfigRole(JsonGenerator json, CassandraFrameworkProtos.CassandraConfigRole configRole) throws IOException {
+    private static void writeConfigRole(JsonGenerator json, CassandraFrameworkProtos.CassandraConfigRole configRole) throws IOException {
         json.writeStringField("cassandraVersion", configRole.getCassandraVersion());
         json.writeNumberField("targetNodeCount", configRole.getNumberOfNodes());
         json.writeNumberField("seedNodeCount", configRole.getNumberOfSeeds());
-        json.writeNumberField("diskMb", configRole.getDiskMb());
-        json.writeNumberField("cpuCores", configRole.getCpuCores());
+        json.writeNumberField("diskMb", configRole.getResources().getDiskMb());
+        json.writeNumberField("cpuCores", configRole.getResources().getCpuCores());
         if (configRole.hasMemJavaHeapMb()) {
             json.writeNumberField("memJavaHeapMb", configRole.getMemJavaHeapMb());
         }
         if (configRole.hasMemAssumeOffHeapMb()) {
             json.writeNumberField("memAssumeOffHeapMb", configRole.getMemAssumeOffHeapMb());
         }
-        if (configRole.hasMemMb()) {
-            json.writeNumberField("memMb", configRole.getMemMb());
-        }
+        json.writeNumberField("memMb", configRole.getResources().getMemMb());
 
         if (!configRole.hasTaskEnv()) {
             json.writeNullField("taskEnv");
@@ -413,21 +550,29 @@ public final class ApiController {
         }
     }
 
-    private static void writeTask(JsonGenerator json, String name, CassandraFrameworkProtos.CassandraNodeTask task) throws IOException {
+    private static void writeTask(JsonGenerator json, CassandraFrameworkProtos.CassandraNodeTask task) throws IOException {
         if (task != null && task.hasTaskId()) {
-            json.writeObjectFieldStart(name);
-            json.writeStringField("type", task.getTaskDetails().getTaskType().toString());
-            json.writeNumberField("cpuCores", task.getCpuCores());
-            json.writeNumberField("diskMb", task.getDiskMb());
-            json.writeNumberField("memMb", task.getMemMb());
-            json.writeStringField("executorId", task.getExecutorId());
+            json.writeObjectFieldStart(task.getType().toString());
+            json.writeNumberField("cpuCores", task.getResources().getCpuCores());
+            json.writeNumberField("diskMb", task.getResources().getDiskMb());
+            json.writeNumberField("memMb", task.getResources().getMemMb());
             json.writeStringField("taskId", task.getTaskId());
             json.writeEndObject();
-        } else {
-            json.writeNullField(name);
         }
     }
 
+    /**
+     * Variant of the live Cassandra nodes endpoint that produces JSON.
+     * Allows to retrieve multiple live nodes limited to 3 nodes by default. The limit can be changed with the
+     * query parameter {@code limit}.
+     *
+     *     Example: <pre>{@code {
+     * "nativePort" : 9042,
+     * "rpcPort" : 9160,
+     * "jmxPort" : 7199,
+     * "liveNodes" : [ "127.0.0.1", "127.0.0.2" ]
+     * }}</pre>
+     */
     @GET
     @Path("/live-nodes")
     @Produces("application/json")
@@ -435,6 +580,18 @@ public final class ApiController {
         return liveEndpoints("json", limit);
     }
 
+    /**
+     * Variant of the live Cassandra nodes endpoint that produces plain text.
+     * Allows to retrieve multiple live nodes limited to 3 nodes by default. The limit can be changed with the
+     * query parameter {@code limit}.
+     *
+     *     Example: <pre>{@code NATIVE: 9042
+     * RPC: 9160
+     * JMX: 7199
+     * IP: 127.0.0.1
+     * IP: 127.0.0.2
+     * }</pre>
+     */
     @GET
     @Path("/live-nodes/text")
     @Produces("text/plain")
@@ -442,6 +599,9 @@ public final class ApiController {
         return liveEndpoints("text", limit);
     }
 
+    /**
+     * Variant of the live Cassandra nodes endpoint that produces partial command line for cqlsh.
+     */
     @GET
     @Path("/live-nodes/cqlsh")
     @Produces("text/x-cassandra-cqlsh")
@@ -449,6 +609,9 @@ public final class ApiController {
         return liveEndpoints("cqlsh", 1);
     }
 
+    /**
+     * Variant of the live Cassandra nodes endpoint that produces partial command line for nodetool.
+     */
     @GET
     @Path("/live-nodes/nodetool")
     @Produces("text/x-cassandra-nodetool")
@@ -456,6 +619,11 @@ public final class ApiController {
         return liveEndpoints("nodetool", 1);
     }
 
+    /**
+     * Variant of the live Cassandra nodes endpoint that produces partial command line for cassandra-stress.
+     * Allows to retrieve multiple nodes limited to 3 nodes by default. The limit can be changed with the
+     * query parameter {@code limit}.
+     */
     @GET
     @Path("/live-nodes/stress")
     @Produces("text/x-cassandra-stress")
@@ -549,6 +717,11 @@ public final class ApiController {
 
     // cluster scaling
 
+    /**
+     * Allows to scale out the Cassandra cluster by increasing the number of nodes.
+     * Requires the query parameter {@code nodes} defining the desired number of total nodes.
+     * Must be submitted using HTTP method {@code POST}.
+     */
     @POST
     @Path("/scale/nodes")
     public Response updateNodeCount(@QueryParam("nodes") int nodeCount) {
@@ -578,72 +751,222 @@ public final class ApiController {
 
     // repair + cleanup stuff
 
+    /**
+     * Starts a cluster-restart / restart of all cassandra server processes.
+     *
+     *     Example: <pre>{@code {
+     * "started" : true
+     * }}</pre>
+     */
     @POST
     @Path("/cluster/restart/start")
     public Response clusterRestartStart() {
         return startJob(CassandraFrameworkProtos.ClusterJobType.RESTART);
     }
 
+    /**
+     * Aborts a cluster-restart / restart of all cassandra server processes after the current node has finished.
+     *
+     *     Example: <pre>{@code {
+     * "aborted" : true
+     * }}</pre>
+     */
     @POST
     @Path("/cluster/restart/abort")
     public Response clusterRestartAbort() {
         return abortJob(CassandraFrameworkProtos.ClusterJobType.RESTART);
     }
 
+    /**
+     * Returns the status of the current cluster-restart / restart of all cassandra server processes.
+     *
+     *     Example: <pre>{@code {
+     * "running" : true,
+     * "repair" : {
+     *     "type" : "RESTART",
+     *     "started" : 1426686829672,
+     *     "finished" : null,
+     *     "aborted" : false,
+     *     "remainingNodes" : [ ],
+     *     "currentNode" : {
+     *         "executorId" : "cassandra.node.0.executor",
+     *         "taskId" : "cassandra.node.0.executor.RESTART",
+     *         "hostname" : "127.0.0.2",
+     *         "ip" : "127.0.0.2",
+     *         "processedKeyspaces" : { },
+     *         "remainingKeyspaces" : [ ]
+     *     },
+     *     "completedNodes" : [ {
+     *         "executorId" : "cassandra.node.1.executor",
+     *         "taskId" : "cassandra.node.1.executor.RESTART",
+     *         "hostname" : "localhost",
+     *         "ip" : "127.0.0.1",
+     *         "processedKeyspaces" : { },
+     *         "remainingKeyspaces" : [ ]
+     *     } ]
+     * }
+     * }}</pre>
+     */
     @GET
     @Path("/cluster/restart/status")
     public Response clusterRestartStatus() {
         return jobStatus(CassandraFrameworkProtos.ClusterJobType.RESTART, "clusterRestart");
     }
 
+    /**
+     * Returns the status of the last cluster-restart / restart of all cassandra server processes.
+     * See {@link #clusterRestartStatus()} for an response example except that `running` field is exchanged with a field
+     * called `present`.
+     */
     @GET
     @Path("/cluster/restart/last")
     public Response lastClusterRestart() {
         return lastJob(CassandraFrameworkProtos.ClusterJobType.RESTART, "clusterRestart");
     }
 
+    /**
+     * Starts a cluster-wide repair.
+     *
+     *     Example: <pre>{@code {
+     * "started" : true
+     * }}</pre>
+     */
     @POST
     @Path("/repair/start")
     public Response repairStart() {
         return startJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
     }
 
+    /**
+     * Starts a cluster-wide cleanup.
+     *
+     *     Example: <pre>{@code {
+     * "started" : true
+     * }}</pre>
+     */
     @POST
     @Path("/cleanup/start")
     public Response cleanupStart() {
         return startJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
     }
 
+    /**
+     * Aborts a cluster-wide repair after the current node has finished.
+     *
+     *     Example: <pre>{@code {
+     * "aborted" : true
+     * }}</pre>
+     */
     @POST
     @Path("/repair/abort")
     public Response repairAbort() {
         return abortJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
     }
 
+    /**
+     * Aborts a cluster-wide cleanup after the current node has finished.
+     *
+     *     Example: <pre>{@code {
+     * "aborted" : true
+     * }}</pre>
+     */
     @POST
     @Path("/cleanup/abort")
     public Response cleanupAbort() {
         return abortJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
     }
 
+    /**
+     * Returns the status of the current repair.
+     *
+     *     Example: <pre>{@code {
+     * "running" : true,
+     * "repair" : {
+     *     "type" : "REPAIR",
+     *     "started" : 1426686829672,
+     *     "finished" : null,
+     *     "aborted" : false,
+     *     "remainingNodes" : [ ],
+     *     "currentNode" : {
+     *         "executorId" : "cassandra.node.0.executor",
+     *         "taskId" : "cassandra.node.0.executor.REPAIR",
+     *         "hostname" : "127.0.0.2",
+     *         "ip" : "127.0.0.2",
+     *         "processedKeyspaces" : { },
+     *         "remainingKeyspaces" : [ ]
+     *     },
+     *     "completedNodes" : [ {
+     *         "executorId" : "cassandra.node.1.executor",
+     *         "taskId" : "cassandra.node.1.executor.REPAIR",
+     *         "hostname" : "localhost",
+     *         "ip" : "127.0.0.1",
+     *         "processedKeyspaces" : {
+     *             "system_traces" : {
+     *             "status" : "FINISHED",
+     *             "durationMillis" : 2490
+     *             }
+     *         },
+     *         "remainingKeyspaces" : [ ]
+     *     } ]
+     * }
+     * }}</pre>
+     */
     @GET
     @Path("/repair/status")
     public Response repairStatus() {
         return jobStatus(CassandraFrameworkProtos.ClusterJobType.REPAIR, "repair");
     }
 
+    /**
+     * Returns the status of the current cleanup.
+     *
+     *     Example: <pre>{@code {
+     * "running" : true,
+     * "cleanup" : {
+     *     "type" : "CLEANUP",
+     *     "started" : 1426687019998,
+     *     "finished" : null,
+     *     "aborted" : false,
+     *     "remainingNodes" : [ "cassandra.node.0.executor" ],
+     *     "currentNode" : null,
+     *     "completedNodes" : [ {
+     *         "executorId" : "cassandra.node.1.executor",
+     *         "taskId" : "cassandra.node.1.executor.CLEANUP",
+     *         "hostname" : "localhost",
+     *         "ip" : "127.0.0.1",
+     *         "processedKeyspaces" : {
+     *             "system_traces" : {
+     *             "status" : "SUCCESS",
+     *             "durationMillis" : 20
+     *         }
+     *         },
+     *         "remainingKeyspaces" : [ ]
+     *     } ]
+     * }
+     * }}</pre>
+     */
     @GET
     @Path("/cleanup/status")
     public Response cleanupStatus() {
         return jobStatus(CassandraFrameworkProtos.ClusterJobType.CLEANUP, "cleanup");
     }
 
+    /**
+     * Returns the status of the last repair.
+     * See {@link #repairStatus()} for an response example except that `running` field is exchanged with a field
+     * called `present`.
+     */
     @GET
     @Path("/repair/last")
     public Response lastRepair() {
         return lastJob(CassandraFrameworkProtos.ClusterJobType.REPAIR, "repair");
     }
 
+    /**
+     * Returns the status of the last cleanup.
+     * See {@link #cleanupStatus()} for an response example except that `running` field is exchanged with a field
+     * called `present`.
+     */
     @GET
     @Path("/cleanup/last")
     public Response lastCleanup() {
@@ -824,12 +1147,58 @@ public final class ApiController {
 
     //
 
+    /**
+     * Allows to make a non-seed node a seed node. The node is specified using the path parameter `node`.
+     * The `node` parameter can be either the IP address, the hostname or the executor ID.
+     * Must be submitted using HTTP method {@code POST}.
+     *
+     * Example: <pre>{@code {
+     * "ip" : "127.0.0.1",
+     * "hostname" : "localhost",
+     * "executorId" : "cassandra.node.1.executor",
+     * "oldSeedState" : "false",
+     * "success" : "false",
+     * "error" : "Some error message"
+     * }}</pre>
+     *  <br/>
+     *  <pre>{@code {
+     * "ip" : "127.0.0.1",
+     * "hostname" : "localhost",
+     * "executorId" : "cassandra.node.1.executor",
+     * "oldSeedState" : "false",
+     * "success" : "true",
+     * "seedState" : "true"
+     * }}</pre>
+     */
     @POST
     @Path("/node/seed/{node}")
     public Response nodeMakeSeed(@PathParam("node") String node) {
         return nodeUpdateSeed(node, true);
     }
 
+    /**
+     * Allows to make a seed node a non-seed node. The node is specified using the path parameter `node`.
+     * The `node` parameter can be either the IP address, the hostname or the executor ID.
+     * Must be submitted using HTTP method {@code POST}.
+     *
+     * Example: <pre>{@code {
+     * "ip" : "127.0.0.1",
+     * "hostname" : "localhost",
+     * "executorId" : "cassandra.node.1.executor",
+     * "oldSeedState" : "true",
+     * "success" : "false",
+     * "error" : "Some error message"
+     * }}</pre>
+     *  <br/>
+     *  <pre>{@code {
+     * "ip" : "127.0.0.1",
+     * "hostname" : "localhost",
+     * "executorId" : "cassandra.node.1.executor",
+     * "oldSeedState" : "true",
+     * "success" : "true",
+     * "seedState" : "false"
+     * }}</pre>
+     */
     @POST
     @Path("/node/non-seed/{node}")
     public Response nodeMakeNonSeed(@PathParam("node") String node) {
@@ -890,6 +1259,11 @@ public final class ApiController {
 
     // node run / stop / restart
 
+    /**
+     * Sets requested state of the Cassandra process to 'stop' for the node specified using the path parameter `node`.
+     * The `node` parameter can be either the IP address, the hostname or the executor ID.
+     * The request must be submitted using HTTP method `POST`.
+     */
     @POST
     @Path("/node/stop/{node}")
     public Response nodeStop(@PathParam("node") String node) {
@@ -898,6 +1272,11 @@ public final class ApiController {
         return nodeStatusUpdate(cassandraNode);
     }
 
+    /**
+     * Sets requested state of the Cassandra process to 'run' for the node specified using the path parameter `node`.
+     * The `node` parameter can be either the IP address, the hostname or the executor ID.
+     * The request must be submitted using HTTP method `POST`.
+     */
     @POST
     @Path("/node/run/{node}")
     public Response nodeStart(@PathParam("node") String node) {
@@ -906,6 +1285,11 @@ public final class ApiController {
         return nodeStatusUpdate(cassandraNode);
     }
 
+    /**
+     * Sets requested state of the Cassandra process to 'restart' for the node specified using the path parameter `node`.
+     * The `node` parameter can be either the IP address, the hostname or the executor ID.
+     * The request must be submitted using HTTP method `POST`.
+     */
     @POST
     @Path("/node/restart/{node}")
     public Response nodeRestart(@PathParam("node") String node) {
@@ -914,6 +1298,12 @@ public final class ApiController {
         return nodeStatusUpdate(cassandraNode);
     }
 
+    /**
+     * Sets requested state of the Cassandra process to 'terminate' for the node specified using the path parameter `node`.
+     * The `node` parameter can be either the IP address, the hostname or the executor ID.
+     * The request must be submitted using HTTP method `POST`.
+     * Note that a terminated node cannot be restarted.
+     */
     @POST
     @Path("/node/terminate/{node}")
     public Response nodeTerminate(@PathParam("node") String node) {
@@ -954,6 +1344,11 @@ public final class ApiController {
         return Response.status(status).entity(sw.toString()).type("application/json").build();
     }
 
+    /**
+     * Submit intent to replace the already terminated node specified using the path parameter `node`.
+     * The `node` parameter can be either the IP address, the hostname or the executor ID.
+     * The request must be submitted using HTTP method `POST`.
+     */
     @POST
     @Path("/node/replace/{node}")
     public Response nodeReplace(@PathParam("node") String node) {

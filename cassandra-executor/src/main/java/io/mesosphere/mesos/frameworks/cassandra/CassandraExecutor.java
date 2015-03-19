@@ -116,7 +116,7 @@ public final class CassandraExecutor implements Executor {
 
             handleProcessNoLongerAlive(driver);
 
-            switch (taskDetails.getTaskType()) {
+            switch (taskDetails.getType()) {
                 case EXECUTOR_METADATA:
                     final ExecutorMetadataTask executorMetadataTask = taskDetails.getExecutorMetadataTask();
                     final ExecutorMetadata slaveMetadata = collectSlaveMetadata(executorMetadataTask);
@@ -270,7 +270,7 @@ public final class CassandraExecutor implements Executor {
 
             handleProcessNoLongerAlive(driver);
 
-            switch (taskDetails.getTaskType()) {
+            switch (taskDetails.getType()) {
                 case HEALTH_CHECK:
                     LOGGER.info("Received healthCheckTask");
                     healthCheck(driver);

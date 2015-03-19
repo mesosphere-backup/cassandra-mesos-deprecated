@@ -31,11 +31,6 @@ public final class CassandraFrameworkProtosUtils {
     private CassandraFrameworkProtosUtils() {}
 
     @NotNull
-    public static Function<ExecutorMetadata, String> executorMetadataToIp() {
-        return SlaveMetadataToIp.INSTANCE;
-    }
-
-    @NotNull
     public static Function<CassandraNode, String> cassandraNodeToIp() {
         return CassandraNodeToIp.INSTANCE;
     }
@@ -48,16 +43,6 @@ public final class CassandraFrameworkProtosUtils {
     @NotNull
     public static Function<CassandraNode.Builder, CassandraNode> cassandraNodeBuilderToCassandraNode() {
         return CassandraNodeBuilderToCassandraNode.INSTANCE;
-    }
-
-    @NotNull
-    public static Function<CassandraFrameworkProtos.ExecutorMetadata, CassandraFrameworkProtos.ExecutorMetadata.Builder> executorMetadataToBuilder() {
-        return ExecutorMetadataToBuilder.INSTANCE;
-    }
-
-    @NotNull
-    public static Function<ExecutorMetadata.Builder, ExecutorMetadata> executorMetadataBuilderToExecutorMetadata() {
-        return ExecutorMetadataBuilderToExecutorMetadata.INSTANCE;
     }
 
     @NotNull
@@ -101,18 +86,13 @@ public final class CassandraFrameworkProtosUtils {
     }
 
     @NotNull
-    public static Function<HealthCheckHistoryEntry, String> healthCheckHistoryEntryToExecutorId() {
-        return HealthCheckHistoryEntryToExecutorId.INSTANCE;
-    }
-
-    @NotNull
     public static Function<HealthCheckHistoryEntry, Long> healthCheckHistoryEntryToTimestamp() {
         return HealthCheckHistoryEntryToTimestamp.INSTANCE;
     }
 
     @NotNull
-    public static URI resourceUri(@NotNull final String urlForResource, final boolean extract) {
-        return URI.newBuilder().setValue(urlForResource).setExtract(extract).build();
+    public static FileDownload resourceFileDownload(@NotNull final String urlForResource, final boolean extract) {
+        return FileDownload.newBuilder().setDownloadUrl(urlForResource).setExtract(extract).build();
     }
 
     public static TaskConfig.Entry configValue(@NotNull final String name, @NotNull final Integer value) {
@@ -165,9 +145,9 @@ public final class CassandraFrameworkProtosUtils {
         return null;
     }
 
-    public static CassandraNodeTask getTaskForNode(@NotNull CassandraNode cassandraNode, @NotNull CassandraNodeTask.TaskType taskType) {
+    public static CassandraNodeTask getTaskForNode(@NotNull CassandraNode cassandraNode, @NotNull CassandraNodeTask.NodeTaskType taskType) {
         for (CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
-            if (cassandraNodeTask.getTaskType() == taskType)
+            if (cassandraNodeTask.getType() == taskType)
                 return cassandraNodeTask;
         }
         return null;
@@ -183,15 +163,6 @@ public final class CassandraFrameworkProtosUtils {
             }
         }
         return builder;
-    }
-
-    private static final class SlaveMetadataToIp implements Function<ExecutorMetadata, String> {
-        private static final SlaveMetadataToIp INSTANCE = new SlaveMetadataToIp();
-
-        @Override
-        public String apply(@NotNull final ExecutorMetadata input) {
-            return input.getIp();
-        }
     }
 
     private static final class CassandraNodeToIp implements Function<CassandraNode, String> {
@@ -217,24 +188,6 @@ public final class CassandraFrameworkProtosUtils {
 
         @Override
         public CassandraNode apply(@NotNull final CassandraNode.Builder input) {
-            return input.build();
-        }
-    }
-
-    private static final class ExecutorMetadataToBuilder implements Function<CassandraFrameworkProtos.ExecutorMetadata, CassandraFrameworkProtos.ExecutorMetadata.Builder> {
-        private static final ExecutorMetadataToBuilder INSTANCE = new ExecutorMetadataToBuilder();
-
-        @Override
-        public ExecutorMetadata.Builder apply(@NotNull final ExecutorMetadata input) {
-            return ExecutorMetadata.newBuilder(input);
-        }
-    }
-
-    private static final class ExecutorMetadataBuilderToExecutorMetadata implements Function<ExecutorMetadata.Builder, ExecutorMetadata> {
-        private static final ExecutorMetadataBuilderToExecutorMetadata INSTANCE = new ExecutorMetadataBuilderToExecutorMetadata();
-
-        @Override
-        public ExecutorMetadata apply(@NotNull final ExecutorMetadata.Builder input) {
             return input.build();
         }
     }
@@ -343,15 +296,6 @@ public final class CassandraFrameworkProtosUtils {
         }
     }
 
-    private static final class HealthCheckHistoryEntryToExecutorId implements Function<HealthCheckHistoryEntry, String> {
-        private static final HealthCheckHistoryEntryToExecutorId INSTANCE = new HealthCheckHistoryEntryToExecutorId();
-
-        @Override
-        public String apply(@NotNull final HealthCheckHistoryEntry input) {
-            return input.getExecutorId();
-        }
-    }
-
     private static final class HealthCheckHistoryEntryToTimestamp implements Function<HealthCheckHistoryEntry, Long> {
         private static final HealthCheckHistoryEntryToTimestamp INSTANCE = new HealthCheckHistoryEntryToTimestamp();
 
@@ -360,20 +304,4 @@ public final class CassandraFrameworkProtosUtils {
             return input.getTimestampEnd();
         }
     }
-
-    private static final class CassandraNodeToExecutor implements Function<CassandraNode, CassandraNodeExecutor> {
-        private static final CassandraNodeToExecutor INSTANCE = new CassandraNodeToExecutor();
-
-        @Override
-        public CassandraNodeExecutor apply(@NotNull final CassandraNode input) {
-            return input.getCassandraNodeExecutor();
-        }
-    }
-
-    @NotNull
-    public static Function<CassandraNode, CassandraNodeExecutor> cassandraNodeToExecutor() {
-        return CassandraNodeToExecutor.INSTANCE;
-    }
-
-
 }

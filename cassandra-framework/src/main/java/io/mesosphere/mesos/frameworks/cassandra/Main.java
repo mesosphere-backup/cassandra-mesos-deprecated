@@ -205,7 +205,7 @@ public final class Main {
 
         httpServer.shutdownNow();
         // Ensure that the driver process terminates.
-        driver.stop();
+        driver.stop(true);
         return status;
     }
 

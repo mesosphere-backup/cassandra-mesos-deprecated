@@ -51,7 +51,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         assertFalse(cluster.isLiveNode(node.build()));
 
         node.setCassandraNodeExecutor(CassandraFrameworkProtos.CassandraNodeExecutor.newBuilder()
-            .setCommand("cmd")
+            .addCommand("cmd")
             .setCpuCores(1)
             .setDiskMb(1)
             .setMemMb(1)
@@ -119,7 +119,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
             .setTargetRunState(CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN)
             .setJmxConnect(CassandraFrameworkProtos.JmxConnect.newBuilder().setIp("1.2.3.4").setJmxPort(7199))
             .setCassandraNodeExecutor(CassandraFrameworkProtos.CassandraNodeExecutor.newBuilder()
-                .setCommand("cmd")
+                .addCommand("cmd")
                 .setCpuCores(1)
                 .setDiskMb(1)
                 .setMemMb(1)

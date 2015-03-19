@@ -51,7 +51,7 @@ final class ProdObjectFactory implements ObjectFactory {
                 .directory(new File(System.getProperty("user.dir")))
                 .redirectOutput(new File("cassandra-stdout.log"))
                 .redirectError(new File("cassandra-stderr.log"));
-        for (final CassandraFrameworkProtos.TaskEnv.Entry entry : serverRunTask.getTaskEnv().getVariablesList()) {
+        for (final CassandraFrameworkProtos.TaskEnv.Entry entry : serverRunTask.getCassandraServerConfig().getTaskEnv().getVariablesList()) {
             processBuilder.environment().put(entry.getName(), entry.getValue());
         }
         processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
@@ -118,7 +118,7 @@ final class ProdObjectFactory implements ObjectFactory {
 
     private static void modifyCassandraEnvSh(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask) throws IOException {
         int jmxPort = 0;
-        for (CassandraFrameworkProtos.TaskEnv.Entry entry : cassandraNodeTask.getTaskEnv().getVariablesList()) {
+        for (CassandraFrameworkProtos.TaskEnv.Entry entry : cassandraNodeTask.getCassandraServerConfig().getTaskEnv().getVariablesList()) {
             if ("JMX_PORT".equals(entry.getName())) {
                 jmxPort = Integer.parseInt(entry.getValue());
                 break;

@@ -18,7 +18,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -299,8 +298,6 @@ public final class CassandraScheduler implements Scheduler {
         }
 
         final List<TaskInfo> taskInfos = newArrayList();
-        final List<String> fullCommand = newArrayList(tasksForOffer.getExecutor().getCommand());
-        fullCommand.addAll(tasksForOffer.getExecutor().getCommandArgsList());
 
         for (final CassandraNodeTask cassandraNodeTask : tasksForOffer.getLaunchTasks()) {
 
@@ -311,7 +308,7 @@ public final class CassandraScheduler implements Scheduler {
                 executorId.getValue(),
                 tasksForOffer.getExecutor().getSource(),
                 commandInfo(
-                    JOIN_WITH_SPACE.join(fullCommand),
+                    JOIN_WITH_SPACE.join(tasksForOffer.getExecutor().getCommandList()),
                     environmentFromTaskEnv(tasksForOffer.getExecutor().getTaskEnv()),
                     newArrayList(from(tasksForOffer.getExecutor().getResourceList()).transform(uriToCommandInfoUri))
                 ),

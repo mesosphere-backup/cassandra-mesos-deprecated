@@ -628,7 +628,7 @@ public final class CassandraCluster {
         CassandraFrameworkConfiguration config = configuration.get();
         CassandraConfigRole configRole = config.getDefaultConfigRole();
 
-        CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole);
+        CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, TaskEnv.getDefaultInstance());
 
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setTaskType(TaskDetails.TaskType.UPDATE_CONFIG)
@@ -658,8 +658,6 @@ public final class CassandraCluster {
         CassandraFrameworkConfiguration config = configuration.get();
         CassandraConfigRole configRole = config.getDefaultConfigRole();
 
-        CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole);
-
         final TaskEnv.Builder taskEnv = TaskEnv.newBuilder();
         for (TaskEnv.Entry entry : configRole.getTaskEnv().getVariablesList()) {
             if (!"JMX_PORT".equals(entry.getName()) && !"MAX_HEAP_SIZE".equals(entry.getName())) {
@@ -679,6 +677,9 @@ public final class CassandraCluster {
         if (node.hasReplacementForIp()) {
             command.add("-Dcassandra.replace_address=" + node.getReplacementForIp());
         }
+
+        CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, taskEnv.build());
+
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setTaskType(TaskDetails.TaskType.CASSANDRA_SERVER_RUN)
             .setCassandraServerRunTask(
@@ -687,7 +688,6 @@ public final class CassandraCluster {
                     .addAllCommand(command)
                     .setVersion(configRole.getCassandraVersion())
                     .setCassandraServerConfig(cassandraServerConfig)
-                    .setTaskEnv(taskEnv)
                     .setVersion(configRole.getCassandraVersion())
                     .setJmx(node.getJmxConnect())
             )
@@ -709,7 +709,8 @@ public final class CassandraCluster {
     private CassandraServerConfig buildCassandraServerConfig(
             @NotNull ExecutorMetadata metadata,
             @NotNull CassandraFrameworkConfiguration config,
-            @NotNull CassandraConfigRole configRole) {
+            @NotNull CassandraConfigRole configRole,
+            @NotNull TaskEnv taskEnv) {
         final TaskConfig.Builder taskConfig = TaskConfig.newBuilder(configRole.getCassandraYamlConfig());
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("cluster_name", config.getFrameworkName()));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("broadcast_address", metadata.getIp()));
@@ -724,6 +725,7 @@ public final class CassandraCluster {
 
         return CassandraServerConfig.newBuilder()
             .setTaskConfig(taskConfig)
+            .setTaskEnv(taskEnv)
             .build();
     }
 
@@ -743,19 +745,22 @@ public final class CassandraCluster {
 
         CassandraConfigRole configRole = configuration.getDefaultConfigRole();
 
+        List<String> command = newArrayList(
+            javaExec,
+//            "agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005",
+            "-XX:+PrintCommandLineFlags",
+            "$JAVA_OPTS",
+            "-classpath",
+            "cassandra-executor.jar",
+            "io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor");
+
         return CassandraNodeExecutor.newBuilder()
             .setExecutorId(executorId)
             .setSource(configuration.frameworkName())
             .setCpuCores(0.1)
             .setMemMb(16)
             .setDiskMb(16)
-            .setCommand(javaExec)
-//            .addCommandArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
-            .addCommandArgs("-XX:+PrintCommandLineFlags")
-            .addCommandArgs("$JAVA_OPTS")
-            .addCommandArgs("-classpath")
-            .addCommandArgs("cassandra-executor.jar")
-            .addCommandArgs("io.mesosphere.mesos.frameworks.cassandra.CassandraExecutor")
+            .addAllCommand(command)
             .setTaskEnv(taskEnvFromMap(executorEnv))
             .addAllResource(newArrayList(
                 resourceUri(getUrlForResource("/jre-7-" + osName + ".tar.gz"), true),

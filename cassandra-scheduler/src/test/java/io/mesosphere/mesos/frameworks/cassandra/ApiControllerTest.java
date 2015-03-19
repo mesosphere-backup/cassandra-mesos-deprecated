@@ -229,7 +229,7 @@ public class ApiControllerTest extends AbstractSchedulerTest {
                     .setCpuCores(1)
                     .setMemMb(1)
                     .setDiskMb(1)
-                    .setCommand("comand")
+                    .addCommand("comand")
             )
             .setHostname(ip)
             .setIp(ip)

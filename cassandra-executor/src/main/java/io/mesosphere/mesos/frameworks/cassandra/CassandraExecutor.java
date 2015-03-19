@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
+import java.io.File;
 import java.net.UnknownHostException;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -146,7 +147,8 @@ public final class CassandraExecutor implements Executor {
                         driver.sendStatusUpdate(taskStatus(serverTask, TaskState.TASK_RUNNING,
                             SlaveStatusDetails.newBuilder()
                                 .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.CASSANDRA_SERVER_RUN)
-                                .setCassandraServerRunMetadata(CassandraServerRunMetadata.newBuilder().setPid(process.getPid()))
+                                .setCassandraServerRunMetadata(CassandraServerRunMetadata.newBuilder()
+                                    .setPid(process.getPid()))
                                 .build()));
                     } catch (LaunchNodeException e) {
                         LOGGER.error(taskIdMarker, "Failed to start Cassandra daemon", e);
@@ -385,6 +387,7 @@ public final class CassandraExecutor implements Executor {
         return ExecutorMetadata.newBuilder()
             .setExecutorId(executorMetadata.getExecutorId())
             .setIp(executorMetadata.getIp())
+            .setWorkdir(System.getProperty("user.dir"))
             .build();
     }
 

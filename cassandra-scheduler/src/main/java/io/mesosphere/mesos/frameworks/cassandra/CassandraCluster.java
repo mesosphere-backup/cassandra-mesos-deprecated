@@ -154,6 +154,14 @@ public final class CassandraCluster {
         return jobsState;
     }
 
+    public ExecutorMetadata metadataForExecutor(@NotNull String executorId) {
+        for (ExecutorMetadata executorMetadata : clusterState.executorMetadata()) {
+            if (executorId.equals(executorMetadata.getExecutorId()))
+                return executorMetadata;
+        }
+        return null;
+    }
+
     public void removeTask(@NotNull final String taskId, Protos.TaskStatus status) {
         List<CassandraNode> nodes = clusterState.nodes();
         List<CassandraNode> newNodes = new ArrayList<>(nodes.size());
@@ -1074,5 +1082,18 @@ public final class CassandraCluster {
 
         clusterState.replaceNode(cassandraNode.getIp());
         return cassandraNode;
+    }
+
+    public List<String> getNodeLogFiles(CassandraNode cassandraNode) {
+
+        CassandraFrameworkProtos.ExecutorMetadata executorMetadata = metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+        if (executorMetadata == null) {
+            return Collections.emptyList();
+        }
+
+        String workdir = executorMetadata.getWorkdir();
+        return newArrayList(
+            workdir + "/executor.log",
+            workdir + "/apache-cassandra-" + getConfiguration().getDefaultConfigRole().getCassandraVersion() + "/logs/system.log");
     }
 }

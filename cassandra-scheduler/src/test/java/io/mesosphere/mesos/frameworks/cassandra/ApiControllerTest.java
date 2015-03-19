@@ -111,7 +111,10 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
         str = fetchText("/live-nodes/text?limit=2", "text/plain");
         assertEquals(200, str._1.intValue());
-        assertEquals("9042\n1.2.3.4\n", str._2);
+        assertEquals("NATIVE: 9042\n" +
+            "RPC: 9160\n" +
+            "JMX: 7199\n" +
+            "IP: 1.2.3.4\n", str._2);
 
         str = fetchText("/live-nodes/cqlsh", "text/x-cassandra-cqlsh");
         assertEquals(200, str._1.intValue());
@@ -127,7 +130,10 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
         str = fetchText("/live-nodes/text", "text/plain");
         assertEquals(200, str._1.intValue());
-        assertEquals("9042\n1.2.3.4\n", str._2);
+        assertEquals("NATIVE: 9042\n" +
+            "RPC: 9160\n" +
+            "JMX: 7199\n" +
+            "IP: 1.2.3.4\n", str._2);
 
         //
         // mark node as dead
@@ -179,7 +185,10 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
         str = fetchText("/live-nodes/text?limit=2", "text/plain");
         assertEquals(200, str._1.intValue());
-        assertEquals("9042\n2.2.2.2\n", str._2);
+        assertEquals("NATIVE: 9042\n" +
+            "RPC: 9160\n" +
+            "JMX: 7199\n" +
+            "IP: 2.2.2.2\n", str._2);
 
         // mark 1st node as live
 

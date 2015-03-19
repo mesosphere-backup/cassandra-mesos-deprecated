@@ -340,6 +340,7 @@ message SlaveStatusDetails {
 message ExecutorMetadata {
     required string executorId = 1;
     optional string ip = 2;
+    required string workdir = 3;
 }
 
 message CassandraServerRunMetadata {

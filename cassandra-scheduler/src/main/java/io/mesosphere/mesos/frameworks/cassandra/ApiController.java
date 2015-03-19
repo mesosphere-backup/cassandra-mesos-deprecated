@@ -26,6 +26,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
 
@@ -166,6 +167,106 @@ public final class ApiController {
     }
 
     @GET
+    @Path("/qaReportResources/text")
+    public Response qaReportResourcesText() {
+        CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
+        int jmxPort = CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_JMX);
+
+        StringWriter sw = new StringWriter();
+        try (PrintWriter pw = new PrintWriter(sw)) {
+            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
+
+            pw.println("JMX: " + jmxPort);
+
+            CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
+            for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
+
+                if (!cassandraNode.hasCassandraNodeExecutor()) {
+                    continue;
+                }
+
+                pw.println("IP: " + cassandraNode.getIp());
+                pw.println("BASE: http://" + cassandraNode.getIp() + ":5051/");
+
+                for (String logFile : cluster.getNodeLogFiles(cassandraNode)) {
+                    pw.println("LOG: " + logFile);
+                }
+
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to all nodes list", e);
+            return Response.serverError().build();
+        }
+
+        return Response.ok(sw.toString(), "text/plain").build();
+    }
+
+    @GET
+    @Path("/qaReportResources")
+    public Response qaReportResources() {
+        CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
+        int jmxPort = CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_JMX);
+
+        StringWriter sw = new StringWriter();
+        try {
+            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
+
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator json = factory.createGenerator(sw);
+            json.setPrettyPrinter(new DefaultPrettyPrinter());
+
+            json.writeStartObject();
+
+            json.writeNumberField("jmxPort", jmxPort);
+
+            CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
+            json.writeObjectFieldStart("nodes");
+            for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
+
+                if (!cassandraNode.hasCassandraNodeExecutor()) {
+                    continue;
+                }
+
+                CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                if (executorMetadata == null) {
+                    continue;
+                }
+
+                json.writeObjectFieldStart(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                String workdir = executorMetadata.getWorkdir();
+                json.writeStringField("workdir", workdir);
+
+                json.writeStringField("slaveBaseUri", "http://" + cassandraNode.getIp() + ":5051/");
+
+                json.writeStringField("ip", cassandraNode.getIp());
+                json.writeStringField("hostname", cassandraNode.getHostname());
+                json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
+                json.writeNumberField("jmxPort", cassandraNode.getJmxConnect().getJmxPort());
+
+                json.writeBooleanField("live", cluster.isLiveNode(cassandraNode));
+
+                json.writeArrayFieldStart("logfiles");
+                for (String logFile : cluster.getNodeLogFiles(cassandraNode)) {
+                    json.writeString(logFile);
+                }
+                json.writeEndArray();
+
+                json.writeEndObject();
+
+            }
+            json.writeEndObject();
+
+            json.writeEndObject();
+            json.close();
+        } catch (Exception e) {
+            LOGGER.error("Failed to all nodes list", e);
+            return Response.serverError().build();
+        }
+
+        return Response.ok(sw.toString(), "application/json").build();
+    }
+
+    @GET
     @Path("/nodes")
     public Response nodes() {
         StringWriter sw = new StringWriter();
@@ -199,10 +300,18 @@ public final class ApiController {
                 writeTask(json, "metadataTask", CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraFrameworkProtos.CassandraNodeTask.TaskType.METADATA));
 // TODO                cassandraNode.getDataVolumesList();
 
+
                 if (!cassandraNode.hasCassandraNodeExecutor()) {
                     json.writeNullField("executorId");
+                    json.writeNullField("workdir");
                 } else {
                     json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                    CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                    if (executorMetadata != null) {
+                        json.writeStringField("workdir", executorMetadata.getWorkdir());
+                    } else {
+                        json.writeNullField("workdir");
+                    }
                 }
                 json.writeStringField("ip", cassandraNode.getIp());
                 json.writeStringField("hostname", cassandraNode.getHostname());
@@ -417,9 +526,11 @@ public final class ApiController {
                 case "text":
                     // produce a simple text with the native port in the first line and one line per live node IP
                     sb = new StringBuilder();
-                    sb.append(nativePort).append('\n');
+                    sb.append("NATIVE: ").append(nativePort).append('\n');
+                    sb.append("RPC: ").append(rpcPort).append('\n');
+                    sb.append("JMX: ").append(jmxPort).append('\n');
                     for (CassandraFrameworkProtos.CassandraNode liveNode : liveNodes) {
-                        sb.append(liveNode.getIp()).append('\n');
+                        sb.append("IP: ").append(liveNode.getIp()).append('\n');
                     }
                     return Response.ok(sb.toString()).build();
             }

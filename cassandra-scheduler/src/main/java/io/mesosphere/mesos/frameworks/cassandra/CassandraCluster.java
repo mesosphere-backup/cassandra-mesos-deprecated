@@ -1083,4 +1083,17 @@ public final class CassandraCluster {
         clusterState.replaceNode(cassandraNode.getIp());
         return cassandraNode;
     }
+
+    public List<String> getNodeLogFiles(CassandraNode cassandraNode) {
+
+        CassandraFrameworkProtos.ExecutorMetadata executorMetadata = metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+        if (executorMetadata == null) {
+            return Collections.emptyList();
+        }
+
+        String workdir = executorMetadata.getWorkdir();
+        return newArrayList(
+            workdir + "/executor.log",
+            workdir + "/apache-cassandra-" + getConfiguration().getDefaultConfigRole().getCassandraVersion() + "/logs/system.log");
+    }
 }

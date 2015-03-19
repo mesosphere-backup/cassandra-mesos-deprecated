@@ -387,7 +387,7 @@ public final class CassandraExecutor implements Executor {
         return ExecutorMetadata.newBuilder()
             .setExecutorId(executorMetadata.getExecutorId())
             .setIp(executorMetadata.getIp())
-            .setWorkdir(new File(".").getAbsolutePath())
+            .setWorkdir(System.getProperty("user.dir"))
             .build();
     }
 

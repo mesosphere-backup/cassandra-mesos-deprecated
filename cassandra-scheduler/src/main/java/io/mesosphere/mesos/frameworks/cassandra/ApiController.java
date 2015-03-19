@@ -185,17 +185,12 @@ public final class ApiController {
                     continue;
                 }
 
-                CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
-                if (executorMetadata == null) {
-                    continue;
-                }
-
-                String workdir = executorMetadata.getWorkdir();
                 pw.println("IP: " + cassandraNode.getIp());
                 pw.println("BASE: http://" + cassandraNode.getIp() + ":5051/");
 
-                pw.println("LOG: " + workdir + "/executor.log");
-                pw.println("LOG: " + workdir + "/apache-cassandra-" + cluster.getConfiguration().getDefaultConfigRole().getCassandraVersion() + "/logs/system.log");
+                for (String logFile : cluster.getNodeLogFiles(cassandraNode)) {
+                    pw.println("LOG: " + logFile);
+                }
 
             }
         } catch (Exception e) {
@@ -250,10 +245,11 @@ public final class ApiController {
 
                 json.writeBooleanField("live", cluster.isLiveNode(cassandraNode));
 
-                json.writeObjectFieldStart("logfiles");
-                json.writeStringField("executor", workdir + "/executor.log");
-                json.writeStringField("cassandraSystemLog", workdir + "/apache-cassandra-" + cluster.getConfiguration().getDefaultConfigRole().getCassandraVersion() + "/logs/system.log");
-                json.writeEndObject();
+                json.writeArrayFieldStart("logfiles");
+                for (String logFile : cluster.getNodeLogFiles(cassandraNode)) {
+                    json.writeString(logFile);
+                }
+                json.writeEndArray();
 
                 json.writeEndObject();
 

@@ -563,10 +563,6 @@ public final class CassandraCluster {
             builder.setReplacementForIp(replacementForIp);
         }
 
-        if (configuration.getDefaultConfigRole().hasNodeLocation()) {
-            builder.setLocation(configuration.getDefaultConfigRole().getNodeLocation());
-        }
-
         try {
             InetAddress ia = InetAddress.getByName(offer.getHostname());
 

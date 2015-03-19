@@ -106,8 +106,6 @@ public final class Main {
         final String    mesosMasterZkUrl        =                       Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");
         final long      failoverTimeout         = Long.parseLong(       Env.option("CASSANDRA_FAILOVER_TIMEOUT_SECONDS").or(String.valueOf(Period.days(7).toStandardSeconds().getSeconds())));
         final String    mesosRole               =                       Env.option("CASSANDRA_FRAMEWORK_MESOS_ROLE").or("*");
-        final String    datacenter              =                       Env.option("CASSANDRA_DATACENTER").orNull();
-        final String    rack                    =                       Env.option("CASSANDRA_RACK").orNull();
 
         final Matcher matcher = validateZkUrl(zkUrl);
 
@@ -131,16 +129,6 @@ public final class Main {
             .setNumberOfNodes(executorCount)
             .setNumberOfSeeds(seedCount)
             .setMesosRole(mesosRole);
-        if (datacenter != null || rack != null) {
-            CassandraFrameworkProtos.NodeLocation.Builder locationBuilder = CassandraFrameworkProtos.NodeLocation.newBuilder();
-            if (datacenter != null) {
-                locationBuilder.setDatacenter(datacenter);
-            }
-            if (rack != null) {
-                locationBuilder.setRack(rack);
-            }
-            defaultConfigRole.setNodeLocation(locationBuilder);
-        }
         final PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
             state,
             frameworkName,

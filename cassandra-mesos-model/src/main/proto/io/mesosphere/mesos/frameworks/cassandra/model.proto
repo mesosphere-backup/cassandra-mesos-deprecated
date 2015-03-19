@@ -139,11 +139,6 @@ message CassandraConfigRole {
     optional TaskConfig cassandraYamlConfig = 9;
     // mesos role to be used to receive resource offers
     optional string mesosRole = 10;
-
-    /**
-     * The default location for nodes.
-     */
-    optional NodeLocation nodeLocation = 11;
 }
 
 /**
@@ -416,27 +411,9 @@ message CassandraNode {
         TERMINATE = 3;
     }
 
-    /**
-     * Location (data center + rack) of this node.
-     */
-    optional NodeLocation location = 14;
-
     // The configuration files of this node need to be updated, but the Cassandra server process does not
     // need to be restarted.
-    optional bool needsConfigUpdate = 15;
-}
-/**
- * Contains data center + rack information.
- */
-message NodeLocation {
-    /**
-     * Name of the data center.
-     */
-    optional string datacenter = 1;
-    /**
-     * Name of the rack.
-     */
-    optional string rack = 2;
+    optional bool needsConfigUpdate = 14;
 }
 /**
  * Describes a data volume for a node.
@@ -670,10 +647,6 @@ message CassandraServerConfig {
      * Cassandra.yaml configuration details.
      */
     required TaskConfig cassandraYamlConfig = 3;
-    /**
-     * Logical location of the node.
-     */
-    optional NodeLocation location = 4;
 }
 
 /**

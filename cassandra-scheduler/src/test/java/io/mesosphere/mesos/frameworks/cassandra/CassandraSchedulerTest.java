@@ -21,10 +21,7 @@ import org.apache.mesos.Protos;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.Assert.*;
@@ -373,7 +370,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
     }
 
     @Test
-    public void testNodeTargetStateShutdownAndRun() throws Exception {
+    public void testNodeTargetStateStopAndRun() throws Exception {
 
         threeNodeCluster();
 
@@ -619,6 +616,224 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
     }
 
     @Test
+    public void testClusterRestart() throws Exception {
+        threeNodeCluster();
+
+        CassandraFrameworkProtos.ClusterJobType clusterJobType = CassandraFrameworkProtos.ClusterJobType.RESTART;
+
+        CassandraFrameworkProtos.ClusterJobStatus currentClusterJob = cluster.getCurrentClusterJob();
+        assertNull(currentClusterJob);
+
+        // simulate API call
+        cluster.startClusterTask(clusterJobType);
+
+        currentClusterJob = cluster.getCurrentClusterJob();
+        assertNotNull(currentClusterJob);
+
+        assertFalse(currentClusterJob.hasCurrentNode());
+        assertEquals(3, currentClusterJob.getRemainingNodesCount());
+        assertEquals(0, currentClusterJob.getCompletedNodesCount());
+        assertEquals(clusterJobType, currentClusterJob.getJobType());
+        assertFalse(currentClusterJob.getAborted());
+        assertTrue(currentClusterJob.hasStartedTimestamp());
+        assertFalse(currentClusterJob.hasFinishedTimestamp());
+
+        String restartingExecutor;
+        Set<String> restartedExecutors = new HashSet<>();
+
+        for (int i = 0; i < activeNodes; i++) {
+
+            currentClusterJob = cluster.getCurrentClusterJob();
+            assertNotNull(currentClusterJob);
+            assertFalse(currentClusterJob.hasCurrentNode());
+
+            noopOnOfferAll();
+
+            currentClusterJob = cluster.getCurrentClusterJob();
+            assertNotNull(currentClusterJob);
+            assertTrue(currentClusterJob.hasCurrentNode());
+
+            restartingExecutor = currentClusterJob.getCurrentNode().getExecutorId();
+            assertTrue(restartedExecutors.add(restartingExecutor));
+
+            // check that node is in RESTART state
+            CassandraFrameworkProtos.CassandraNode node = cluster.findNode(restartingExecutor);
+            assertNotNull(node);
+            assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RESTART, node.getTargetRunState());
+
+            // simulate server-task stopped
+            CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER);
+            assertNotNull(taskForNode);
+
+            Tuple2<Protos.SlaveID, String> slave = slaveForExecutor(restartingExecutor);
+            assertNotNull(slave);
+            Protos.TaskInfo execMetadata = execForExecutor(restartingExecutor);
+            assertNotNull(execMetadata);
+            Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> execServer = serverTaskForExecutor(restartingExecutor);
+            assertNotNull(execServer);
+
+            // verify that kill-task is launched
+            killTask(slave, taskForNode.getTaskId());
+            // must not repeat CASSANDRA_SERVER_SHUTDOWN since it's already launched
+            noopOnOffer(slave, 3, true);
+
+            // simulate server-task has finished
+            executorTaskFinished(execServer._1, CassandraFrameworkProtos.SlaveStatusDetails.newBuilder()
+                .setStatusDetailsType(CassandraFrameworkProtos.SlaveStatusDetails.StatusDetailsType.NULL_DETAILS)
+                .build());
+
+            // check that server-task is no longer present
+            node = cluster.findNode(restartingExecutor);
+            assertNotNull(node);
+            assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+
+            // must have current-node - server task not running
+            currentClusterJob = cluster.getCurrentClusterJob();
+            assertNotNull(currentClusterJob);
+            assertTrue(currentClusterJob.hasCurrentNode());
+            assertEquals(restartingExecutor, currentClusterJob.getCurrentNode().getExecutorId());
+
+            // verify that CASSANDRA_SERVER_RUN task is launched
+            launchTask(slave, CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+            // must not repeat CASSANDRA_SERVER_RUN since it's already launched
+            noopOnOffer(slave, 3, true);
+
+            // must have current-node - no valid HC received yet
+            currentClusterJob = cluster.getCurrentClusterJob();
+            assertNotNull(currentClusterJob);
+            assertTrue(currentClusterJob.hasCurrentNode());
+            assertEquals(restartingExecutor, currentClusterJob.getCurrentNode().getExecutorId());
+
+            executorTaskRunning(execServer._1);
+            sendHealthCheckResult(execMetadata, healthCheckDetailsSuccess("NORMAL", true));
+
+            noopOnOffer(slave, 3, true);
+
+        }
+
+        assertThat(restartedExecutors).hasSize(activeNodes);
+
+        currentClusterJob = cluster.getCurrentClusterJob();
+        assertNull(currentClusterJob);
+    }
+
+    @Test
+    public void testClusterRestartWithStoppedNode() throws Exception {
+        threeNodeCluster();
+
+        CassandraFrameworkProtos.ClusterJobType clusterJobType = CassandraFrameworkProtos.ClusterJobType.RESTART;
+
+        CassandraFrameworkProtos.ClusterJobStatus currentClusterJob = cluster.getCurrentClusterJob();
+        assertNull(currentClusterJob);
+
+        // stop node 2
+        CassandraFrameworkProtos.CassandraNode node2 = cluster.nodeStop(slaves[1]._2);
+        assertNotNull(node2);
+        CassandraFrameworkProtos.CassandraNodeTask node1serverTask = CassandraFrameworkProtosUtils.getTaskForNode(node2, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER);
+        assertNotNull(node1serverTask);
+        killTask(slaves[1], node1serverTask.getTaskId());
+        // simulate server-task has finished
+        executorTaskFinished(executorServer[1]._1, CassandraFrameworkProtos.SlaveStatusDetails.newBuilder()
+            .setStatusDetailsType(CassandraFrameworkProtos.SlaveStatusDetails.StatusDetailsType.NULL_DETAILS)
+            .build());
+
+
+        // simulate API call
+        cluster.startClusterTask(clusterJobType);
+
+        currentClusterJob = cluster.getCurrentClusterJob();
+        assertNotNull(currentClusterJob);
+
+        assertFalse(currentClusterJob.hasCurrentNode());
+        assertEquals(3, currentClusterJob.getRemainingNodesCount());
+        assertEquals(0, currentClusterJob.getCompletedNodesCount());
+        assertEquals(clusterJobType, currentClusterJob.getJobType());
+        assertFalse(currentClusterJob.getAborted());
+        assertTrue(currentClusterJob.hasStartedTimestamp());
+        assertFalse(currentClusterJob.hasFinishedTimestamp());
+
+        String restartingExecutor;
+        Set<String> restartedExecutors = new HashSet<>();
+
+        for (int i = 0; i < activeNodes - 1; i++) {
+
+            currentClusterJob = cluster.getCurrentClusterJob();
+            assertNotNull(currentClusterJob);
+            assertFalse(currentClusterJob.hasCurrentNode());
+
+            noopOnOfferAll();
+
+            currentClusterJob = cluster.getCurrentClusterJob();
+            assertNotNull(currentClusterJob);
+            assertTrue(currentClusterJob.hasCurrentNode());
+
+            restartingExecutor = currentClusterJob.getCurrentNode().getExecutorId();
+            assertTrue(restartedExecutors.add(restartingExecutor));
+            // verify that the stopped node is NOT restarted
+            assertNotEquals(executorMetadata[1].getExecutor().getExecutorId(), restartingExecutor);
+
+            // check that node is in RESTART state
+            CassandraFrameworkProtos.CassandraNode node = cluster.findNode(restartingExecutor);
+            assertNotNull(node);
+            assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RESTART, node.getTargetRunState());
+
+            // simulate server-task stopped
+            CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER);
+            assertNotNull(taskForNode);
+
+            Tuple2<Protos.SlaveID, String> slave = slaveForExecutor(restartingExecutor);
+            assertNotNull(slave);
+            Protos.TaskInfo execMetadata = execForExecutor(restartingExecutor);
+            assertNotNull(execMetadata);
+            Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> execServer = serverTaskForExecutor(restartingExecutor);
+            assertNotNull(execServer);
+
+            // verify that kill-task is launched
+            killTask(slave, taskForNode.getTaskId());
+            // must not repeat CASSANDRA_SERVER_SHUTDOWN since it's already launched
+            noopOnOffer(slave, 3, true);
+
+            // simulate server-task has finished
+            executorTaskFinished(execServer._1, CassandraFrameworkProtos.SlaveStatusDetails.newBuilder()
+                .setStatusDetailsType(CassandraFrameworkProtos.SlaveStatusDetails.StatusDetailsType.NULL_DETAILS)
+                .build());
+
+            // check that server-task is no longer present
+            node = cluster.findNode(restartingExecutor);
+            assertNotNull(node);
+            assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+
+            // must have current-node - server task not running
+            currentClusterJob = cluster.getCurrentClusterJob();
+            assertNotNull(currentClusterJob);
+            assertTrue(currentClusterJob.hasCurrentNode());
+            assertEquals(restartingExecutor, currentClusterJob.getCurrentNode().getExecutorId());
+
+            // verify that CASSANDRA_SERVER_RUN task is launched
+            launchTask(slave, CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+            // must not repeat CASSANDRA_SERVER_RUN since it's already launched
+            noopOnOffer(slave, 3, true);
+
+            // must have current-node - no valid HC received yet
+            currentClusterJob = cluster.getCurrentClusterJob();
+            assertNotNull(currentClusterJob);
+            assertTrue(currentClusterJob.hasCurrentNode());
+            assertEquals(restartingExecutor, currentClusterJob.getCurrentNode().getExecutorId());
+
+            executorTaskRunning(execServer._1);
+            sendHealthCheckResult(execMetadata, healthCheckDetailsSuccess("NORMAL", true));
+
+            noopOnOffer(slave, 3, true);
+
+        }
+
+        assertThat(restartedExecutors).hasSize(activeNodes - 1);
+
+        currentClusterJob = cluster.getCurrentClusterJob();
+        assertNull(currentClusterJob);
+    }
+
+    @Test
     public void testRepair() throws InvalidProtocolBufferException {
 
         threeNodeCluster();
@@ -846,9 +1061,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         // no tasks
 
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
-            noopOnOffer(slave, activeNodes);
-        }
+        noopOnOfferAll();
     }
 
     private void clusterJob(CassandraFrameworkProtos.ClusterJobType clusterJobType) throws InvalidProtocolBufferException {
@@ -1035,9 +1248,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         // no tasks
 
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
-            noopOnOffer(slave, activeNodes);
-        }
+        noopOnOfferAll();
     }
 
     private static CassandraFrameworkProtos.NodeJobStatus initialNodeJobStatus(Protos.TaskInfo taskInfo, CassandraFrameworkProtos.ClusterJobType clusterJobType) {
@@ -1300,6 +1511,12 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         return CassandraFrameworkProtos.TaskDetails.parseFrom(data.getData());
     }
 
+    private void noopOnOfferAll() {
+        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+            noopOnOffer(slave, activeNodes);
+        }
+    }
+
     private void noopOnOffer(Tuple2<Protos.SlaveID, String> slave, int nodeCount) {
         noopOnOffer(slave, nodeCount, false);
     }
@@ -1348,4 +1565,29 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         return cluster.lastHealthCheck(executorIdValue(executorMetadata)).getDetails();
     }
 
+    private Tuple2<Protos.SlaveID, String> slaveForExecutor(String executorId) {
+        for (int i = 0; i < executorMetadata.length; i++) {
+            if (executorMetadata[i] != null && executorMetadata[i].getExecutor().getExecutorId().getValue().equals(executorId))
+                return slaves[i];
+        }
+        return null;
+    }
+
+    private Protos.TaskInfo execForExecutor(String executorId) {
+        for (Protos.TaskInfo execMetadata : executorMetadata) {
+            if (execMetadata != null && execMetadata.getExecutor().getExecutorId().getValue().equals(executorId)) {
+                return execMetadata;
+            }
+        }
+        return null;
+    }
+
+    private Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> serverTaskForExecutor(String executorId) {
+        for (Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> serverInfo : executorServer) {
+            if (serverInfo != null && serverInfo._1.getExecutor().getExecutorId().getValue().equals(executorId)) {
+                return serverInfo;
+            }
+        }
+        return null;
+    }
 }

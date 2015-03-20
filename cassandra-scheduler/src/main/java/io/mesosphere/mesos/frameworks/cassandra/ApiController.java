@@ -574,6 +574,30 @@ public final class ApiController {
     // repair + cleanup stuff
 
     @GET
+    @Path("/cluster/restart/start")
+    public Response clusterRestartStart() {
+        return startJob(CassandraFrameworkProtos.ClusterJobType.RESTART);
+    }
+
+    @GET
+    @Path("/cluster/restart/abort")
+    public Response clusterRestartAbort() {
+        return abortJob(CassandraFrameworkProtos.ClusterJobType.RESTART);
+    }
+
+    @GET
+    @Path("/cluster/restart/status")
+    public Response clusterRestartStatus() {
+        return jobStatus(CassandraFrameworkProtos.ClusterJobType.RESTART, "clusterRestart");
+    }
+
+    @GET
+    @Path("/cluster/restart/last")
+    public Response lastClusterRestart() {
+        return lastJob(CassandraFrameworkProtos.ClusterJobType.RESTART, "clusterRestart");
+    }
+
+    @GET
     @Path("/repair/start")
     public Response repairStart() {
         return startJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);

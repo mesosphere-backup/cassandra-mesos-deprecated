@@ -51,35 +51,13 @@ final class PersistedCassandraClusterJobs extends StatePersistedObject<Cassandra
         );
     }
 
-    public void currentJob(CassandraFrameworkProtos.ClusterJobStatus current) {
+    public void setCurrentJob(CassandraFrameworkProtos.ClusterJobStatus current) {
         CassandraFrameworkProtos.CassandraClusterJobs.Builder builder = CassandraFrameworkProtos.CassandraClusterJobs.newBuilder(get());
         if (current == null)
             builder.clearCurrentClusterJob();
         else
             builder.setCurrentClusterJob(current);
         setValue(builder.build());
-    }
-
-    public void updateNodeStatus(CassandraFrameworkProtos.ClusterJobStatus currentJob, CassandraFrameworkProtos.NodeJobStatus nodeJobStatus) {
-        CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob);
-
-        if (currentJob.getCurrentNode() != null && currentJob.getCurrentNode().getExecutorId().equals(nodeJobStatus.getExecutorId())) {
-            if (nodeJobStatus.getRunning())
-                currentJob(builder
-                        .setCurrentNode(nodeJobStatus)
-                        .build());
-            else {
-                CassandraFrameworkProtos.ClusterJobStatus.Builder jobUpdate = builder
-                        .clearCurrentNode()
-                        .addCompletedNodes(nodeJobStatus);
-                if (jobUpdate.getRemainingNodesCount() == 0)
-                    finishJob(jobUpdate
-                            .setFinishedTimestamp(System.currentTimeMillis())
-                            .build());
-                else
-                    currentJob(jobUpdate.build());
-            }
-        }
     }
 
     public void removeTaskForCurrentNode(Protos.TaskStatus status, CassandraFrameworkProtos.ClusterJobStatus currentJob) {
@@ -95,29 +73,29 @@ final class PersistedCassandraClusterJobs extends StatePersistedObject<Cassandra
                         + ", message:" + status.getMessage()
                 );
 
-        currentJob(builder.addCompletedNodes(currentNode)
-                .clearCurrentNode()
-                .build());
+        setCurrentJob(builder.addCompletedNodes(currentNode)
+            .clearCurrentNode()
+            .build());
     }
 
-    public void nextNode(CassandraFrameworkProtos.ClusterJobStatus currentTask, CassandraFrameworkProtos.NodeJobStatus currentNode) {
-        CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentTask)
+    public void updateJobCurrentNode(CassandraFrameworkProtos.ClusterJobStatus currentJob, CassandraFrameworkProtos.NodeJobStatus currentNode) {
+        CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob)
                 .clearRemainingNodes()
                 .setCurrentNode(currentNode);
 
-        for (String nodeExecutorId : currentTask.getRemainingNodesList()) {
+        for (String nodeExecutorId : currentJob.getRemainingNodesList()) {
             if (!nodeExecutorId.equals(currentNode.getExecutorId()))
                 builder.addRemainingNodes(nodeExecutorId);
         }
 
-        currentJob(builder.build());
+        setCurrentJob(builder.build());
     }
 
-    public void finishJob(CassandraFrameworkProtos.ClusterJobStatus currentTask) {
+    public void finishJob(CassandraFrameworkProtos.ClusterJobStatus currentJob) {
         CassandraFrameworkProtos.CassandraClusterJobs.Builder clusterJobsBuilder = CassandraFrameworkProtos.CassandraClusterJobs.newBuilder()
-                .addLastClusterJobs(currentTask);
+                .addLastClusterJobs(currentJob);
         for (CassandraFrameworkProtos.ClusterJobStatus clusterJobStatus : get().getLastClusterJobsList())
-            if (clusterJobStatus.getJobType() != currentTask.getJobType())
+            if (clusterJobStatus.getJobType() != currentJob.getJobType())
                 clusterJobsBuilder.addLastClusterJobs(clusterJobStatus);
 
         setValue(clusterJobsBuilder.build());

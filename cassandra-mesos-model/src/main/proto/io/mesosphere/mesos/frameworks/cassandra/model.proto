@@ -119,6 +119,7 @@ message HealthCheckHistoryEntry {
 enum ClusterJobType {
     CLEANUP = 1;
     REPAIR = 2;
+    RESTART = 3;
 }
 message CassandraClusterJobs {
     repeated ScheduledJob jobs = 1;

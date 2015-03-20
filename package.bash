@@ -2,7 +2,7 @@
 set -o errexit -o nounset -o pipefail
 
 PROJECT_DIR=$(pwd)
-TARGET_DIR="target/framework-package"
+TARGET_DIR="cassandra-dist/target/tarball"
 
 DOWNLOAD_URL_CASS="https://downloads.mesosphere.io/cassandra-mesos/cassandra/apache-cassandra-2.1.2-bin.tar.gz"
 
@@ -26,9 +26,11 @@ function clean {(
 
 function download {(
 
-    mkdir -p ${TARGET_DIR}
-    cd ${TARGET_DIR}
-    _download ${DOWNLOAD_URL_CASS} "apache-cassandra-2.1.2-bin.tar.gz"
+    if [ ! -f "${TARGET_DIR}/apache-cassandra-2.1.2-bin.tar.gz" ] ; then
+        mkdir -p ${TARGET_DIR}
+        cd ${TARGET_DIR}
+        _download ${DOWNLOAD_URL_CASS} "apache-cassandra-2.1.2-bin.tar.gz"
+    fi
 
 )}
 

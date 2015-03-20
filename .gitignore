@@ -1,6 +1,3 @@
-# InteliJ IDEA
-atlassian-ide-plugin.xml
-.idea/
 
 # Eclipse
 .classpath
@@ -9,6 +6,7 @@ atlassian-ide-plugin.xml
 .cache
 
 # Intellij
+atlassian-ide-plugin.xml
 .idea/
 *.iml
 *.iws
@@ -19,11 +17,11 @@ atlassian-ide-plugin.xml
 # Maven
 log/
 target/
-**/target/*
 
 # backup files
 *~
 
+# generated log files and rotated logs
 **/cassandra-mesos.log
 **/cassandra-mesos.log*.zip
 **/cassandra-executor.log
@@ -33,3 +31,7 @@ target/
 
 driver-extensions/cluster-loadtest/cassandra.logdir_IS_UNDEFINED/**
 driver-extensions/cluster-loadtest/loadtest-*/**
+
+# Compiled Licenses
+**/licenses/
+**/THIRD-PARTY.txt

@@ -78,6 +78,7 @@
         <module>cassandra-executor</module>
         <module>cassandra-scheduler</module>
         <module>cassandra-mesos-model</module>
+        <module>cassandra-dist</module>
     </modules>
 
     <dependencyManagement>
@@ -97,6 +98,23 @@
             <dependency>
                 <groupId>io.mesosphere.mesos.frameworks</groupId>
                 <artifactId>cassandra-executor</artifactId>
+                <version>0.1.0-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.mesosphere.mesos.frameworks</groupId>
+                <artifactId>cassandra-executor</artifactId>
+                <classifier>jar-with-dependencies</classifier>
+                <version>0.1.0-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.mesosphere.mesos.frameworks</groupId>
+                <artifactId>cassandra-framework</artifactId>
+                <version>0.1.0-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.mesosphere.mesos.frameworks</groupId>
+                <artifactId>cassandra-framework</artifactId>
+                <classifier>jar-with-dependencies</classifier>
                 <version>0.1.0-SNAPSHOT</version>
             </dependency>
 
@@ -272,6 +290,88 @@
     </pluginRepositories>
 
     <build>
+        <resources>
+            <resource>
+                <directory>${project.basedir}</directory>
+                <includes>
+                    <include>THIRD-PARTY.txt</include>
+                    <include>licenses/**</include>
+                </includes>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>license-maven-plugin</artifactId>
+                    <version>1.8</version>
+                    <configuration>
+                        <excludedScopes>test</excludedScopes>
+                        <excludedGroups>${project.groupId}</excludedGroups>
+                        <fileTemplate>${project.basedir}/../src/main/licenses/third-party.ftl</fileTemplate>
+                        <licenseMerges>
+                            <licenseMerge>Apache Software License Version 2.0|The Apache Software License, Version 2.0|Apache 2|Apache License, Version 2.0|Apache Software Licenses</licenseMerge>
+                            <licenseMerge>CDDL+GPL License|CDDL+GPL</licenseMerge>
+                            <licenseMerge>Eclipse Public License 1.0|Eclipse Public License - v 1.0</licenseMerge>
+                        </licenseMerges>
+                        <excludedScopes>test</excludedScopes>
+                        <!-- If we use something like target/generated-resources/... that path including
+                             target/generated-resources would be used in the jar, which is really ugly.
+                          -->
+                        <outputDirectory>.</outputDirectory>
+                        <licensesOutputDirectory>licenses</licensesOutputDirectory>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>default-cli</id>
+                            <goals>
+                                <goal>add-third-party</goal>
+                                <goal>download-licenses</goal>
+                            </goals>
+                            <phase>generate-resources</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>2.2.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>2.9.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>ideauidesigner-maven-plugin</artifactId>
+                    <version>1.0-beta-1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>1.3.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>2.5.3</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>2.10</version>
+                </plugin>
+                <plugin>
+                    <groupId>com.googlecode.maven-download-plugin</groupId>
+                    <artifactId>download-maven-plugin</artifactId>
+                    <version>1.2.1</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -284,7 +384,6 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>ideauidesigner-maven-plugin</artifactId>
-                <version>1.0-beta-1</version>
                 <executions>
                     <execution>
                         <goals>
@@ -310,7 +409,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.2.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -323,7 +421,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.9.1</version>
                 <configuration>
                     <windowtitle>Cassandra-Mesos ${project.artifactId}</windowtitle>
                     <bottom>&amp;copy; 2014 ${project.organization.name} - licensed under &lt;a
@@ -331,13 +428,14 @@
                         - &lt;a href="http://mesos.apache.org/" target="_new"&gt;Homepage&lt;/a&gt;</bottom>
                     <show>protected</show>
                     <failOnError>false</failOnError>
+                    <aggregate>false</aggregate>
                     <includeDependencySources>false</includeDependencySources>
                     <includeTransitiveDependencySources>false</includeTransitiveDependencySources>
                 </configuration>
                 <executions>
                     <execution>
-                        <id>javadoc</id> <!-- this is used for inheritance merges -->
-                        <phase>package</phase> <!-- bind to the packaging phase -->
+                        <id>javadoc</id>
+                        <phase>package</phase>
                         <goals>
                             <goal>jar</goal>
                         </goals>

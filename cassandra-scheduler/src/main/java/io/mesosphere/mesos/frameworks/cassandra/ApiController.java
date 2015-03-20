@@ -1160,7 +1160,7 @@ public final class ApiController {
      * "success" : "false",
      * "error" : "Some error message"
      * }}</pre>
-     *  <br/>
+     *  <p></p>
      *  <pre>{@code {
      * "ip" : "127.0.0.1",
      * "hostname" : "localhost",
@@ -1189,7 +1189,7 @@ public final class ApiController {
      * "success" : "false",
      * "error" : "Some error message"
      * }}</pre>
-     *  <br/>
+     *  <p></p>
      *  <pre>{@code {
      * "ip" : "127.0.0.1",
      * "hostname" : "localhost",

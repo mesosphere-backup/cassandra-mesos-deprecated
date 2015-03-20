@@ -758,7 +758,7 @@ public final class CassandraCluster {
             .setExecutorId(executorId)
             .setSource(configuration.frameworkName())
             .setCpuCores(0.1)
-            .setMemMb(256)
+            .setMemMb(384)
             .setDiskMb(256)
             .addAllCommand(command)
             .setTaskEnv(taskEnvFromMap(executorEnv))

@@ -758,8 +758,8 @@ public final class CassandraCluster {
             .setExecutorId(executorId)
             .setSource(configuration.frameworkName())
             .setCpuCores(0.1)
-            .setMemMb(16)
-            .setDiskMb(16)
+            .setMemMb(384)
+            .setDiskMb(256)
             .addAllCommand(command)
             .setTaskEnv(taskEnvFromMap(executorEnv))
             .addAllResource(newArrayList(
@@ -791,8 +791,8 @@ public final class CassandraCluster {
             .setTaskId(executorId)
             .setExecutorId(executorId)
             .setCpuCores(0.1)
-            .setMemMb(16)
-            .setDiskMb(16)
+            .setMemMb(32)
+            .setDiskMb(0)
             .setTaskDetails(taskDetails)
             .build();
     }

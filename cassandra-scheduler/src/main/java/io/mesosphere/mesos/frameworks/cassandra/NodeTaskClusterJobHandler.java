@@ -106,11 +106,11 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
         LOGGER.info("Got node job status from {}, running={}", nodeJobStatus.getExecutorId(), nodeJobStatus.getRunning());
 
         if (currentJob.getCurrentNode() != null && currentJob.getCurrentNode().getExecutorId().equals(nodeJobStatus.getExecutorId())) {
-            if (nodeJobStatus.getRunning())
+            if (nodeJobStatus.getRunning()) {
                 jobsState.setCurrentJob(CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob)
                     .setCurrentNode(nodeJobStatus)
                     .build());
-            else {
+            } else {
                 nodeFinished(nodeJobStatus, currentJob);
             }
         }

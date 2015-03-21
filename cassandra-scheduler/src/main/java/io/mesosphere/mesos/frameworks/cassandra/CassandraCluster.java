@@ -114,8 +114,9 @@ public final class CassandraCluster {
 
     public static int getPortMapping(CassandraFrameworkConfiguration configuration, String name) {
         for (PortMapping portMapping : configuration.getPortMappingList()) {
-            if (portMapping.getName().equals(name))
+            if (portMapping.getName().equals(name)) {
                 return portMapping.getPort();
+            }
         }
         Long port = defaultPortMappings.get(name);
         if (port == null) {
@@ -159,8 +160,9 @@ public final class CassandraCluster {
 
     public ExecutorMetadata metadataForExecutor(@NotNull String executorId) {
         for (ExecutorMetadata executorMetadata : clusterState.executorMetadata()) {
-            if (executorId.equals(executorMetadata.getExecutorId()))
+            if (executorId.equals(executorMetadata.getExecutorId())) {
                 return executorMetadata;
+            }
         }
         return null;
     }
@@ -294,7 +296,7 @@ public final class CassandraCluster {
                     "health check result unhealthy for node: {}. Message: '{}'",
                     nodeOpt.get().hasCassandraNodeExecutor() ? nodeOpt.get().getCassandraNodeExecutor().getExecutorId() : nodeOpt.get().getHostname(),
                     details.getMsg()
-                    );
+                );
                 // TODO: This needs to be smarter, right not it assumes that as soon as it's unhealth it's dead
                 //removeTask(nodeOpt.get().getServerTask().getTaskId());
             } else {
@@ -357,8 +359,9 @@ public final class CassandraCluster {
                 CassandraNode newNode = buildCassandraNode(offer, buildSeedNode, replacementForIp);
                 clusterState.nodeAcquired(newNode);
                 node = CassandraNode.newBuilder(newNode);
-            } else
+            } else {
                 node = CassandraNode.newBuilder(nodeOption.get());
+            }
 
             if (!node.hasCassandraNodeExecutor()) {
                 if (node.getTargetRunState() == CassandraNode.TargetRunState.TERMINATE) {
@@ -431,8 +434,9 @@ public final class CassandraCluster {
                                     if (cassandraNode.getSeed()) {
                                         if (lastHC != null && lastHC.getDetails() != null && lastHC.getDetails().getInfo() != null
                                             && lastHC.getDetails().getHealthy()
-                                            && lastHC.getDetails().getInfo().getJoined() && "NORMAL".equals(lastHC.getDetails().getInfo().getOperationMode()))
+                                            && lastHC.getDetails().getInfo().getJoined() && "NORMAL".equals(lastHC.getDetails().getInfo().getOperationMode())) {
                                             anySeedRunning = true;
+                                        }
                                     }
                                     if (lastHC != null && lastHC.getDetails() != null && lastHC.getDetails().getInfo() != null
                                         && lastHC.getDetails().getHealthy()
@@ -854,8 +858,9 @@ public final class CassandraCluster {
 
     private void handleClusterTask(String executorId, TasksForOffer tasksForOffer) {
         ClusterJobStatus currentJob = getCurrentClusterJob();
-        if (currentJob == null)
+        if (currentJob == null) {
             return;
+        }
 
         Optional<CassandraFrameworkProtos.CassandraNode> nodeForExecutorId = cassandraNodeForExecutorId(executorId);
 
@@ -885,8 +890,9 @@ public final class CassandraCluster {
     }
 
     public boolean startClusterTask(ClusterJobType jobType) {
-        if (jobsState.get().hasCurrentClusterJob())
+        if (jobsState.get().hasCurrentClusterJob()) {
             return false;
+        }
 
         ClusterJobStatus.Builder builder = ClusterJobStatus.newBuilder()
                 .setJobType(jobType)
@@ -905,8 +911,9 @@ public final class CassandraCluster {
 
     public boolean abortClusterJob(ClusterJobType jobType) {
         ClusterJobStatus current = getCurrentClusterJob(jobType);
-        if (current == null || current.getAborted())
+        if (current == null || current.getAborted()) {
             return false;
+        }
 
         current = ClusterJobStatus.newBuilder(current)
                 .setAborted(true).build();
@@ -997,13 +1004,15 @@ public final class CassandraCluster {
     public List<CassandraNode> liveNodes(int limit) {
         CassandraClusterState state = clusterState.get();
         int total = state.getNodesCount();
-        if (total == 0)
+        if (total == 0) {
             return Collections.emptyList();
+        }
 
         int totalLive = 0;
         for (int i = 0; i < total; i++) {
-            if (isLiveNode(state.getNodes(i)))
+            if (isLiveNode(state.getNodes(i))) {
                 totalLive++;
+            }
         }
 
         limit = Math.min(totalLive, limit);
@@ -1018,7 +1027,7 @@ public final class CassandraCluster {
                 result.add(node);
                 misses = 0;
             } else {
-                misses ++;
+                misses++;
             }
         }
 
@@ -1026,23 +1035,28 @@ public final class CassandraCluster {
     }
 
     public boolean isLiveNode(CassandraNode node) {
-        if (!node.hasCassandraNodeExecutor())
+        if (!node.hasCassandraNodeExecutor()) {
             return false;
-        if (getTaskForNode(node, CassandraNodeTask.TaskType.SERVER) == null)
+        }
+        if (getTaskForNode(node, CassandraNodeTask.TaskType.SERVER) == null) {
             return false;
+        }
         HealthCheckHistoryEntry hc = lastHealthCheck(node.getCassandraNodeExecutor().getExecutorId());
         return isLiveNode(hc);
     }
 
     public boolean isLiveNode(HealthCheckHistoryEntry hc) {
-        if (hc == null || !hc.hasDetails())
+        if (hc == null || !hc.hasDetails()) {
             return false;
+        }
         HealthCheckDetails hcd = hc.getDetails();
-        if (!hcd.getHealthy() || !hcd.hasInfo())
+        if (!hcd.getHealthy() || !hcd.hasInfo()) {
             return false;
+        }
         NodeInfo info = hcd.getInfo();
-        if (!info.hasNativeTransportRunning() || !info.hasRpcServerRunning())
+        if (!info.hasNativeTransportRunning() || !info.hasRpcServerRunning()) {
             return false;
+        }
         return info.getNativeTransportRunning() && info.getRpcServerRunning();
     }
 

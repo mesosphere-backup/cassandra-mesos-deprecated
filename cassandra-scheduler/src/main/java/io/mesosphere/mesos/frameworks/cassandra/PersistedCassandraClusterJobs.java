@@ -53,10 +53,11 @@ final class PersistedCassandraClusterJobs extends StatePersistedObject<Cassandra
 
     public void setCurrentJob(CassandraFrameworkProtos.ClusterJobStatus current) {
         CassandraFrameworkProtos.CassandraClusterJobs.Builder builder = CassandraFrameworkProtos.CassandraClusterJobs.newBuilder(get());
-        if (current == null)
+        if (current == null) {
             builder.clearCurrentClusterJob();
-        else
+        } else {
             builder.setCurrentClusterJob(current);
+        }
         setValue(builder.build());
     }
 
@@ -64,14 +65,14 @@ final class PersistedCassandraClusterJobs extends StatePersistedObject<Cassandra
         CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob);
 
         CassandraFrameworkProtos.NodeJobStatus.Builder currentNode = CassandraFrameworkProtos.NodeJobStatus.newBuilder(builder.getCurrentNode())
-                .setFailed(true)
-                .setFailureMessage(
-                        "TaskStatus:" + status.getState()
-                        + ", reason:" + status.getReason()
-                        + ", source:" + status.getSource()
-                        + ", healthy:" + status.getHealthy()
-                        + ", message:" + status.getMessage()
-                );
+            .setFailed(true)
+            .setFailureMessage(
+                    "TaskStatus:" + status.getState()
+                    + ", reason:" + status.getReason()
+                    + ", source:" + status.getSource()
+                    + ", healthy:" + status.getHealthy()
+                    + ", message:" + status.getMessage()
+            );
 
         setCurrentJob(builder.addCompletedNodes(currentNode)
             .clearCurrentNode()
@@ -80,12 +81,13 @@ final class PersistedCassandraClusterJobs extends StatePersistedObject<Cassandra
 
     public void updateJobCurrentNode(CassandraFrameworkProtos.ClusterJobStatus currentJob, CassandraFrameworkProtos.NodeJobStatus currentNode) {
         CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob)
-                .clearRemainingNodes()
-                .setCurrentNode(currentNode);
+            .clearRemainingNodes()
+            .setCurrentNode(currentNode);
 
         for (String nodeExecutorId : currentJob.getRemainingNodesList()) {
-            if (!nodeExecutorId.equals(currentNode.getExecutorId()))
+            if (!nodeExecutorId.equals(currentNode.getExecutorId())) {
                 builder.addRemainingNodes(nodeExecutorId);
+            }
         }
 
         setCurrentJob(builder.build());
@@ -93,10 +95,13 @@ final class PersistedCassandraClusterJobs extends StatePersistedObject<Cassandra
 
     public void finishJob(CassandraFrameworkProtos.ClusterJobStatus currentJob) {
         CassandraFrameworkProtos.CassandraClusterJobs.Builder clusterJobsBuilder = CassandraFrameworkProtos.CassandraClusterJobs.newBuilder()
-                .addLastClusterJobs(currentJob);
-        for (CassandraFrameworkProtos.ClusterJobStatus clusterJobStatus : get().getLastClusterJobsList())
-            if (clusterJobStatus.getJobType() != currentJob.getJobType())
+            .addLastClusterJobs(currentJob);
+
+        for (CassandraFrameworkProtos.ClusterJobStatus clusterJobStatus : get().getLastClusterJobsList()) {
+            if (clusterJobStatus.getJobType() != currentJob.getJobType()) {
                 clusterJobsBuilder.addLastClusterJobs(clusterJobStatus);
+            }
+        }
 
         setValue(clusterJobsBuilder.build());
     }

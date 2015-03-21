@@ -40,15 +40,17 @@ public abstract class ClusterJobHandler {
             .addCompletedNodes(nodeJobStatus);
 
         for (String nodeExecutorId : currentJob.getRemainingNodesList()) {
-            if (!nodeExecutorId.equals(nodeJobStatus.getExecutorId()))
+            if (!nodeExecutorId.equals(nodeJobStatus.getExecutorId())) {
                 builder.addRemainingNodes(nodeExecutorId);
+            }
         }
 
-        if (builder.getRemainingNodesCount() == 0)
+        if (builder.getRemainingNodesCount() == 0) {
             jobsState.finishJob(builder
                 .setFinishedTimestamp(System.currentTimeMillis())
                 .build());
-        else
+        } else {
             jobsState.setCurrentJob(builder.build());
+        }
     }
 }

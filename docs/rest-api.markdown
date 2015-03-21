@@ -50,19 +50,29 @@ The 'default' endpoint returns a simple JSON that you may use as a point-of-entr
   Must be submitted using HTTP method `POST`.
 * `/repair/start`, `/repair/status`, `/repair/abort`, `/repair/last` Endpoints to start a cluster-wide repair,
   inquire the current status, abort the cluster-wide repair and inquire the status of the last repair.
+  Must be submitted using HTTP method `POST`.
 * `/cleanup/start`, `/cleanup/status`, `/cleanup/abort`, `/cleanup/last` Similar to repair but for cluster-wide
-  cleanup
+  cleanup.
+  Must be submitted using HTTP method `POST`.
+* `/cluster/restart/start`, `/cluster/restart/status`, `/cluster/restart/abort`, `/cluster/restart/last` 
+  Performs a cluster-wide restart of all Cassandra server processes.
+  Must be submitted using HTTP method `POST`.
 * `/node/stop/`+_node_ : sets the requested run-status of the _node_ (either IP, hostname or executor ID) to
   _STOP_ ensuring that the Cassandra process is not running
+  Must be submitted using HTTP method `POST`.
 * `/node/run/`+_node_ : sets the requested run-status of the _node_ (either IP, hostname or executor ID) to
   _RUN_ ensuring that the Cassandra process is running
+  Must be submitted using HTTP method `POST`.
 * `/node/restart/`+_node_ : sets the requested run-status of the _node_ (either IP, hostname or executor ID) to
   _RESTART_ which is effectively a sequence of _STOP_ followed by _RUN_
+  Must be submitted using HTTP method `POST`.
 * `/node/terminate/`+_node_ : sets the requested run-status of the _node_ (either IP, hostname or executor ID) to
   _TERMINATE_ ensuring that the Cassandra node can be replaced. There's no way to bring a _terminated_ node
   back.
+  Must be submitted using HTTP method `POST`.
 * `/node/replace/`+_node_ : allocates a new Cassandra nodes that will be configured to replace the given
   _node_ (either IP, hostname or executor ID)
+  Must be submitted using HTTP method `POST`.
 * `/scale/nodes` Allows to scale out the Cassandra cluster by increasing the number of nodes.
   Requires the query parameter `nodes` defining the desired number of total nodes.
   Must be submitted using HTTP method `POST`.
@@ -388,6 +398,70 @@ IP: 127.0.0.2
                 "durationMillis" : 20
             }
             },
+            "remainingKeyspaces" : [ ]
+        } ]
+    }
+}
+```
+
+## `/cluster/restart/start`
+
+```
+{
+     "started" : true
+}
+```
+
+## `/cluster/restart/status`
+
+```
+{
+    "restart" : true,
+    "cleanup" : {
+        "type" : "RESTART",
+        "started" : 1426687019998,
+        "finished" : null,
+        "aborted" : false,
+        "remainingNodes" : [ "cassandra.node.0.executor" ],
+        "currentNode" : null,
+        "completedNodes" : [ {
+            "executorId" : "cassandra.node.1.executor",
+            "taskId" : "cassandra.node.1.executor.RESTART",
+            "hostname" : "localhost",
+            "ip" : "127.0.0.1",
+            "processedKeyspaces" : { },
+            "remainingKeyspaces" : [ ]
+        } ]
+    }
+}
+```
+
+## `/cluster/restart/abort`
+
+```
+{
+    "aborted" : true
+}
+```
+
+## `/cluster/restart/last`
+
+```
+{
+    "present" : true,
+    "cleanup" : {
+        "type" : "RESTART",
+        "started" : 1426687019998,
+        "finished" : null,
+        "aborted" : false,
+        "remainingNodes" : [ "cassandra.node.0.executor" ],
+        "currentNode" : null,
+        "completedNodes" : [ {
+            "executorId" : "cassandra.node.1.executor",
+            "taskId" : "cassandra.node.1.executor.RESTART",
+            "hostname" : "localhost",
+            "ip" : "127.0.0.1",
+            "processedKeyspaces" : { },
             "remainingKeyspaces" : [ ]
         } ]
     }

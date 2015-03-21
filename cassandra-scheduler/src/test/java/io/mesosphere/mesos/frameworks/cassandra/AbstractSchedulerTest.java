@@ -45,31 +45,21 @@ public abstract class AbstractSchedulerTest {
         // start with clean state
         state = new InMemoryState();
 
-        CassandraFrameworkProtos.CassandraConfigRole defaultConfigRole = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
-            .setCassandraVersion("2.1.2")
-            .setResources(CassandraFrameworkProtos.TaskResources.newBuilder()
-                .setCpuCores(2)
-                .setDiskMb(4096)
-                .setMemMb(4096))
-            .setMesosRole("*")
-            .setNumberOfNodes(3)
-            .setNumberOfSeeds(2)
-            .setName("default")
-            .setMesosRole("*")
-            .build();
         configuration = new PersistedCassandraFrameworkConfiguration(
                 state,
                 "test-cluster",
-                "test-cluster",
-                defaultConfigRole,
                 0, // health-check
-                0 // bootstrap-grace-time
+                0, // bootstrap-grace-time
+                "2.1.2",
+            2, 4096, 4096, 0,
+            3, 2,
+            "*"
         );
 
         cluster = new CassandraCluster(new SystemClock(),
                 "http://127.0.0.1:65535",
                 new ExecutorCounter(state, 0L),
-                new PersistedCassandraClusterState(state, defaultConfigRole),
+                new PersistedCassandraClusterState(state, 3, 2),
                 new PersistedCassandraClusterHealthCheckHistory(state),
                 new PersistedCassandraClusterJobs(state),
                 configuration);

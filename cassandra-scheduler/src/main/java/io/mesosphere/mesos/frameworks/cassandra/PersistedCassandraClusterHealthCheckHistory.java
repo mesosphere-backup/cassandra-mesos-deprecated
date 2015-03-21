@@ -89,6 +89,10 @@ final class PersistedCassandraClusterHealthCheckHistory extends StatePersistedOb
         return null;
     }
 
+    /**
+     * The implementation does not add a new entry when it is similar to the previous one.
+     * Instead it updates the timespan in the previous one.
+     */
     public void record(String executorId, long timestamp, @NotNull final CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
         CassandraFrameworkProtos.CassandraClusterHealthCheckHistory prev = get();
         int maxEntriesPerNode = prev.getMaxEntriesPerNode();

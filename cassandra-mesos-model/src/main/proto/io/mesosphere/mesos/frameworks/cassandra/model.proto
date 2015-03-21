@@ -21,7 +21,9 @@ option java_outer_classname = "CassandraFrameworkProtos";
  */
 message CassandraFrameworkConfiguration {
     /**
-     * ID of the framework. Assigned by Mesos when the scheduler is registered.
+     * ID of the framework.
+     * Upon initial framework registration Mesos will generate the framework id and return it as part of Scheduler.registered.
+     * The framework will use this value (if set) when it restarts and re-registers with Mesos
      */
     optional string frameworkId = 1;
     /**
@@ -32,36 +34,29 @@ message CassandraFrameworkConfiguration {
      */
     required string frameworkName = 2;
     /**
-     * Name of the Cassandra cluster.
-     * This is different from frameworkName since if you have setup multiple Cassandra-on-Mesos
-     * frameworks for each logical data center (with different frameworkName and frameworkId) you
-     * still have the same Cassandra cluster name.
-     */
-    required string clusterName = 3;
-    /**
      * Minimum interval in seconds to ask each executor for a health check response of the Cassandra
      * server task (= Cassandra process).
      */
-    required int64 healthCheckIntervalSeconds = 4;
+    required int64 healthCheckIntervalSeconds = 3;
     /**
      * Minimum interval in seconds between two starts of a Cassandra server task (= Cassandra process).
      */
-    required int64 bootstrapGraceTimeSeconds = 5;
+    required int64 bootstrapGraceTimeSeconds = 4;
     /**
      * Globally shared mapping of ports required by Cassandra.
      * Currently there are port mappings for these kinds of ports and respective default values:
      * storage_port=7000, ssl_storage_port=7001, native_transport_port=9042, rpc_port=9160, jmx_port=7199
      */
-    repeated PortMapping portMapping = 6;
+    repeated PortMapping portMapping = 5;
     /**
      * The class name of the snitch used. Defaults to GossipingPropertyFileSnitch.
      */
-    optional string snitch = 7;
+    optional string snitch = 6;
 
     /**
      * Default configuration role.
      */
-    required CassandraConfigRole defaultConfigRole = 8;
+    required CassandraConfigRole defaultConfigRole = 7;
 }
 
 /**
@@ -159,7 +154,7 @@ message CassandraClusterState {
      */
     repeated CassandraNode nodes = 1;
     /**
-     * List of all known executors.
+     * List of Metadata collected during executor startup.
      */
     repeated ExecutorMetadata executorMetadata = 2;
     /**
@@ -181,8 +176,6 @@ message CassandraClusterState {
 
 /**
  * Contains a history of the last health-checks that were received from all nodes.
- * The implementation should not add a new entry when it is similar to the previous one.
- * Instead it should update the timespan in the previous one.
  * This is a top-level object in the state hierarchy.
  */
 message CassandraClusterHealthCheckHistory {
@@ -197,7 +190,7 @@ message CassandraClusterHealthCheckHistory {
 }
 
 /**
- * Health check history entry as part of CassandraClusterHealthCheckHistory message.
+ * Represents and time span where the specified executor was in a particular state.
  */
 message HealthCheckHistoryEntry {
     /**
@@ -665,9 +658,7 @@ message NodeJobTask {
 message JmxConnect {
     /**
      * The TCP port the JMX server uses. Usually this port equals to the default port in
-     * CassandraFrameworkConfiguration.portMapping. In a development environment where all nodes are running on
-     * the same machine, the JMX port differs per node (thanks to Sun/Oracle, who didn't made it possible to
-     * bind JMX server to an IP address).
+     * CassandraFrameworkConfiguration.portMapping.
      */
     required int32 jmxPort = 1;
     /**

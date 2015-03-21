@@ -174,7 +174,7 @@ public final class ApiController {
 
             json.writeStringField("frameworkName", configuration.getFrameworkName());
             json.writeStringField("frameworkId", configuration.getFrameworkId());
-            json.writeStringField("clusterName", configuration.getClusterName());
+            json.writeStringField("clusterName", configuration.getFrameworkName());
 
             CassandraFrameworkProtos.CassandraConfigRole configRole = configuration.getDefaultConfigRole();
             json.writeObjectFieldStart("defaultConfigRole");

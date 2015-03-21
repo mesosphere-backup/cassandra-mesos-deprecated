@@ -25,7 +25,7 @@ public class CassandraConfigRoleTest {
                 .setMemMb(0)
                 .setDiskMb(1)
                 .setCpuCores(1));
-        PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
+        PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder).build();
     }
 
     @Test()
@@ -38,7 +38,7 @@ public class CassandraConfigRoleTest {
                 .setMemMb(8192)
                 .setDiskMb(1)
                 .setCpuCores(1));
-        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
+        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder).build();
         assertThat(configRole.getResources().getMemMb()).isEqualTo(8192);
         assertThat(configRole.getMemAssumeOffHeapMb()).isEqualTo(4096);
         assertThat(configRole.getMemJavaHeapMb()).isEqualTo(4096);
@@ -49,7 +49,7 @@ public class CassandraConfigRoleTest {
                 .setDiskMb(1)
                 .setCpuCores(1))
             .setMemJavaHeapMb(4096);
-        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
+        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder).build();
         assertThat(configRole.getResources().getMemMb()).isEqualTo(8192);
         assertThat(configRole.getMemAssumeOffHeapMb()).isEqualTo(4096);
         assertThat(configRole.getMemJavaHeapMb()).isEqualTo(4096);
@@ -60,7 +60,7 @@ public class CassandraConfigRoleTest {
                 .setDiskMb(1)
                 .setCpuCores(1))
             .setMemAssumeOffHeapMb(4096);
-        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
+        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder).build();
         assertThat(configRole.getResources().getMemMb()).isEqualTo(8192);
         assertThat(configRole.getMemAssumeOffHeapMb()).isEqualTo(4096);
         assertThat(configRole.getMemJavaHeapMb()).isEqualTo(4096);
@@ -72,7 +72,7 @@ public class CassandraConfigRoleTest {
                 .setCpuCores(1))
             .setMemJavaHeapMb(4096)
             .setMemAssumeOffHeapMb(4096);
-        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
+        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder).build();
         assertThat(configRole.getResources().getMemMb()).isEqualTo(8192);
         assertThat(configRole.getMemAssumeOffHeapMb()).isEqualTo(4096);
         assertThat(configRole.getMemJavaHeapMb()).isEqualTo(4096);
@@ -84,7 +84,7 @@ public class CassandraConfigRoleTest {
                 .setCpuCores(1))
             .setMemJavaHeapMb(4096)
             .setMemAssumeOffHeapMb(4096);
-        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder.build());
+        configRole = PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder).build();
         assertThat(configRole.getResources().getMemMb()).isEqualTo(10000);
         assertThat(configRole.getMemAssumeOffHeapMb()).isEqualTo(4096);
         assertThat(configRole.getMemJavaHeapMb()).isEqualTo(4096);

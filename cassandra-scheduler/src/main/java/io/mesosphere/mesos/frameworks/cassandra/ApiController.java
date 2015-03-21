@@ -683,6 +683,7 @@ public final class ApiController {
                     json.setPrettyPrinter(new DefaultPrettyPrinter());
                     json.writeStartObject();
 
+                    json.writeStringField("clusterName", configuration.getFrameworkName());
                     json.writeNumberField("nativePort", nativePort);
                     json.writeNumberField("rpcPort", rpcPort);
                     json.writeNumberField("jmxPort", jmxPort);

@@ -573,13 +573,13 @@ public final class ApiController {
 
     // repair + cleanup stuff
 
-    @GET
+    @POST
     @Path("/cluster/restart/start")
     public Response clusterRestartStart() {
         return startJob(CassandraFrameworkProtos.ClusterJobType.RESTART);
     }
 
-    @GET
+    @POST
     @Path("/cluster/restart/abort")
     public Response clusterRestartAbort() {
         return abortJob(CassandraFrameworkProtos.ClusterJobType.RESTART);
@@ -597,25 +597,25 @@ public final class ApiController {
         return lastJob(CassandraFrameworkProtos.ClusterJobType.RESTART, "clusterRestart");
     }
 
-    @GET
+    @POST
     @Path("/repair/start")
     public Response repairStart() {
         return startJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
     }
 
-    @GET
+    @POST
     @Path("/cleanup/start")
     public Response cleanupStart() {
         return startJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
     }
 
-    @GET
+    @POST
     @Path("/repair/abort")
     public Response repairAbort() {
         return abortJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
     }
 
-    @GET
+    @POST
     @Path("/cleanup/abort")
     public Response cleanupAbort() {
         return abortJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);

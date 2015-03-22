@@ -116,8 +116,6 @@ final class PersistedCassandraClusterState extends StatePersistedObject<Cassandr
                 nodeList.add(node
                     .setNeedsConfigUpdate(true)
                     .build());
-                nodes(nodeList);
-                return;
             } else {
                 candidate = CassandraFrameworkProtos.CassandraNode.newBuilder(candidate)
                     .setNeedsConfigUpdate(true)

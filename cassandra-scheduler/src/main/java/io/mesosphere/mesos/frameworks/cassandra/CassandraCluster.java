@@ -120,7 +120,7 @@ public final class CassandraCluster {
         }
         Long port = defaultPortMappings.get(name);
         if (port == null) {
-            throw new IllegalStateException("no port mapping for " + name);
+            throw new IllegalArgumentException("no port mapping for " + name);
         }
         return port.intValue();
     }
@@ -190,6 +190,9 @@ public final class CassandraCluster {
                 case SERVER:
                     builder.clearCassandraDaemonPid();
                     break;
+                case CLUSTER_JOB:
+                    jobsState.clearClusterJobCurrentNode(status.getExecutorId().getValue());
+                    break;
             }
 
             newNodes.add(builder.build());
@@ -220,6 +223,7 @@ public final class CassandraCluster {
                 }
             })
             .transform(cassandraNodeBuilderToCassandraNode());
+        jobsState.clearClusterJobCurrentNode(executorId);
         clusterState.nodes(newArrayList(update));
         removeExecutorMetadata(executorId);
     }
@@ -234,6 +238,15 @@ public final class CassandraCluster {
         );
     }
 
+    @NotNull
+    public Optional<CassandraNode> getNodeForTask(@NotNull final String taskId) {
+        return headOption(
+            from(clusterState.nodes())
+                .filter(cassandraNodeForTaskId(taskId))
+                .filter(cassandraNodeHasExecutor())
+        );
+    }
+
     public void addExecutorMetadata(@NotNull final ExecutorMetadata executorMetadata) {
         clusterState.executorMetadata(append(
             clusterState.executorMetadata(),
@@ -241,7 +254,7 @@ public final class CassandraCluster {
         ));
     }
 
-    void removeExecutorMetadata(@NotNull final String executorId) {
+    private void removeExecutorMetadata(@NotNull final String executorId) {
         final FluentIterable<ExecutorMetadata> update = from(clusterState.executorMetadata())
             .filter(not(new Predicate<ExecutorMetadata>() {
                 @Override
@@ -695,7 +708,7 @@ public final class CassandraCluster {
 
     @NotNull
     private CassandraServerConfig buildCassandraServerConfig(
-            @NotNull ExecutorMetadata metadata,
+        @NotNull ExecutorMetadata metadata,
             @NotNull CassandraFrameworkConfiguration config,
             @NotNull CassandraConfigRole configRole,
             @NotNull TaskEnv taskEnv) {
@@ -781,7 +794,7 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private static List<String> hasResources(
+    static List<String> hasResources(
         @NotNull final Protos.Offer offer,
         @NotNull final TaskResources resources,
         @NotNull final Map<String, Long> portMapping,
@@ -797,13 +810,13 @@ public final class CassandraCluster {
         final long availableMem = resourceValueLong(headOption(index.get("mem"))).or(0L);
         final long availableDisk = resourceValueLong(headOption(index.get("disk"))).or(0L);
 
-        if (availableCpus <= resources.getCpuCores()) {
-            errors.add(String.format("Not enough cpu resources for role %s. Required %f only %f available.", mesosRole, resources.getCpuCores(), availableCpus));
+        if (availableCpus < resources.getCpuCores()) {
+            errors.add(String.format("Not enough cpu resources for role %s. Required %f only %f available", mesosRole, resources.getCpuCores(), availableCpus));
         }
-        if (availableMem <= resources.getMemMb()) {
+        if (availableMem < resources.getMemMb()) {
             errors.add(String.format("Not enough mem resources for role %s. Required %d only %d available", mesosRole, resources.getMemMb(), availableMem));
         }
-        if (availableDisk <= resources.getDiskMb()) {
+        if (availableDisk < resources.getDiskMb()) {
             errors.add(String.format("Not enough disk resources for role %s. Required %d only %d available", mesosRole, resources.getDiskMb(), availableDisk));
         }
 
@@ -812,7 +825,7 @@ public final class CassandraCluster {
             final String key = entry.getKey();
             final Long value = entry.getValue();
             if (!ports.contains(value)) {
-                errors.add(String.format("Unavailable port %d(%s) for role %s. %d other ports available.", value, key, mesosRole, ports.size()));
+                errors.add(String.format("Unavailable port %d(%s) for role %s. %d other ports available", value, key, mesosRole, ports.size()));
             }
         }
         return errors;
@@ -1064,7 +1077,8 @@ public final class CassandraCluster {
         return cassandraNode;
     }
 
-    public List<String> getNodeLogFiles(CassandraNode cassandraNode) {
+    @NotNull
+    public List<String> getNodeLogFiles(@NotNull CassandraNode cassandraNode) {
 
         CassandraFrameworkProtos.ExecutorMetadata executorMetadata = metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
         if (executorMetadata == null) {
@@ -1093,7 +1107,7 @@ public final class CassandraCluster {
             throw new SeedChangeException("Must not remove the last live seed node");
         }
 
-        clusterState.setNodeAndUpdateConfig(CassandraNode.newBuilder()
+        clusterState.setNodeAndUpdateConfig(CassandraNode.newBuilder(cassandraNode)
             .setSeed(seed));
 
         return true;

@@ -185,6 +185,7 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
 
         if (nodeCount >= 0)
             assertEquals(nodeCount, cluster.getClusterState().get().getNodesCount());
+        assertNotNull(tasksForOffer);
         assertTrue(tasksForOffer.hasExecutor());
         assertEquals(1, tasksForOffer.getLaunchTasks().size());
         assertEquals(0, tasksForOffer.getSubmitTasks().size());

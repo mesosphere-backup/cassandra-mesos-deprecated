@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.mesosphere.mesos.util.Tuple2;
+import org.apache.mesos.Protos;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -29,20 +30,94 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.net.*;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.Assert.*;
 
-public class ApiControllerTest extends AbstractSchedulerTest {
+public class ApiControllerTest extends AbstractCassandraSchedulerTest {
     private URI httpServerBaseUri;
     private HttpServer httpServer;
 
     @Test
+    public void testSeedNodes() throws Exception {
+        threeNodeCluster();
+
+        Tuple2<Integer, JsonNode> tup = fetchJson("/seed-nodes", false);
+        assertEquals(200, tup._1.intValue());
+        JsonNode json = tup._2;
+
+        assertEquals(9042, json.get("nativePort").asInt());
+        assertEquals(9160, json.get("rpcPort").asInt());
+
+        JsonNode seeds = json.get("seeds");
+        assertThat(seeds.isArray());
+        assertEquals(2, seeds.size());
+        assertEquals(slaves[0]._2, seeds.get(0).asText());
+        assertEquals(slaves[1]._2, seeds.get(1).asText());
+
+        // make node 2 non-seed
+
+        tup = fetchJson("/node/non-seed/" + slaves[1]._2, true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals(slaves[1]._2, json.get("ip").asText());
+        assertTrue(json.has("hostname"));
+        assertTrue(json.get("oldSeedState").asBoolean());
+        assertTrue(json.get("success").asBoolean());
+        assertFalse(json.get("seedState").asBoolean());
+        assertFalse(json.has("error"));
+
+        // verify
+
+        tup = fetchJson("/seed-nodes", false);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+
+        seeds = json.get("seeds");
+        assertThat(seeds.isArray());
+        assertEquals(1, seeds.size());
+        assertEquals(slaves[0]._2, seeds.get(0).asText());
+
+        // make node 2 non-seed again
+
+        tup = fetchJson("/node/non-seed/" + slaves[1]._2, true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals(slaves[1]._2, json.get("ip").asText());
+        assertTrue(json.has("hostname"));
+        assertFalse(json.get("oldSeedState").asBoolean());
+        assertFalse(json.get("success").asBoolean());
+        assertFalse(json.get("seedState").asBoolean());
+        assertFalse(json.has("error"));
+
+        // non-existing
+
+        tup = fetchJson("/node/non-seed/foobar", true);
+        assertEquals(404, tup._1.intValue());
+
+        // too few seeds
+
+        tup = fetchJson("/node/non-seed/" + slaves[0]._2, true);
+        assertEquals(400, tup._1.intValue());
+        json = tup._2;
+        assertEquals(slaves[0]._2, json.get("ip").asText());
+        assertTrue(json.has("hostname"));
+        assertTrue(json.get("oldSeedState").asBoolean());
+        assertFalse(json.get("success").asBoolean());
+        assertTrue(json.has("error"));
+        assertTrue(json.get("error").isTextual());
+
+
+    }
+
+    @Test
     public void testRoot() throws Exception {
-        Tuple2<Integer, JsonNode> tup = fetchJson("/");
+        Tuple2<Integer, JsonNode> tup = fetchJson("/", false);
         assertEquals(200, tup._1.intValue());
         JsonNode json = tup._2;
 
@@ -54,7 +129,7 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
     @Test
     public void testConfig() throws Exception {
-        Tuple2<Integer, JsonNode> tup = fetchJson("/config");
+        Tuple2<Integer, JsonNode> tup = fetchJson("/config", false);
         assertEquals(200, tup._1.intValue());
         JsonNode json = tup._2;
 
@@ -65,17 +140,309 @@ public class ApiControllerTest extends AbstractSchedulerTest {
     }
 
     @Test
+    public void testRepair() throws Exception {
+        testClusterJob("repair", "repair", "cleanup");
+    }
+
+    @Test
+    public void testCleanup() throws Exception {
+        testClusterJob("cleanup", "cleanup", "repair");
+    }
+
+    private void testClusterJob(String urlPart, String name, String other) throws Exception {
+        threeNodeCluster();
+
+        Tuple2<Integer, JsonNode> tup = fetchJson('/' + urlPart + "/start", true);
+        assertEquals(200, tup._1.intValue());
+        JsonNode json = tup._2;
+
+        assertTrue(json.has("started"));
+        assertTrue(json.get("started").asBoolean());
+
+        // fail for cleanup
+
+        tup = fetchJson('/' + other + "/start", true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+
+        assertTrue(json.has("started"));
+        assertFalse(json.get("started").asBoolean());
+
+        // status
+
+        tup = fetchJson('/' + urlPart + "/status", false);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertTrue(json.get("running").asBoolean());
+        JsonNode status = json.get(name);
+        assertTrue(status.has("type"));
+        assertTrue(status.has("started"));
+        assertTrue(status.get("started").isNumber());
+        assertTrue(status.has("finished"));
+        assertTrue(status.get("finished").isNull());
+        assertTrue(status.has("aborted"));
+        assertFalse(status.get("aborted").asBoolean());
+        assertTrue(status.has("remainingNodes"));
+        assertTrue(status.get("remainingNodes").isArray());
+        assertTrue(status.has("currentNode"));
+        assertTrue(status.has("completedNodes"));
+        assertTrue(status.get("completedNodes").isArray());
+
+        // abort
+
+        tup = fetchJson('/' + urlPart + "/abort", true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertTrue(json.get("aborted").asBoolean());
+
+        tup = fetchJson('/' + urlPart + "/status", false);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        status = json.get(name);
+        assertTrue(status.has("aborted"));
+        assertTrue(status.get("aborted").asBoolean());
+
+        // last
+
+        tup = fetchJson('/' + urlPart + "/last", false);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertFalse(json.get("present").asBoolean());
+        assertTrue(json.get(name).isNull());
+    }
+
+    @Test
+    public void testNodeTargetState() throws Exception {
+        threeNodeCluster();
+
+        Tuple2<Integer, JsonNode> tup = fetchJson("/nodes", false);
+        assertEquals(200, tup._1.intValue());
+        JsonNode json = tup._2;
+        assertEquals("RUN", json.get("nodes").get(1).get("targetRunState").asText());
+
+        //
+
+        tup = fetchJson("/node/stop/" + slaves[1]._2, true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals(slaves[1]._2, json.get("ip").asText());
+        assertTrue(json.has("hostname"));
+        assertEquals("STOP", json.get("targetRunState").asText());
+
+        tup = fetchJson("/nodes", false);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals("STOP", json.get("nodes").get(1).get("targetRunState").asText());
+
+        //
+
+        tup = fetchJson("/node/restart/" + slaves[1]._2, true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals(slaves[1]._2, json.get("ip").asText());
+        assertTrue(json.has("hostname"));
+        assertEquals("RESTART", json.get("targetRunState").asText());
+
+        tup = fetchJson("/nodes", false);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals("RESTART", json.get("nodes").get(1).get("targetRunState").asText());
+
+        //
+
+        tup = fetchJson("/node/run/" + slaves[1]._2, true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals(slaves[1]._2, json.get("ip").asText());
+        assertTrue(json.has("hostname"));
+        assertEquals("RUN", json.get("targetRunState").asText());
+
+        tup = fetchJson("/nodes", false);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals("RUN", json.get("nodes").get(1).get("targetRunState").asText());
+
+        //
+
+        tup = fetchJson("/node/terminate/" + slaves[1]._2, true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals(slaves[1]._2, json.get("ip").asText());
+        assertTrue(json.has("hostname"));
+        assertEquals("TERMINATE", json.get("targetRunState").asText());
+
+        tup = fetchJson("/nodes", false);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals("TERMINATE", json.get("nodes").get(1).get("targetRunState").asText());
+    }
+
+    @Test
+    public void testReplaceNode() throws Exception {
+        threeNodeCluster();
+
+        Tuple2<Integer, JsonNode> tup = fetchJson("/node/terminate/" + slaves[1]._2, true);
+        assertEquals(200, tup._1.intValue());
+        JsonNode json = tup._2;
+        assertEquals(slaves[1]._2, json.get("ip").asText());
+        assertTrue(json.has("hostname"));
+        assertEquals("TERMINATE", json.get("targetRunState").asText());
+
+        tup = fetchJson("/nodes", false);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals("TERMINATE", json.get("nodes").get(1).get("targetRunState").asText());
+
+        //
+
+        tup = fetchJson("/node/replace/" + slaves[1]._2, true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals(slaves[1]._2, json.get("ipToReplace").asText());
+        assertFalse(json.get("success").asBoolean());
+        assertTrue(json.has("reason"));
+        assertTrue(json.get("reason").isTextual());
+
+        //
+
+        tup = fetchJson("/node/terminate/" + slaves[2]._2, true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals(slaves[2]._2, json.get("ip").asText());
+        assertTrue(json.has("hostname"));
+        assertEquals("TERMINATE", json.get("targetRunState").asText());
+
+        tup = fetchJson("/nodes", false);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals("TERMINATE", json.get("nodes").get(2).get("targetRunState").asText());
+
+        //
+
+        tup = fetchJson("/node/replace/" + slaves[2]._2, true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals(slaves[2]._2, json.get("ipToReplace").asText());
+        assertFalse(json.get("success").asBoolean());
+        assertTrue(json.has("reason"));
+        assertTrue(json.get("reason").isTextual());
+
+        //
+
+        cluster.removeExecutor(executorMetadata[2].getExecutor().getExecutorId().getValue());
+
+        tup = fetchJson("/node/replace/" + slaves[2]._2, true);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertEquals(slaves[2]._2, json.get("ipToReplace").asText());
+        assertTrue(json.get("success").asBoolean());
+
+    }
+
+    @Test
+    public void testQaReportResources() throws Exception {
+        threeNodeCluster();
+
+        Tuple2<Integer, JsonNode> tup = fetchJson("/qaReportResources", false);
+        assertEquals(200, tup._1.intValue());
+        JsonNode json = tup._2;
+
+        assertTrue(json.get("jmxPort").isNumber());
+
+        for (int i = 0; i < activeNodes; i++) {
+            Tuple2<Protos.SlaveID, String> slave = slaves[i];
+            JsonNode node = json.get("nodes").get(executorMetadata[i].getExecutor().getExecutorId().getValue());
+            assertEquals(slave._2, node.get("ip").asText());
+            assertTrue(node.has("workdir"));
+            assertTrue(node.has("hostname"));
+            assertTrue(node.has("targetRunState"));
+            assertTrue(node.has("jmxPort"));
+            assertTrue(node.has("live"));
+            assertTrue(node.get("logfiles").isArray());
+            assertEquals(2, node.get("logfiles").size());
+        }
+    }
+
+    @Test
+    public void testQaReportResourcesText() throws Exception {
+        threeNodeCluster();
+
+        Tuple2<Integer, String> tup = fetchText("/qaReportResources/text", "text/plain");
+        assertEquals(200, tup._1.intValue());
+
+        try (BufferedReader br = new BufferedReader(new StringReader(tup._2))) {
+            assertTrue(br.readLine().startsWith("JMX: "));
+
+            for (int i = 0; i < activeNodes; i++) {
+                Tuple2<Protos.SlaveID, String> slave = slaves[i];
+                assertEquals("IP: " + slave._2, br.readLine());
+                assertEquals("BASE: http://" + slave._2 + ":5051/", br.readLine());
+                assertTrue(br.readLine().startsWith("LOG: "));
+                assertTrue(br.readLine().startsWith("LOG: "));
+            }
+        }
+    }
+
+    @Test
     public void testNodes() throws Exception {
-        Tuple2<Integer, JsonNode> tup = fetchJson("/nodes");
+        threeNodeCluster();
+
+        Tuple2<Integer, JsonNode> tup = fetchJson("/nodes", false);
         assertEquals(200, tup._1.intValue());
         JsonNode json = tup._2;
 
         assertTrue(json.has("nodes"));
+        JsonNode nodes = json.get("nodes");
+        assertEquals(3, nodes.size());
+
+        for (int i = 0; i < 3; i++) {
+            JsonNode node = nodes.get(i);
+            assertEquals(slaves[i]._2, node.get("ip").asText());
+        }
+
+        JsonNode node = nodes.get(0);
+        assertEquals(executorMetadata[0].getExecutor().getExecutorId().getValue(), node.get("executorId").asText());
+        assertEquals("/foo/bar/baz", node.get("workdir").asText());
+        assertTrue(node.has("hostname"));
+        assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN.name(), node.get("targetRunState").asText());
+        assertTrue(node.get("jmxPort").isNumber());
+        assertTrue(node.get("seedNode").asBoolean());
+        assertTrue(node.get("cassandraDaemonPid").isNull());
+
+        JsonNode tasks = node.get("tasks");
+        assertNotNull(tasks);
+        JsonNode task = tasks.get("SERVER");
+        assertNotNull(task);
+        assertFalse(task.isNull());
+        assertTrue(task.has("cpuCores"));
+        assertTrue(task.has("diskMb"));
+        assertTrue(task.has("memMb"));
+        assertTrue(task.has("taskId"));
+
+        assertTrue(node.get("lastHealthCheck").isNumber());
+        JsonNode hcd = node.get("healthCheckDetails");
+        assertFalse(hcd.isNull());
+        assertTrue(hcd.has("healthy"));
+        assertTrue(hcd.has("msg"));
+        assertTrue(hcd.has("version"));
+        assertTrue(hcd.has("operationMode"));
+        assertTrue(hcd.has("clusterName"));
+        assertTrue(hcd.has("dataCenter"));
+        assertTrue(hcd.has("rack"));
+        assertTrue(hcd.has("endpoint"));
+        assertTrue(hcd.has("hostId"));
+        assertTrue(hcd.has("joined"));
+        assertTrue(hcd.has("gossipInitialized"));
+        assertTrue(hcd.has("gossipRunning"));
+        assertTrue(hcd.has("nativeTransportRunning"));
+        assertTrue(hcd.has("rpcServerRunning"));
+        assertTrue(hcd.has("tokenCount"));
+        assertTrue(hcd.has("uptimeMillis"));
     }
 
     @Test
     public void testLiveNodes() throws Exception {
-        Tuple2<Integer, JsonNode> tup = fetchJson("/live-nodes?limit=2");
+        Tuple2<Integer, JsonNode> tup = fetchJson("/live-nodes?limit=2", false);
 
         // must return HTTP/500 if no nodes are present
         assertEquals(400, tup._1.intValue());
@@ -83,7 +450,7 @@ public class ApiControllerTest extends AbstractSchedulerTest {
         // add one live node
         addNode("exec1", "1.2.3.4");
 
-        tup = fetchJson("/live-nodes?limit=2");
+        tup = fetchJson("/live-nodes?limit=2", false);
         assertEquals(200, tup._1.intValue());
         JsonNode json = tup._2;
         assertEquals(9042, json.get("nativePort").asInt());
@@ -140,7 +507,7 @@ public class ApiControllerTest extends AbstractSchedulerTest {
         //
 
         cluster.recordHealthCheck("exec1", healthCheckDetailsFailed());
-        tup = fetchJson("/live-nodes?limit=2");
+        tup = fetchJson("/live-nodes?limit=2", false);
         assertEquals(400, tup._1.intValue());
 
         str = fetchText("/live-nodes/cqlsh", "text/x-cassandra-cqlsh");
@@ -159,7 +526,7 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
         addNode("exec2", "2.2.2.2");
 
-        tup = fetchJson("/live-nodes?limit=2");
+        tup = fetchJson("/live-nodes?limit=2", false);
         assertEquals(200, tup._1.intValue());
         json = tup._2;
         assertEquals(9042, json.get("nativePort").asInt());
@@ -194,7 +561,7 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
         cluster.recordHealthCheck("exec1", healthCheckDetailsSuccess("NORMAL", true));
 
-        tup = fetchJson("/live-nodes?limit=2");
+        tup = fetchJson("/live-nodes?limit=2", false);
         assertEquals(200, tup._1.intValue());
         json = tup._2;
         assertEquals(9042, json.get("nativePort").asInt());
@@ -246,14 +613,15 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
     @Test
     public void testNonExistingUri() throws Exception {
-        Tuple2<Integer, JsonNode> tup = fetchJson("/does-not-exist");
+        Tuple2<Integer, JsonNode> tup = fetchJson("/does-not-exist", false);
         assertEquals(404, tup._1.intValue());
     }
 
-    private Tuple2<Integer, JsonNode> fetchJson(String rel) throws Exception {
+    private Tuple2<Integer, JsonNode> fetchJson(String rel, boolean post) throws Exception {
         JsonFactory factory = new JsonFactory();
         HttpURLConnection conn = (HttpURLConnection) resolve(rel).toURL().openConnection();
         try {
+            conn.setRequestMethod(post ? "POST" : "GET");
             conn.connect();
 
             int responseCode = conn.getResponseCode();
@@ -305,8 +673,9 @@ public class ApiControllerTest extends AbstractSchedulerTest {
             try {
                 StringBuilder sb = new StringBuilder();
                 int rd;
-                while ((rd = in.read()) != -1)
+                while ((rd = in.read()) != -1) {
                     sb.append((char) rd);
+                }
                 return Tuple2.tuple2(responseCode, sb.toString());
             } finally {
                 in.close();
@@ -342,8 +711,9 @@ public class ApiControllerTest extends AbstractSchedulerTest {
 
     @After
     public void cleanup() {
-        if (httpServer != null)
+        if (httpServer != null) {
             httpServer.shutdown();
+        }
     }
 
     @NotNull
@@ -357,14 +727,6 @@ public class ApiControllerTest extends AbstractSchedulerTest {
         } else {
             throw new IllegalArgumentException("InetAddress type: " + inetAddress.getClass().getName() + " is not supported");
         }
-    }
-
-    private static CassandraFrameworkProtos.TaskResources someResources() {
-        return CassandraFrameworkProtos.TaskResources.newBuilder()
-            .setCpuCores(1)
-            .setMemMb(1)
-            .setDiskMb(1)
-            .build();
     }
 
 }

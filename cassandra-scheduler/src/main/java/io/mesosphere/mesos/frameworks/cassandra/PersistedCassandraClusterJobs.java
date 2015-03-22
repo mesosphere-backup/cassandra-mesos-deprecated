@@ -105,4 +105,24 @@ final class PersistedCassandraClusterJobs extends StatePersistedObject<Cassandra
 
         setValue(clusterJobsBuilder.build());
     }
+
+    public void clearClusterJobCurrentNode(@NotNull String executorId) {
+        CassandraFrameworkProtos.CassandraClusterJobs clusterJobs = get();
+        if (!clusterJobs.hasCurrentClusterJob()) {
+            return;
+        }
+        CassandraFrameworkProtos.ClusterJobStatus current = clusterJobs.getCurrentClusterJob();
+        if (!current.hasCurrentNode()) {
+            return;
+        }
+        CassandraFrameworkProtos.NodeJobStatus currentNode = current.getCurrentNode();
+        if (currentNode.getExecutorId().equals(executorId)) {
+            setCurrentJob(CassandraFrameworkProtos.ClusterJobStatus.newBuilder(current)
+                .clearCurrentNode()
+                .addCompletedNodes(CassandraFrameworkProtos.NodeJobStatus.newBuilder(currentNode)
+                    .setFailed(true)
+                    .setFailureMessage("Task finished without any additional information"))
+                .build());
+        }
+    }
 }

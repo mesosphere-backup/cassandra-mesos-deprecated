@@ -106,11 +106,7 @@ public final class Main {
         final long      failoverTimeout         = Long.parseLong(       Env.option("CASSANDRA_FAILOVER_TIMEOUT_SECONDS").or(String.valueOf(Period.days(7).toStandardSeconds().getSeconds())));
         final String    mesosRole               =                       Env.option("CASSANDRA_FRAMEWORK_MESOS_ROLE").or("*");
 
-        final Matcher matcher = zkURLPattern.matcher(zkUrl);
-
-        if (!matcher.matches()) {
-            throw new SystemExitException(String.format("Invalid zk url format: '%s' expected '%s'", zkUrl, validZkUrl), 7);
-        }
+        final Matcher matcher = validateZkUrl(zkUrl);
 
         final State state = new ZooKeeperState(
             matcher.group(1),
@@ -209,6 +205,15 @@ public final class Main {
         return status;
     }
 
+    static Matcher validateZkUrl(final String zkUrl) {
+        final Matcher matcher = zkURLPattern.matcher(zkUrl);
+
+        if (!matcher.matches()) {
+            throw new SystemExitException(String.format("Invalid zk url format: '%s' expected '%s'", zkUrl, validZkUrl), 7);
+        }
+        return matcher;
+    }
+
     static String frameworkName(final Optional<String> clusterName) {
         if (clusterName.isPresent()) {
             return "cassandra." + clusterName.get();
@@ -244,7 +249,7 @@ public final class Main {
         }
     }
 
-    private static class SystemExitException extends RuntimeException {
+    static class SystemExitException extends RuntimeException {
         private final int status;
 
         public SystemExitException(final String message, final int status) {

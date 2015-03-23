@@ -172,7 +172,7 @@ public final class CassandraScheduler implements Scheduler {
                         executorLost(driver, executorIdForTask, status.getSlaveId(), status.getState().ordinal());
                     } else {
                         switch (statusDetails.getStatusDetailsType()) {
-                        case NULL_DETAILS:
+                            case NULL_DETAILS:
                                 break;
                             case EXECUTOR_METADATA:
                                 break;

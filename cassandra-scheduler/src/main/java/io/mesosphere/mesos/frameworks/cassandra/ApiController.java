@@ -107,8 +107,9 @@ public final class ApiController {
 
     private void writeSeedIps(JsonGenerator json) throws IOException {
         json.writeArrayFieldStart("seeds");
-        for (String seed : cluster.getSeedNodeIps())
+        for (String seed : cluster.getSeedNodeIps()) {
             json.writeString(seed);
+        }
         json.writeEndArray();
     }
 
@@ -327,10 +328,11 @@ public final class ApiController {
                 CassandraFrameworkProtos.HealthCheckHistoryEntry lastHealthCheck =
                     cassandraNode.hasCassandraNodeExecutor() ? cluster.lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId()) : null;
 
-                if (lastHealthCheck != null)
+                if (lastHealthCheck != null) {
                     json.writeNumberField("lastHealthCheck", lastHealthCheck.getTimestampEnd());
-                else
+                } else {
                     json.writeNullField("lastHealthCheck");
+                }
 
                 if (lastHealthCheck != null) {
                     json.writeObjectFieldStart("healthCheckDetails");
@@ -356,8 +358,9 @@ public final class ApiController {
                     json.writeNumberField("uptimeMillis", hcd.getInfo().getUptimeMillis());
 
                     json.writeEndObject();
-                } else
+                } else {
                     json.writeNullField("healthCheckDetails");
+                }
 
                 json.writeEndObject();
             }
@@ -420,9 +423,9 @@ public final class ApiController {
             json.writeStringField("executorId", task.getExecutorId());
             json.writeStringField("taskId", task.getTaskId());
             json.writeEndObject();
-        }
-        else
+        } else {
             json.writeNullField(name);
+        }
     }
 
     @GET
@@ -463,8 +466,9 @@ public final class ApiController {
     private Response liveEndpoints(String forTool, int limit) {
         List<CassandraFrameworkProtos.CassandraNode> liveNodes = cluster.liveNodes(limit);
 
-        if (liveNodes.isEmpty())
+        if (liveNodes.isEmpty()) {
             return Response.status(400).build();
+        }
 
         CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
 
@@ -487,8 +491,9 @@ public final class ApiController {
                     StringBuilder sb = new StringBuilder();
                     sb.append("-node ");
                     for (int i = 0; i < liveNodes.size(); i++) {
-                        if (i > 0)
+                        if (i > 0) {
                             sb.append(',');
+                        }
                         sb.append(liveNodes.get(i).getIp());
                     }
                     sb.append(" -port native=")
@@ -573,25 +578,49 @@ public final class ApiController {
 
     // repair + cleanup stuff
 
+    @POST
+    @Path("/cluster/restart/start")
+    public Response clusterRestartStart() {
+        return startJob(CassandraFrameworkProtos.ClusterJobType.RESTART);
+    }
+
+    @POST
+    @Path("/cluster/restart/abort")
+    public Response clusterRestartAbort() {
+        return abortJob(CassandraFrameworkProtos.ClusterJobType.RESTART);
+    }
+
     @GET
+    @Path("/cluster/restart/status")
+    public Response clusterRestartStatus() {
+        return jobStatus(CassandraFrameworkProtos.ClusterJobType.RESTART, "clusterRestart");
+    }
+
+    @GET
+    @Path("/cluster/restart/last")
+    public Response lastClusterRestart() {
+        return lastJob(CassandraFrameworkProtos.ClusterJobType.RESTART, "clusterRestart");
+    }
+
+    @POST
     @Path("/repair/start")
     public Response repairStart() {
         return startJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
     }
 
-    @GET
+    @POST
     @Path("/cleanup/start")
     public Response cleanupStart() {
         return startJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
     }
 
-    @GET
+    @POST
     @Path("/repair/abort")
     public Response repairAbort() {
         return abortJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
     }
 
-    @GET
+    @POST
     @Path("/cleanup/abort")
     public Response cleanupAbort() {
         return abortJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
@@ -716,10 +745,11 @@ public final class ApiController {
             json.writeStringField("type", jobStatus.getJobType().name());
 
             json.writeNumberField("started", jobStatus.getStartedTimestamp());
-            if (jobStatus.hasFinishedTimestamp())
+            if (jobStatus.hasFinishedTimestamp()) {
                 json.writeNumberField("finished", jobStatus.getFinishedTimestamp());
-            else
+            } else {
                 json.writeNullField("finished");
+            }
             json.writeBooleanField("aborted", jobStatus.getAborted());
 
             json.writeArrayFieldStart("remainingNodes");
@@ -730,24 +760,25 @@ public final class ApiController {
 
             if (jobStatus.hasCurrentNode()) {
                 json.writeObjectFieldStart("currentNode");
-                writeClusterJobNode(json, jobStatus.getCurrentNode());
-            }
-            else
+                writeNodeJobStatus(json, jobStatus.getCurrentNode());
+            } else {
                 json.writeNullField("currentNode");
+            }
 
             json.writeArrayFieldStart("completedNodes");
             for (CassandraFrameworkProtos.NodeJobStatus nodeJobStatus : jobStatus.getCompletedNodesList()) {
                 json.writeStartObject();
-                writeClusterJobNode(json, nodeJobStatus);
+                writeNodeJobStatus(json, nodeJobStatus);
             }
             json.writeEndArray();
 
             json.writeEndObject();
-        } else
+        } else {
             json.writeNullField(name);
+        }
     }
 
-    private void writeClusterJobNode(JsonGenerator json, CassandraFrameworkProtos.NodeJobStatus nodeJobStatus) throws IOException {
+    private void writeNodeJobStatus(JsonGenerator json, CassandraFrameworkProtos.NodeJobStatus nodeJobStatus) throws IOException {
         json.writeStringField("executorId", nodeJobStatus.getExecutorId());
         json.writeStringField("taskId", nodeJobStatus.getTaskId());
         Optional<CassandraFrameworkProtos.CassandraNode> node = cluster.cassandraNodeForExecutorId(nodeJobStatus.getExecutorId());
@@ -762,6 +793,17 @@ public final class ApiController {
             json.writeEndObject();
         }
 
+        if (nodeJobStatus.hasStartedTimestamp()) {
+            json.writeNumberField("startedTimestamp", nodeJobStatus.getStartedTimestamp());
+        } else {
+            json.writeNullField("startedTimestamp");
+        }
+        if (nodeJobStatus.hasFinishedTimestamp()) {
+            json.writeNumberField("finishedTimestamp", nodeJobStatus.getFinishedTimestamp());
+        } else {
+            json.writeNullField("finishedTimestamp");
+        }
+
         json.writeObjectFieldStart("processedKeyspaces");
         for (CassandraFrameworkProtos.ClusterJobKeyspaceStatus clusterJobKeyspaceStatus : nodeJobStatus.getProcessedKeyspacesList()) {
             json.writeObjectFieldStart(clusterJobKeyspaceStatus.getKeyspace());
@@ -772,8 +814,9 @@ public final class ApiController {
         json.writeEndObject();
 
         json.writeArrayFieldStart("remainingKeyspaces");
-        for (String keyspace : nodeJobStatus.getRemainingKeyspacesList())
+        for (String keyspace : nodeJobStatus.getRemainingKeyspacesList()) {
             json.writeString(keyspace);
+        }
         json.writeEndArray();
 
         json.writeEndObject();

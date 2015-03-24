@@ -113,7 +113,7 @@ public final class Main {
             matcher.group(1),
             zkTimeoutMs,
             TimeUnit.MILLISECONDS,
-            matcher.group(2) + '/' + frameworkName
+            matcher.group(2)
         );
 
         if (seedCount > executorCount || seedCount <= 0 || executorCount <= 0) {

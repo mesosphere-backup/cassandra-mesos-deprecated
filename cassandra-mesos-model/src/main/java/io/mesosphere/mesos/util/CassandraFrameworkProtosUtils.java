@@ -103,6 +103,11 @@ public final class CassandraFrameworkProtosUtils {
         return TaskConfig.Entry.newBuilder().setName(name).setStringValue(value).build();
     }
 
+    @NotNull
+    public static TaskConfig.Entry configValue(@NotNull final String name, @NotNull final List<String> values) {
+        return TaskConfig.Entry.newBuilder().setName(name).addAllStringValues(values).build();
+    }
+
     public static List<String> getSeedNodeIps(@NotNull List<CassandraNode> nodes) {
         return newArrayList(from(nodes)
             .filter(new Predicate<CassandraNode>() {

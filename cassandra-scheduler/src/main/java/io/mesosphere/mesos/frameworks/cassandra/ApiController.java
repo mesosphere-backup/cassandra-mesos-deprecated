@@ -501,6 +501,18 @@ public final class ApiController {
                     json.writeNullField("healthCheckDetails");
                 }
 
+                final List<CassandraFrameworkProtos.DataVolume> dataVolumes = cassandraNode.getDataVolumesList();
+                json.writeArrayFieldStart("dataVolumes");
+                for (final CassandraFrameworkProtos.DataVolume volume : dataVolumes) {
+                    json.writeStartObject();
+                    json.writeStringField("path", volume.getPath());
+                    if (volume.hasSizeMb()) {
+                        json.writeNumberField("size", volume.getSizeMb());
+                    }
+                    json.writeEndObject();
+                }
+                json.writeEndArray();
+
                 json.writeEndObject();
             }
             json.writeEndArray();

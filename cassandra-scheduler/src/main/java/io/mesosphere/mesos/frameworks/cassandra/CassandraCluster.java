@@ -558,6 +558,10 @@ public final class CassandraCluster {
         CassandraNode.Builder builder = CassandraNode.newBuilder()
                 .setHostname(offer.getHostname())
                 .setTargetRunState(CassandraNode.TargetRunState.RUN)
+                .addDataVolumes(
+                    DataVolume.newBuilder()
+                        .setPath(configuration.getDefaultConfigRole().getPreDefinedDataDirectory())
+                )
                 .setSeed(seed);
         if (replacementForIp != null) {
             builder.setReplacementForIp(replacementForIp);
@@ -710,6 +714,11 @@ public final class CassandraCluster {
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("rpc_port", getPortMapping(config, PORT_RPC)));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("seeds", SEEDS_FORMAT_JOINER.join(getSeedNodeIps())));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("endpoint_snitch", config.hasSnitch() ? config.getSnitch() : "GossipingPropertyFileSnitch"));
+        // data directory config
+        // TODO: Update the logic here for defining data directories when mesos persistent volumes are released
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("data_file_directories", newArrayList(configRole.getPreDefinedDataDirectory() + "/data")));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("commitlog_directory", configRole.getPreDefinedDataDirectory() + "/commitlog"));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("saved_caches_directory", configRole.getPreDefinedDataDirectory() + "/saved_caches"));
 
         return CassandraServerConfig.newBuilder()
             .setCassandraYamlConfig(taskConfig)

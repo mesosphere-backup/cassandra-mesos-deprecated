@@ -85,6 +85,13 @@ CASSANDRA_FAILOVER_TIMEOUT_SECONDS=604800
 
 # The mesos role to used to reserve resources (default *). If this is set, the framework only accepts offers that have resources for that role.
 CASSANDRA_FRAMEWORK_MESOS_ROLE=*
+
+# A pre-defined data directory specifying where cassandra should write it's data. 
+# Ensure that this directory can be created by the user the framework is running as (default . [mesos sandbox]).
+# NOTE:
+# This field will be removed once MESOS-1554 is released and the framework will
+# be able to allocate the data volume itself.
+CASSANDRA_DATA_DIRECTORY=.
 ```
 
 

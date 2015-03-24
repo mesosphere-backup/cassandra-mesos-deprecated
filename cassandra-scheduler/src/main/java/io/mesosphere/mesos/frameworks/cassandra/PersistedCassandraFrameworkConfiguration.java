@@ -37,7 +37,8 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         final long javeHeapMb,
         final int executorCount,
         final int seedCount,
-        final String mesosRole
+        final String mesosRole,
+        final String dataDirectory
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -53,7 +54,8 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                             .setMemMb(memMb))
                         .setNumberOfNodes(executorCount)
                         .setNumberOfSeeds(seedCount)
-                        .setMesosRole(mesosRole);
+                        .setMesosRole(mesosRole)
+                        .setPreDefinedDataDirectory(dataDirectory);
                     if (javeHeapMb > 0) {
                         configRole.setMemJavaHeapMb(javeHeapMb);
                     }

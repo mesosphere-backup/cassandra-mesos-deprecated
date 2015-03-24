@@ -134,6 +134,14 @@ message CassandraConfigRole {
     optional TaskConfig cassandraYamlConfig = 9;
     // mesos role to be used to receive resource offers
     optional string mesosRole = 10;
+
+    /**
+     * A pre-defined data directory specifying where cassandra should write it's data.
+     * NOTE:
+     * This field will be removed once MESOS-1554 is released and the framework will
+     * be able to allocate the data volume itself.
+     */
+    optional string preDefinedDataDirectory = 999999;
 }
 
 /**
@@ -419,7 +427,7 @@ message DataVolume {
     /**
      * Size in MB.
      */
-    required int64 sizeMb = 2;
+    optional int64 sizeMb = 2;
 }
 /**
  * Holder for resources to be provisioned for a task.
@@ -703,6 +711,7 @@ message TaskConfig {
          * ... or an integer value.
          */
         optional int64 longValue = 3;
+        repeated string stringValues = 4;
     }
 
     /**

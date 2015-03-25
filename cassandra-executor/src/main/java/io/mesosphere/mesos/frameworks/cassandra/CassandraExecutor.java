@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
-import java.io.File;
 import java.net.UnknownHostException;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -253,7 +252,8 @@ public final class CassandraExecutor implements Executor {
             killCassandraDaemon(driver);
         }
         else if (executorInfo.getExecutorId().getValue().equals(taskId.getValue())) {
-            safeShutdown(driver);
+            killCassandraDaemon(driver);
+
             driver.sendStatusUpdate(taskStatus(executorInfo.getExecutorId(), taskId, TaskState.TASK_FINISHED, nullSlaveStatusDetails()));
             driver.stop();
         }
@@ -347,35 +347,42 @@ public final class CassandraExecutor implements Executor {
             return;
         try {
             TaskInfo task = serverTask;
-            LOGGER.info("Stopping Cassandra Daemon...");
-            try {
+
+            if (process != null) {
+                LOGGER.info("Stopping Cassandra Daemon...");
                 try {
-                    // note: although we could also use jmxConnect.getStorageServiceProxy().stopDaemon();
-                    // it is safe to do it this way
-                    process.destroy();
-                } catch (Throwable ignored) {
-                    // any kind of strange exception may occur since shutdown closes everything
-                }
-                // TODO make shutdown timeout configurable
-                long timeoutAt = System.currentTimeMillis() + 1800000L;
-                while (true) {
-                    if (timeoutAt < System.currentTimeMillis()) {
-                        process.destroyForcibly();
-                        break;
-                    }
                     try {
-                        int exitCode = process.exitValue();
-                        LOGGER.info("Cassandra process terminated with exit code {}", exitCode);
-                        break;
-                    } catch (IllegalThreadStateException e) {
-                        // ignore
+                        // note: although we could also use jmxConnect.getStorageServiceProxy().stopDaemon();
+                        // it is safe to do it this way
+                        process.destroy();
+                    } catch (Throwable ignored) {
+                        // any kind of strange exception may occur since shutdown closes everything
                     }
+                    // TODO make shutdown timeout configurable
+                    long timeoutAt = System.currentTimeMillis() + 1800000L;
+                    while (true) {
+                        if (timeoutAt < System.currentTimeMillis()) {
+                            process.destroyForcibly();
+                            break;
+                        }
+                        try {
+                            int exitCode = process.exitValue();
+                            LOGGER.info("Cassandra process terminated with exit code {}", exitCode);
+                            break;
+                        } catch (IllegalThreadStateException e) {
+                            // ignore
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("Failed to stop Cassandra daemon - forcing process destroy", e);
                 }
-            } catch (Exception e) {
-                LOGGER.error("Failed to stop Cassandra daemon - forcing process destroy", e);
             }
+
             safeShutdown(driver);
-            driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
+
+            if (task != null) {
+                driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
+            }
         } finally {
             killDaemonSingleton.set(false);
         }
@@ -410,7 +417,8 @@ public final class CassandraExecutor implements Executor {
         }
         if (process != null) {
             try {
-                process.destroy();
+                // this is only a kind of "last resort" - usual shutdown is performed in killCassandraDaemon() method
+                process.destroyForcibly();
             } catch (Exception ignores) {
                 // ignore this
             }

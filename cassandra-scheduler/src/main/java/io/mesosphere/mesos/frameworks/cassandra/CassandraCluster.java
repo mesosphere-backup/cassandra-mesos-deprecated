@@ -301,8 +301,6 @@ public final class CassandraCluster {
                     nodeOpt.get().hasCassandraNodeExecutor() ? nodeOpt.get().getCassandraNodeExecutor().getExecutorId() : nodeOpt.get().getHostname(),
                     details.getMsg()
                 );
-                // TODO: This needs to be smarter, right not it assumes that as soon as it's unhealth it's dead
-                //removeTask(nodeOpt.get().getServerTask().getTaskId());
             } else {
                 // upon the first healthy response clear the replacementForIp field
                 CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(nodeOpt.get(), CassandraNodeTask.NodeTaskType.SERVER);

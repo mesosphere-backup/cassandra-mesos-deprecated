@@ -40,10 +40,10 @@ public final class CassandraScheduler implements Scheduler {
 
     private static final Joiner JOIN_WITH_SPACE = Joiner.on(" ").skipNulls();
 
-    private static final Function<URI, CommandInfo.URI> uriToCommandInfoUri = new Function<URI, CommandInfo.URI>() {
+    private static final Function<FileDownload, CommandInfo.URI> uriToCommandInfoUri = new Function<FileDownload, CommandInfo.URI>() {
         @Override
-        public CommandInfo.URI apply(final URI input) {
-            return commandUri(input.getValue(), input.getExtract());
+        public CommandInfo.URI apply(final FileDownload input) {
+            return commandUri(input.getDownloadUrl(), input.getExtract());
         }
     };
 
@@ -121,10 +121,10 @@ public final class CassandraScheduler implements Scheduler {
             }
             switch (status.getState()) {
                 case TASK_STAGING:
-                    // TODO really interested in stating state?
+                    // TODO really interested in staging state?
                     break;
                 case TASK_STARTING:
-                    // TODO really interested in stating state?
+                    // TODO really interested in starting state?
                     break;
                 case TASK_RUNNING:
                     switch (statusDetails.getStatusDetailsType()) {
@@ -310,21 +310,15 @@ public final class CassandraScheduler implements Scheduler {
                 commandInfo(
                     JOIN_WITH_SPACE.join(tasksForOffer.getExecutor().getCommandList()),
                     environmentFromTaskEnv(tasksForOffer.getExecutor().getTaskEnv()),
-                    newArrayList(from(tasksForOffer.getExecutor().getResourceList()).transform(uriToCommandInfoUri))
+                    newArrayList(from(tasksForOffer.getExecutor().getDownloadList()).transform(uriToCommandInfoUri))
                 ),
-                cpu(tasksForOffer.getExecutor().getCpuCores(), configuration.mesosRole()),
-                mem(tasksForOffer.getExecutor().getMemMb(), configuration.mesosRole()),
-                disk(tasksForOffer.getExecutor().getDiskMb(), configuration.mesosRole())
+                resourceList(tasksForOffer.getExecutor().getResources())
             );
 
             final TaskID taskId = taskId(cassandraNodeTask.getTaskId());
-            final List<Resource> resources = newArrayList(
-                cpu(cassandraNodeTask.getCpuCores(), configuration.mesosRole()),
-                mem(cassandraNodeTask.getMemMb(), configuration.mesosRole()),
-                disk(cassandraNodeTask.getDiskMb(), configuration.mesosRole())
-            );
-            if (!cassandraNodeTask.getPortsList().isEmpty()) {
-                resources.add(ports(cassandraNodeTask.getPortsList(), configuration.mesosRole()));
+            final List<Resource> resources = resourceList(cassandraNodeTask.getResources());
+            if (!cassandraNodeTask.getResources().getPortsList().isEmpty()) {
+                resources.add(ports(cassandraNodeTask.getResources().getPortsList(), configuration.mesosRole()));
             }
 
             final TaskInfo task = TaskInfo.newBuilder()
@@ -337,7 +331,7 @@ public final class CassandraScheduler implements Scheduler {
                 .build();
 
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug(marker, "Launching task {} in executor {}. Details = {}", taskDetails.getTaskType(), cassandraNodeTask.getExecutorId(), protoToString(task));
+                LOGGER.debug(marker, "Launching task {} in executor {}. Details = {}", taskDetails.getType(), executorId.getValue(), protoToString(task));
             }
             taskInfos.add(task);
         }
@@ -349,6 +343,13 @@ public final class CassandraScheduler implements Scheduler {
         driver.launchTasks(Collections.singleton(offer.getId()), taskInfos);
 
         return true;
+    }
+
+    private List<Resource> resourceList(TaskResources resources) {
+        return newArrayList(
+            cpu(resources.getCpuCores(), configuration.mesosRole()),
+            mem(resources.getMemMb(), configuration.mesosRole()),
+            disk(resources.getDiskMb(), configuration.mesosRole()));
     }
 
     @NotNull

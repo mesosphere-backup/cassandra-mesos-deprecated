@@ -179,12 +179,12 @@ public final class CassandraCluster {
             }
             CassandraNode.Builder builder = CassandraFrameworkProtosUtils.removeTask(cassandraNode, nodeTask);
             changed = true;
-            switch (nodeTask.getTaskType()) {
+            switch (nodeTask.getType()) {
                 case METADATA:
                     // TODO shouldn't we also assume that the server task is no longer running ??
                     // TODO do we need to remove the executor metadata ??
 
-                    removeExecutorMetadata(nodeTask.getExecutorId());
+                    removeExecutorMetadata(cassandraNode.getCassandraNodeExecutor().getExecutorId());
                     builder.clearTasks();
                     break;
                 case SERVER:
@@ -231,15 +231,6 @@ public final class CassandraCluster {
                 .filter(cassandraNodeForTaskId(taskId))
                 .filter(cassandraNodeHasExecutor())
                 .transform(executorIdFromCassandraNode())
-        );
-    }
-
-    @NotNull
-    public Optional<CassandraNode> getNodeForTask(@NotNull final String taskId) {
-        return headOption(
-            from(clusterState.nodes())
-                .filter(cassandraNodeForTaskId(taskId))
-                .filter(cassandraNodeHasExecutor())
         );
     }
 
@@ -301,7 +292,7 @@ public final class CassandraCluster {
                 //removeTask(nodeOpt.get().getServerTask().getTaskId());
             } else {
                 // upon the first healthy response clear the replacementForIp field
-                CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(nodeOpt.get(), CassandraNodeTask.TaskType.SERVER);
+                CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(nodeOpt.get(), CassandraNodeTask.NodeTaskType.SERVER);
                 if (serverTask != null && nodeOpt.get().hasReplacementForIp()) {
                     clusterState.nodeReplaced(nodeOpt.get());
                 }
@@ -377,8 +368,8 @@ public final class CassandraCluster {
 
             final CassandraNodeExecutor executor = node.getCassandraNodeExecutor();
             final String executorId = executor.getExecutorId();
-            CassandraNodeTask metadataTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.TaskType.METADATA);
-            CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.TaskType.SERVER);
+            CassandraNodeTask metadataTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.NodeTaskType.METADATA);
+            CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.NodeTaskType.SERVER);
             if (metadataTask == null) {
                 if (node.getTargetRunState() == CassandraNode.TargetRunState.TERMINATE) {
                     // node completely terminated
@@ -429,7 +420,7 @@ public final class CassandraCluster {
                             boolean anySeedRunning = false;
                             boolean anyNodeInfluencingTopology = false;
                             for (CassandraNode cassandraNode : clusterState.nodes()) {
-                                if (CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraNodeTask.TaskType.SERVER) != null) {
+                                if (CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraNodeTask.NodeTaskType.SERVER) != null) {
                                     HealthCheckHistoryEntry lastHC = lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
                                     if (cassandraNode.getSeed()) {
                                         if (lastHC != null && lastHC.getDetails() != null && lastHC.getDetails().getInfo() != null
@@ -461,9 +452,7 @@ public final class CassandraCluster {
                         CassandraConfigRole configRole = configuration.getDefaultConfigRole();
                         final List<String> errors = hasResources(
                                 offer,
-                                configRole.getCpuCores(),
-                                configRole.getMemMb(),
-                                configRole.getDiskMb(),
+                                configRole.getResources(),
                                 portMappings(config),
                                 configRole.getMesosRole()
                         );
@@ -471,7 +460,7 @@ public final class CassandraCluster {
                             LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
                         } else {
                             final ExecutorMetadata metadata = maybeMetadata.get();
-                            final CassandraNodeTask task = getServerTask(executorId, serverTaskId(node), metadata, node);
+                            final CassandraNodeTask task = getServerTask(serverTaskId(node), metadata, node);
                             node.addTasks(task)
                                 .setNeedsConfigUpdate(false);
                             result.getLaunchTasks().add(task);
@@ -480,7 +469,7 @@ public final class CassandraCluster {
                         }
                     } else {
                         if (node.getNeedsConfigUpdate()) {
-                            CassandraNodeTask task = getConfigUpdateTask(executorId, configUpdateTaskId(node), maybeMetadata.get());
+                            CassandraNodeTask task = getConfigUpdateTask(configUpdateTaskId(node), maybeMetadata.get());
                             node.addTasks(task)
                                 .setNeedsConfigUpdate(false);
                             result.getLaunchTasks().add(task);
@@ -525,18 +514,18 @@ public final class CassandraCluster {
 
 
     @NotNull
-    private String executorTaskId(@NotNull CassandraNode.Builder node) {
+    private static String executorTaskId(@NotNull CassandraNode.Builder node) {
         return node.getCassandraNodeExecutor().getExecutorId();
     }
 
     @NotNull
     private static String configUpdateTaskId(CassandraNode.Builder node) {
-        return node.getCassandraNodeExecutor().getExecutorId() + ".config";
+        return executorTaskId(node) + ".config";
     }
 
     @NotNull
     private static String serverTaskId(CassandraNode.Builder node) {
-        return node.getCassandraNodeExecutor().getExecutorId() + ".server";
+        return executorTaskId(node) + ".server";
     }
 
     private boolean canLaunchServerTask() {
@@ -630,7 +619,6 @@ public final class CassandraCluster {
 
     @NotNull
     private CassandraNodeTask getConfigUpdateTask(
-        @NotNull final String executorId,
         @NotNull final String taskId,
         @NotNull final ExecutorMetadata metadata) {
         CassandraFrameworkConfiguration config = configuration.get();
@@ -639,27 +627,22 @@ public final class CassandraCluster {
         CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, TaskEnv.getDefaultInstance());
 
         final TaskDetails taskDetails = TaskDetails.newBuilder()
-            .setTaskType(TaskDetails.TaskType.UPDATE_CONFIG)
+            .setType(TaskDetails.TaskDetailsType.UPDATE_CONFIG)
             .setUpdateConfigTask(UpdateConfigTask.newBuilder()
                     .setCassandraServerConfig(cassandraServerConfig)
             )
             .build();
 
         return CassandraNodeTask.newBuilder()
-            .setTaskType(CassandraNodeTask.TaskType.CONFIG)
+            .setType(CassandraNodeTask.NodeTaskType.CONFIG)
             .setTaskId(taskId)
-            .setExecutorId(executorId)
-            .setCpuCores(configRole.getCpuCores())
-            .setMemMb(configRole.getMemMb())
-            .setDiskMb(configRole.getDiskMb())
-            .addAllPorts(portMappings(config).values())
+            .setResources(configRole.getResources())
             .setTaskDetails(taskDetails)
             .build();
     }
 
     @NotNull
     private CassandraNodeTask getServerTask(
-        @NotNull final String executorId,
         @NotNull final String taskId,
         @NotNull final ExecutorMetadata metadata,
         @NotNull final CassandraNode.Builder node) {
@@ -679,7 +662,7 @@ public final class CassandraCluster {
         // The example HEAP_NEWSIZE assumes a modern 8-core+ machine for decent pause
         // times. If in doubt, and if you do not particularly want to tweak, go with
         // 100 MB per physical CPU core.
-        CassandraFrameworkProtosUtils.addTaskEnvEntry(taskEnv, false, "HEAP_NEWSIZE", (int) (configRole.getCpuCores() * 100) + "m");
+        CassandraFrameworkProtosUtils.addTaskEnvEntry(taskEnv, false, "HEAP_NEWSIZE", (int) (configRole.getResources().getCpuCores() * 100) + "m");
 
         ArrayList<String> command = newArrayList("apache-cassandra-" + configRole.getCassandraVersion() + "/bin/cassandra", "-f");
         if (node.hasReplacementForIp()) {
@@ -689,7 +672,7 @@ public final class CassandraCluster {
         CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, taskEnv.build());
 
         final TaskDetails taskDetails = TaskDetails.newBuilder()
-            .setTaskType(TaskDetails.TaskType.CASSANDRA_SERVER_RUN)
+            .setType(TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN)
             .setCassandraServerRunTask(
                 CassandraServerRunTask.newBuilder()
                     // have to start it in foreground in order to be able to detect runtime status in the executor
@@ -702,13 +685,10 @@ public final class CassandraCluster {
             .build();
 
         return CassandraNodeTask.newBuilder()
-            .setTaskType(CassandraNodeTask.TaskType.SERVER)
+            .setType(CassandraNodeTask.NodeTaskType.SERVER)
             .setTaskId(taskId)
-            .setExecutorId(executorId)
-            .setCpuCores(configRole.getCpuCores())
-            .setMemMb(configRole.getMemMb())
-            .setDiskMb(configRole.getDiskMb())
-            .addAllPorts(portMappings(config).values())
+            .setResources(TaskResources.newBuilder(configRole.getResources())
+                .addAllPorts(portMappings(config).values()))
             .setTaskDetails(taskDetails)
             .build();
     }
@@ -732,7 +712,7 @@ public final class CassandraCluster {
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("endpoint_snitch", config.hasSnitch() ? config.getSnitch() : "GossipingPropertyFileSnitch"));
 
         return CassandraServerConfig.newBuilder()
-            .setTaskConfig(taskConfig)
+            .setCassandraYamlConfig(taskConfig)
             .setTaskEnv(taskEnv)
             .build();
     }
@@ -765,29 +745,27 @@ public final class CassandraCluster {
         return CassandraNodeExecutor.newBuilder()
             .setExecutorId(executorId)
             .setSource(configuration.frameworkName())
-            .setCpuCores(0.1)
-            .setMemMb(384)
-            .setDiskMb(256)
             .addAllCommand(command)
             .setTaskEnv(taskEnvFromMap(executorEnv))
-            .addAllResource(newArrayList(
-                resourceUri(getUrlForResource("/jre-7-" + osName + ".tar.gz"), true),
-                resourceUri(getUrlForResource("/apache-cassandra-" + configRole.getCassandraVersion() + "-bin.tar.gz"), true),
-                resourceUri(getUrlForResource("/cassandra-executor.jar"), false)
+            .setResources(taskResources(0.1, 384, 256))
+            .addAllDownload(newArrayList(
+                resourceFileDownload(getUrlForResource("/jre-7-" + osName + ".tar.gz"), true),
+                resourceFileDownload(getUrlForResource("/apache-cassandra-" + configRole.getCassandraVersion() + "-bin.tar.gz"), true),
+                resourceFileDownload(getUrlForResource("/cassandra-executor.jar"), false)
             ))
             .build();
     }
 
     private static TaskDetails getHealthCheckTaskDetails() {
         return TaskDetails.newBuilder()
-            .setTaskType(TaskDetails.TaskType.HEALTH_CHECK)
+            .setType(TaskDetails.TaskDetailsType.HEALTH_CHECK)
             .build();
     }
 
     @NotNull
     private static CassandraNodeTask getMetadataTask(@NotNull final String executorId, String ip) {
         final TaskDetails taskDetails = TaskDetails.newBuilder()
-            .setTaskType(TaskDetails.TaskType.EXECUTOR_METADATA)
+            .setType(TaskDetails.TaskDetailsType.EXECUTOR_METADATA)
             .setExecutorMetadataTask(
                 ExecutorMetadataTask.newBuilder()
                     .setExecutorId(executorId)
@@ -795,12 +773,9 @@ public final class CassandraCluster {
             )
             .build();
         return CassandraNodeTask.newBuilder()
-            .setTaskType(CassandraNodeTask.TaskType.METADATA)
+            .setType(CassandraNodeTask.NodeTaskType.METADATA)
             .setTaskId(executorId)
-            .setExecutorId(executorId)
-            .setCpuCores(0.1)
-            .setMemMb(32)
-            .setDiskMb(0)
+            .setResources(taskResources(0.1, 32, 0))
             .setTaskDetails(taskDetails)
             .build();
     }
@@ -808,9 +783,7 @@ public final class CassandraCluster {
     @NotNull
     private static List<String> hasResources(
         @NotNull final Protos.Offer offer,
-        final double cpu,
-        final long mem,
-        final long disk,
+        @NotNull final TaskResources resources,
         @NotNull final Map<String, Long> portMapping,
         final String mesosRole
     ) {
@@ -819,18 +792,19 @@ public final class CassandraCluster {
                 .filter(resourceHasExpectedRole(mesosRole))
                 .index(resourceToName());
 
-        final Double availableCpus = resourceValueDouble(headOption(index.get("cpus"))).or(0.0);
-        final Long availableMem = resourceValueLong(headOption(index.get("mem"))).or(0L);
-        final Long availableDisk = resourceValueLong(headOption(index.get("disk"))).or(0L);
 
-        if (availableCpus <= cpu) {
-            errors.add(String.format("Not enough cpu resources for role %s. Required %f only %f available.", mesosRole, cpu, availableCpus));
+        final double availableCpus = resourceValueDouble(headOption(index.get("cpus"))).or(0.0);
+        final long availableMem = resourceValueLong(headOption(index.get("mem"))).or(0L);
+        final long availableDisk = resourceValueLong(headOption(index.get("disk"))).or(0L);
+
+        if (availableCpus <= resources.getCpuCores()) {
+            errors.add(String.format("Not enough cpu resources for role %s. Required %f only %f available.", mesosRole, resources.getCpuCores(), availableCpus));
         }
-        if (availableMem <= mem) {
-            errors.add(String.format("Not enough mem resources for role %s. Required %d only %d available", mesosRole, mem, availableMem));
+        if (availableMem <= resources.getMemMb()) {
+            errors.add(String.format("Not enough mem resources for role %s. Required %d only %d available", mesosRole, resources.getMemMb(), availableMem));
         }
-        if (availableDisk <= disk) {
-            errors.add(String.format("Not enough disk resources for role %s. Required %d only %d available", mesosRole, disk, availableDisk));
+        if (availableDisk <= resources.getDiskMb()) {
+            errors.add(String.format("Not enough disk resources for role %s. Required %d only %d available", mesosRole, resources.getDiskMb(), availableDisk));
         }
 
         final TreeSet<Long> ports = resourceValueRange(headOption(index.get("ports")));
@@ -1038,7 +1012,7 @@ public final class CassandraCluster {
         if (!node.hasCassandraNodeExecutor()) {
             return false;
         }
-        if (getTaskForNode(node, CassandraNodeTask.TaskType.SERVER) == null) {
+        if (getTaskForNode(node, CassandraNodeTask.NodeTaskType.SERVER) == null) {
             return false;
         }
         HealthCheckHistoryEntry hc = lastHealthCheck(node.getCassandraNodeExecutor().getExecutorId());
@@ -1123,5 +1097,13 @@ public final class CassandraCluster {
             .setSeed(seed));
 
         return true;
+    }
+
+    private static TaskResources taskResources(double cpuCores, long memMb, long diskMb) {
+        return TaskResources.newBuilder()
+            .setCpuCores(cpuCores)
+            .setMemMb(memMb)
+            .setDiskMb(diskMb)
+            .build();
     }
 }

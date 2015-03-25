@@ -110,7 +110,7 @@ public class CassandraExecutorTest {
                 taskId,
                 Protos.CommandInfo.getDefaultInstance(),
                 CassandraFrameworkProtos.TaskDetails.newBuilder()
-                        .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB)
+                        .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB)
                         .setNodeJobTask(CassandraFrameworkProtos.NodeJobTask.newBuilder()
                                 .setJobType(jobType))
                         .build(),
@@ -130,7 +130,7 @@ public class CassandraExecutorTest {
         assertTrue(executor.getCurrentJob().isFinished());
 
         driver.frameworkMessage(CassandraFrameworkProtos.TaskDetails.newBuilder()
-                .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB_STATUS)
+                .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS)
                 .build());
         List<CassandraFrameworkProtos.SlaveStatusDetails> messages = driver.frameworkMessages();
         assertEquals(1, messages.size());
@@ -155,7 +155,7 @@ public class CassandraExecutorTest {
                 taskId,
                 Protos.CommandInfo.getDefaultInstance(),
                 CassandraFrameworkProtos.TaskDetails.newBuilder()
-                        .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB)
+                        .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB)
                         .setNodeJobTask(CassandraFrameworkProtos.NodeJobTask.newBuilder()
                                 .setJobType(jobType))
                         .build(),
@@ -165,7 +165,7 @@ public class CassandraExecutorTest {
         taskStartingRunning(taskId);
 
         driver.frameworkMessage(CassandraFrameworkProtos.TaskDetails.newBuilder()
-                .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB_STATUS)
+                .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS)
                 .build());
         List<CassandraFrameworkProtos.SlaveStatusDetails> messages = driver.frameworkMessages();
         assertEquals(1, messages.size());
@@ -198,7 +198,7 @@ public class CassandraExecutorTest {
         assertFalse(executor.getCurrentJob().isFinished());
 
         driver.frameworkMessage(CassandraFrameworkProtos.TaskDetails.newBuilder()
-                .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB_STATUS)
+                .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS)
                 .build());
         messages = driver.frameworkMessages();
         assertEquals(1, messages.size());
@@ -214,7 +214,7 @@ public class CassandraExecutorTest {
         assertTrue(objectFactory.storageServiceProxy.listeners.isEmpty());
 
         driver.frameworkMessage(CassandraFrameworkProtos.TaskDetails.newBuilder()
-                .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB_STATUS)
+                .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS)
                 .build());
         messages = driver.frameworkMessages();
         assertEquals(1, messages.size());
@@ -235,7 +235,7 @@ public class CassandraExecutorTest {
             taskIdMetadata,
             Protos.CommandInfo.getDefaultInstance(),
             CassandraFrameworkProtos.TaskDetails.newBuilder()
-                .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.EXECUTOR_METADATA)
+                .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.EXECUTOR_METADATA)
                 .setExecutorMetadataTask(CassandraFrameworkProtos.ExecutorMetadataTask.newBuilder()
                     .setExecutorId(driver.executorInfo.getExecutorId().getValue())
                     .setIp("1.2.3.4")
@@ -252,12 +252,12 @@ public class CassandraExecutorTest {
             taskIdServer,
             Protos.CommandInfo.getDefaultInstance(),
             CassandraFrameworkProtos.TaskDetails.newBuilder()
-                .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN)
+                .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN)
                 .setCassandraServerRunTask(CassandraFrameworkProtos.CassandraServerRunTask.newBuilder()
                     .setVersion("2.1.2")
                     .addCommand("somewhere")
                     .setCassandraServerConfig(CassandraFrameworkProtos.CassandraServerConfig.newBuilder()
-                        .setTaskConfig(CassandraFrameworkProtos.TaskConfig.newBuilder())
+                        .setCassandraYamlConfig(CassandraFrameworkProtos.TaskConfig.newBuilder())
                         .setTaskEnv(CassandraFrameworkProtos.TaskEnv.newBuilder()))
                     .setJmx(CassandraFrameworkProtos.JmxConnect.newBuilder()
                         .setIp("1.2.3.4")
@@ -275,7 +275,7 @@ public class CassandraExecutorTest {
         assertEquals(Protos.TaskState.TASK_RUNNING, taskStatus.get(1).getState());
 
         driver.frameworkMessage(CassandraFrameworkProtos.TaskDetails.newBuilder()
-            .setTaskType(CassandraFrameworkProtos.TaskDetails.TaskType.HEALTH_CHECK)
+            .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.HEALTH_CHECK)
             .build());
 
         taskStatus = driver.taskStatusList();

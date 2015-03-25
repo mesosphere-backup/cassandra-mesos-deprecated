@@ -14,30 +14,23 @@
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import io.mesosphere.mesos.frameworks.cassandra.jmx.JmxConnect;
-import org.apache.cassandra.db.HintedHandOffManagerMBean;
 import org.apache.cassandra.db.compaction.CompactionManager;
-import org.apache.cassandra.db.compaction.CompactionManagerMBean;
-import org.apache.cassandra.gms.FailureDetectorMBean;
-import org.apache.cassandra.gms.GossiperMBean;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
-import org.apache.cassandra.net.MessagingServiceMBean;
-import org.apache.cassandra.service.*;
-import org.apache.cassandra.streaming.StreamManagerMBean;
 import org.jetbrains.annotations.NotNull;
+import org.apache.cassandra.service.ActiveRepairService;
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.slf4j.Marker;
 
-import javax.management.*;
+import javax.management.MBeanNotificationInfo;
+import javax.management.Notification;
+import javax.management.NotificationFilter;
+import javax.management.NotificationListener;
 import javax.management.openmbean.TabularData;
-import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
 import java.lang.management.RuntimeMXBean;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 
 /**
  * This implementation allows to mock Cassandra for executor's use case.
@@ -107,58 +100,8 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public MemoryMXBean getMemoryProxy() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
         public RuntimeMXBean getRuntimeProxy() {
             return ManagementFactory.getRuntimeMXBean();
-        }
-
-        @Override
-        public MessagingServiceMBean getMessagingServiceProxy() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public StorageProxyMBean getStorageProxy() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public StreamManagerMBean getStreamManagerProxy() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public CacheServiceMBean getCacheServiceProxy() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public CompactionManagerMBean getCompactionManagerProxy() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public FailureDetectorMBean getFailureDetectorProxy() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public GCInspectorMXBean getGCInspectorProxy() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public GossiperMBean getGossiperProxy() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public HintedHandOffManagerMBean getHintedHandOffManagerProxy() {
-            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -221,7 +164,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public List<String> getTokens(String endpoint) throws UnknownHostException {
+        public List<String> getTokens(String endpoint) {
             return Arrays.asList("1", "2");
         }
 
@@ -245,7 +188,7 @@ class TestObjectFactory implements ObjectFactory {
         final List<NotificationListener> listeners = new ArrayList<>();
 
         @Override
-        public void removeNotificationListener(NotificationListener listener, NotificationFilter filter, Object handback) throws ListenerNotFoundException {
+        public void removeNotificationListener(NotificationListener listener, NotificationFilter filter, Object handback) {
             listeners.remove(listener);
         }
 
@@ -255,7 +198,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void removeNotificationListener(NotificationListener listener) throws ListenerNotFoundException {
+        public void removeNotificationListener(NotificationListener listener) {
             listeners.remove(listener);
         }
 
@@ -290,7 +233,7 @@ class TestObjectFactory implements ObjectFactory {
         //
 
         @Override
-        public int forceKeyspaceCleanup(String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException {
+        public int forceKeyspaceCleanup(String keyspaceName, String... columnFamilies) {
             return CompactionManager.AllSSTableOpStatus.SUCCESSFUL.statusCode;
         }
 
@@ -352,7 +295,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public List<String> describeRingJMX(String keyspace) throws IOException {
+        public List<String> describeRingJMX(String keyspace) {
             throw new UnsupportedOperationException();
         }
 
@@ -397,17 +340,17 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void takeSnapshot(String tag, String... keyspaceNames) throws IOException {
+        public void takeSnapshot(String tag, String... keyspaceNames) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void takeColumnFamilySnapshot(String keyspaceName, String columnFamilyName, String tag) throws IOException {
+        public void takeColumnFamilySnapshot(String keyspaceName, String columnFamilyName, String tag) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void clearSnapshot(String tag, String... keyspaceNames) throws IOException {
+        public void clearSnapshot(String tag, String... keyspaceNames) {
             throw new UnsupportedOperationException();
         }
 
@@ -422,32 +365,32 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void forceKeyspaceCompaction(String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException {
+        public void forceKeyspaceCompaction(String keyspaceName, String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public int scrub(boolean disableSnapshot, boolean skipCorrupted, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException {
+        public int scrub(boolean disableSnapshot, boolean skipCorrupted, String keyspaceName, String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public int upgradeSSTables(String keyspaceName, boolean excludeCurrentVersion, String... columnFamilies) throws IOException, ExecutionException, InterruptedException {
+        public int upgradeSSTables(String keyspaceName, boolean excludeCurrentVersion, String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void forceKeyspaceFlush(String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException {
+        public void forceKeyspaceFlush(String keyspaceName, String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public int forceRepairAsync(String keyspace, boolean isSequential, Collection<String> dataCenters, Collection<String> hosts, boolean primaryRange, boolean repairedAt, String... columnFamilies) throws IOException {
+        public int forceRepairAsync(String keyspace, boolean isSequential, Collection<String> dataCenters, Collection<String> hosts, boolean primaryRange, boolean repairedAt, String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public int forceRepairRangeAsync(String beginToken, String endToken, String keyspaceName, boolean isSequential, Collection<String> dataCenters, Collection<String> hosts, boolean repairedAt, String... columnFamilies) throws IOException {
+        public int forceRepairRangeAsync(String beginToken, String endToken, String keyspaceName, boolean isSequential, Collection<String> dataCenters, Collection<String> hosts, boolean repairedAt, String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
@@ -462,12 +405,12 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void decommission() throws InterruptedException {
+        public void decommission() {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void move(String newToken) throws IOException {
+        public void move(String newToken) {
             throw new UnsupportedOperationException();
         }
 
@@ -502,12 +445,12 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void drain() throws IOException, InterruptedException, ExecutionException {
+        public void drain() {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void truncate(String keyspace, String columnFamily) throws TimeoutException, IOException {
+        public void truncate(String keyspace, String columnFamily) {
             throw new UnsupportedOperationException();
         }
 
@@ -522,7 +465,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void updateSnitch(String epSnitchClassName, Boolean dynamic, Integer dynamicUpdateInterval, Integer dynamicResetInterval, Double dynamicBadnessThreshold) throws ClassNotFoundException {
+        public void updateSnitch(String epSnitchClassName, Boolean dynamic, Integer dynamicUpdateInterval, Integer dynamicResetInterval, Double dynamicBadnessThreshold) {
             throw new UnsupportedOperationException();
         }
 
@@ -557,7 +500,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void joinRing() throws IOException {
+        public void joinRing() {
             throw new UnsupportedOperationException();
         }
 
@@ -632,7 +575,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void resetLocalSchema() throws IOException {
+        public void resetLocalSchema() {
             throw new UnsupportedOperationException();
         }
 
@@ -647,17 +590,17 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void disableAutoCompaction(String ks, String... columnFamilies) throws IOException {
+        public void disableAutoCompaction(String ks, String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void enableAutoCompaction(String ks, String... columnFamilies) throws IOException {
+        public void enableAutoCompaction(String ks, String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void deliverHints(String host) throws UnknownHostException {
+        public void deliverHints(String host) {
             throw new UnsupportedOperationException();
         }
 
@@ -697,14 +640,14 @@ class TestObjectFactory implements ObjectFactory {
         }
     }
 
-    final class MockEndpointSnitchInfo implements EndpointSnitchInfoMBean {
+    static final class MockEndpointSnitchInfo implements EndpointSnitchInfoMBean {
         @Override
-        public String getRack(String host) throws UnknownHostException {
+        public String getRack(String host) {
             return "rack";
         }
 
         @Override
-        public String getDatacenter(String host) throws UnknownHostException {
+        public String getDatacenter(String host) {
             return "datacenter";
         }
 

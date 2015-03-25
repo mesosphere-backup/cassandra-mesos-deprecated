@@ -49,25 +49,20 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         node.setCassandraNodeExecutor(CassandraFrameworkProtos.CassandraNodeExecutor.newBuilder()
             .addCommand("cmd")
-            .setCpuCores(1)
-            .setDiskMb(1)
-            .setMemMb(1)
+            .setResources(someResources())
             .setExecutorId("exec")
             .setSource("src"));
 
         assertTrue(node.hasCassandraNodeExecutor());
-        assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+        assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
         assertFalse(cluster.isLiveNode(node.build()));
 
         node.addTasks(CassandraFrameworkProtos.CassandraNodeTask.newBuilder()
-            .setCpuCores(1)
-            .setDiskMb(1)
-            .setMemMb(1)
-            .setExecutorId("exec")
+            .setResources(someResources())
             .setTaskId("task")
-            .setTaskType(CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+            .setType(CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
 
-        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
         assertFalse(cluster.isLiveNode(node.build()));
 
         CassandraFrameworkProtos.HealthCheckDetails.Builder hcd = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
@@ -117,18 +112,13 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
             .setJmxConnect(CassandraFrameworkProtos.JmxConnect.newBuilder().setIp("1.2.3.4").setJmxPort(7199))
             .setCassandraNodeExecutor(CassandraFrameworkProtos.CassandraNodeExecutor.newBuilder()
                 .addCommand("cmd")
-                .setCpuCores(1)
-                .setDiskMb(1)
-                .setMemMb(1)
+                .setResources(someResources())
                 .setExecutorId("exec")
                 .setSource("src"))
             .addTasks(CassandraFrameworkProtos.CassandraNodeTask.newBuilder()
-                .setCpuCores(1)
-                .setDiskMb(1)
-                .setMemMb(1)
-                .setExecutorId("exec")
+                .setResources(someResources())
                 .setTaskId("task")
-                .setTaskType(CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+                .setType(CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
         cluster.getClusterState().addOrSetNode(node.build());
         CassandraFrameworkProtos.HealthCheckDetails.Builder hcd = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
             .setHealthy(true)
@@ -206,7 +196,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         assertNotNull(node3);
         assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.TERMINATE, node3.getTargetRunState());
 
-        CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node3, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER);
+        CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node3, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
         assertNotNull(taskForNode);
 
         // verify that kill-task is launched
@@ -329,9 +319,9 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         }
 
         // verify UPDATE_CONFIG tasks are launched
-        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
-        launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
-        launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.UPDATE_CONFIG);
+        launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.UPDATE_CONFIG);
+        launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.UPDATE_CONFIG);
         noopOnOffer(slaves[0], 3);
         noopOnOffer(slaves[1], 3);
         noopOnOffer(slaves[2], 3);
@@ -347,9 +337,9 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         }
 
         // verify UPDATE_CONFIG tasks are launched
-        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
-        launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
-        launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskType.UPDATE_CONFIG);
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.UPDATE_CONFIG);
+        launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.UPDATE_CONFIG);
+        launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.UPDATE_CONFIG);
         noopOnOffer(slaves[0], 3);
         noopOnOffer(slaves[1], 3);
         noopOnOffer(slaves[2], 3);
@@ -384,7 +374,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         assertNotNull(node1);
         assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.STOP, node1.getTargetRunState());
 
-        CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER);
+        CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
         assertNotNull(taskForNode);
 
         // verify that kill-task is launched
@@ -395,7 +385,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         // re-check that server-task is still present
         node1 = cluster.findNode(slaves[0]._2);
         assertNotNull(node1);
-        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
 
         // simulate server-task has finished
         executorTaskFinished(executorServer[0]._1, CassandraFrameworkProtos.SlaveStatusDetails.newBuilder()
@@ -405,7 +395,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         // check that server-task is no longer present
         node1 = cluster.findNode(slaves[0]._2);
         assertNotNull(node1);
-        assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+        assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
 
 
         // now start node
@@ -415,7 +405,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN, node1.getTargetRunState());
 
         // verify that CASSANDRA_SERVER_RUN task is launched
-        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
         // must not repeat CASSANDRA_SERVER_RUN since it's already launched
         noopOnOffer(slaves[0], 3);
 
@@ -423,7 +413,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         node1 = cluster.findNode(slaves[0]._2);
         assertNotNull(node1);
         assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN, node1.getTargetRunState());
-        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
 
         // simulate server-task is running
         sendHealthCheckResult(executorMetadata[0], healthCheckDetailsSuccess("NORMAL", true));
@@ -445,7 +435,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         assertNotNull(node1);
         assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RESTART, node1.getTargetRunState());
 
-        CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER);
+        CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
         assertNotNull(taskForNode);
 
         // verify that kill-task is launched
@@ -457,7 +447,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         node1 = cluster.findNode(slaves[0]._2);
         assertNotNull(node1);
         assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RESTART, node1.getTargetRunState());
-        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
 
         // simulate server-task has finished
         executorTaskFinished(executorServer[0]._1, CassandraFrameworkProtos.SlaveStatusDetails.newBuilder()
@@ -468,11 +458,11 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         node1 = cluster.findNode(slaves[0]._2);
         assertNotNull(node1);
         assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RESTART, node1.getTargetRunState());
-        assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+        assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
 
 
         // verify that CASSANDRA_SERVER_RUN task is launched
-        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
         // must not repeat CASSANDRA_SERVER_RUN since it's already launched
         noopOnOffer(slaves[0], 3);
 
@@ -480,7 +470,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         node1 = cluster.findNode(slaves[0]._2);
         assertNotNull(node1);
         assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN, node1.getTargetRunState());
-        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+        assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
 
         // simulate server-task is running
         sendHealthCheckResult(executorMetadata[0], healthCheckDetailsSuccess("NORMAL", true));
@@ -547,8 +537,8 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         // node must not start (it's not a seed node and no seed node is running)
         noopOnOffer(slaves[2], 3);
 
-        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
-        launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
+        launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
         // still - not able to start node #3
         noopOnOffer(slaves[2], 3);
 
@@ -593,7 +583,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         assertThat(lastHealthCheckDetails(executorMetadata2))
             .isNot(healthy());
         // node#3 can start now
-        launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
 
     }
 
@@ -610,7 +600,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         // server-task cannot start again
         launchExecutor(slaves[0], 3);
         executorTaskRunning(executorMetadata[0]);
-        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
 
     }
 
@@ -661,7 +651,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
             assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RESTART, node.getTargetRunState());
 
             // simulate server-task stopped
-            CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER);
+            CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
             assertNotNull(taskForNode);
 
             Tuple2<Protos.SlaveID, String> slave = slaveForExecutor(restartingExecutor);
@@ -684,7 +674,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
             // check that server-task is no longer present
             node = cluster.findNode(restartingExecutor);
             assertNotNull(node);
-            assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+            assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
 
             // must have current-node - server task not running
             currentClusterJob = cluster.getCurrentClusterJob();
@@ -693,7 +683,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
             assertEquals(restartingExecutor, currentClusterJob.getCurrentNode().getExecutorId());
 
             // verify that CASSANDRA_SERVER_RUN task is launched
-            launchTask(slave, CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+            launchTask(slave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
             // must not repeat CASSANDRA_SERVER_RUN since it's already launched
             noopOnOffer(slave, 3, true);
 
@@ -728,7 +718,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         // stop node 2
         CassandraFrameworkProtos.CassandraNode node2 = cluster.nodeStop(slaves[1]._2);
         assertNotNull(node2);
-        CassandraFrameworkProtos.CassandraNodeTask node1serverTask = CassandraFrameworkProtosUtils.getTaskForNode(node2, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER);
+        CassandraFrameworkProtos.CassandraNodeTask node1serverTask = CassandraFrameworkProtosUtils.getTaskForNode(node2, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
         assertNotNull(node1serverTask);
         killTask(slaves[1], node1serverTask.getTaskId());
         // simulate server-task has finished
@@ -777,7 +767,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
             assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RESTART, node.getTargetRunState());
 
             // simulate server-task stopped
-            CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER);
+            CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
             assertNotNull(taskForNode);
 
             Tuple2<Protos.SlaveID, String> slave = slaveForExecutor(restartingExecutor);
@@ -800,7 +790,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
             // check that server-task is no longer present
             node = cluster.findNode(restartingExecutor);
             assertNotNull(node);
-            assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER));
+            assertNull(CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
 
             // must have current-node - server task not running
             currentClusterJob = cluster.getCurrentClusterJob();
@@ -809,7 +799,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
             assertEquals(restartingExecutor, currentClusterJob.getCurrentNode().getExecutorId());
 
             // verify that CASSANDRA_SERVER_RUN task is launched
-            launchTask(slave, CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+            launchTask(slave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
             // must not repeat CASSANDRA_SERVER_RUN since it's already launched
             noopOnOffer(slave, 3, true);
 
@@ -889,7 +879,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         assertFalse(currentClusterJob.hasFinishedTimestamp());
 
         // launch job on a node
-        Protos.TaskInfo taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB);
+        Protos.TaskInfo taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
         Protos.TaskInfo taskInfo1 = taskInfo;
         assertNotNull(taskInfo);
         assertEquals(executorIdValue(taskInfo) + '.' + clusterJobType.name(), taskIdValue(taskInfo));
@@ -923,7 +913,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         // check job status submit
 
-        CassandraFrameworkProtos.TaskDetails taskDetails = submitTask(currentSlave, CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB_STATUS);
+        CassandraFrameworkProtos.TaskDetails taskDetails = submitTask(currentSlave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS);
         assertNotNull(taskDetails);
 
         // simulate job status response
@@ -963,7 +953,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         // node has finished ...
 
-        taskDetails = submitTask(currentSlave, CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB_STATUS);
+        taskDetails = submitTask(currentSlave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS);
         assertNotNull(taskDetails);
 
         finishJob(currentClusterJob, taskInfo, currentSlave, nodeJobStatus, clusterJobType);
@@ -984,7 +974,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         // 2nd node
 
-        taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB);
+        taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
         assertNotNull(taskInfo);
         Protos.TaskInfo taskInfo2 = taskInfo;
         Assert.assertNotEquals(executorId(taskInfo), executorId(taskInfo1));
@@ -1021,7 +1011,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         // 3rd node
 
-        taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB);
+        taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
         assertNotNull(taskInfo);
         Assert.assertNotEquals(executorId(taskInfo), executorId(taskInfo1));
         Assert.assertNotEquals(taskInfo.getSlaveId(), taskInfo1.getSlaveId());
@@ -1085,7 +1075,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         assertFalse(currentClusterJob.hasFinishedTimestamp());
 
         // launch job on a node
-        Protos.TaskInfo taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB);
+        Protos.TaskInfo taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
         Protos.TaskInfo taskInfo1 = taskInfo;
         assertNotNull(taskInfo);
         assertEquals(executorIdValue(taskInfo) + '.' + clusterJobType.name(), taskIdValue(taskInfo));
@@ -1119,7 +1109,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         // check job status submit
 
-        CassandraFrameworkProtos.TaskDetails taskDetails = submitTask(currentSlave, CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB_STATUS);
+        CassandraFrameworkProtos.TaskDetails taskDetails = submitTask(currentSlave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS);
         assertNotNull(taskDetails);
 
         // simulate job status response
@@ -1159,7 +1149,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         // node has finished ...
 
-        taskDetails = submitTask(currentSlave, CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB_STATUS);
+        taskDetails = submitTask(currentSlave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS);
         assertNotNull(taskDetails);
 
         finishJob(currentClusterJob, taskInfo, currentSlave, nodeJobStatus, clusterJobType);
@@ -1174,7 +1164,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         // 2nd node
 
-        taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB);
+        taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
         assertNotNull(taskInfo);
         Protos.TaskInfo taskInfo2 = taskInfo;
         Assert.assertNotEquals(executorId(taskInfo), executorId(taskInfo1));
@@ -1205,7 +1195,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
 
         // 3rd node
 
-        taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskType.NODE_JOB);
+        taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
         assertNotNull(taskInfo);
         Assert.assertNotEquals(executorId(taskInfo), executorId(taskInfo1));
         Assert.assertNotEquals(taskInfo.getSlaveId(), taskInfo1.getSlaveId());
@@ -1323,7 +1313,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         executorMetadata[3] = launchExecutor(slaves[3], 4);
         executorTaskRunning(executorMetadata[3]);
 
-        executorServer[3] = launchTask(slaves[3], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        executorServer[3] = launchTask(slaves[3], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
     }
 
     private Protos.TaskInfo[] threeNodeCluster() throws InvalidProtocolBufferException {
@@ -1350,8 +1340,8 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         //noinspection unchecked
         executorServer = new Tuple2[slaves.length];
 
-        executorServer[0] = launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
-        executorServer[1] = launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        executorServer[0] = launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
+        executorServer[1] = launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
 
         executorTaskRunning(executorServer[0]._1);
         executorTaskRunning(executorServer[1]._1);
@@ -1359,7 +1349,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         sendHealthCheckResult(executorMetadata[0], healthCheckDetailsSuccess("NORMAL", true));
         sendHealthCheckResult(executorMetadata[1], healthCheckDetailsSuccess("NORMAL", true));
 
-        executorServer[2] = launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        executorServer[2] = launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
 
         executorTaskRunning(executorServer[2]._1);
 
@@ -1434,11 +1424,11 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         Protos.TaskInfo taskInfo = launchTasks._2.iterator().next();
 
         CassandraFrameworkProtos.TaskDetails taskDetails = taskDetails(taskInfo);
-        assertEquals(CassandraFrameworkProtos.TaskDetails.TaskType.EXECUTOR_METADATA, taskDetails.getTaskType());
+        assertEquals(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.EXECUTOR_METADATA, taskDetails.getType());
         return taskInfo;
     }
 
-    private Protos.TaskInfo launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskType taskType) throws InvalidProtocolBufferException {
+    private Protos.TaskInfo launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) throws InvalidProtocolBufferException {
         for (Tuple2<Protos.SlaveID, String> slave : slaves) {
             Protos.Offer offer = createOffer(slave);
 
@@ -1456,13 +1446,13 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
             Protos.TaskInfo taskInfo = launchTasks._2.iterator().next();
 
             CassandraFrameworkProtos.TaskDetails taskDetails = taskDetails(taskInfo);
-            assertEquals(taskType, taskDetails.getTaskType());
+            assertEquals(taskType, taskDetails.getType());
             return taskInfo;
         }
         return null;
     }
 
-    private CassandraFrameworkProtos.TaskDetails submitTask(Tuple2<Protos.SlaveID, String> slave, CassandraFrameworkProtos.TaskDetails.TaskType taskType) {
+    private CassandraFrameworkProtos.TaskDetails submitTask(Tuple2<Protos.SlaveID, String> slave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) {
         Protos.Offer offer = createOffer(slave);
 
         scheduler.resourceOffers(driver, Collections.singletonList(offer));
@@ -1476,7 +1466,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         assertEquals(1, submitTasks.size());
 
         CassandraFrameworkProtos.TaskDetails taskDetails = submitTasks.iterator().next()._2;
-        assertEquals(taskType, taskDetails.getTaskType());
+        assertEquals(taskType, taskDetails.getType());
         return taskDetails;
     }
 
@@ -1494,7 +1484,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
             .contains(Protos.TaskID.newBuilder().setValue(taskID).build());
     }
 
-    private Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> launchTask(Tuple2<Protos.SlaveID, String> slave, CassandraFrameworkProtos.TaskDetails.TaskType taskType) throws InvalidProtocolBufferException {
+    private Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> launchTask(Tuple2<Protos.SlaveID, String> slave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) throws InvalidProtocolBufferException {
         Protos.Offer offer = createOffer(slave);
 
         scheduler.resourceOffers(driver, Collections.singletonList(offer));
@@ -1509,7 +1499,7 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
         Protos.TaskInfo taskInfo = launchTasks._2.iterator().next();
 
         CassandraFrameworkProtos.TaskDetails taskDetails = taskDetails(taskInfo);
-        assertEquals(taskType, taskDetails.getTaskType());
+        assertEquals(taskType, taskDetails.getType());
         return Tuple2.tuple2(taskInfo, taskDetails);
     }
 
@@ -1596,5 +1586,13 @@ public class CassandraSchedulerTest extends AbstractSchedulerTest {
             }
         }
         return null;
+    }
+
+    private static CassandraFrameworkProtos.TaskResources someResources() {
+        return CassandraFrameworkProtos.TaskResources.newBuilder()
+            .setCpuCores(1)
+            .setMemMb(1)
+            .setDiskMb(1)
+            .build();
     }
 }

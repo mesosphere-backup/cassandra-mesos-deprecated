@@ -28,9 +28,16 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     public PersistedCassandraFrameworkConfiguration(
         @NotNull final State state,
         @NotNull final String frameworkName,
-        @NotNull final CassandraFrameworkProtos.CassandraConfigRole defaultConfigRole,
         final long healthCheckIntervalSeconds,
-        final long bootstrapGraceTimeSec
+        final long bootstrapGraceTimeSec,
+        final String cassandraVersion,
+        final double cpuCores,
+        final long diskMb,
+        final long memMb,
+        final long javeHeapMb,
+        final int executorCount,
+        final int seedCount,
+        final String mesosRole
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -38,9 +45,21 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
             new Supplier<CassandraFrameworkConfiguration>() {
                 @Override
                 public CassandraFrameworkConfiguration get() {
+                    CassandraFrameworkProtos.CassandraConfigRole.Builder configRole = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
+                        .setCassandraVersion(cassandraVersion)
+                        .setResources(CassandraFrameworkProtos.TaskResources.newBuilder()
+                            .setCpuCores(cpuCores)
+                            .setDiskMb(diskMb)
+                            .setMemMb(memMb))
+                        .setNumberOfNodes(executorCount)
+                        .setNumberOfSeeds(seedCount)
+                        .setMesosRole(mesosRole);
+                    if (javeHeapMb > 0) {
+                        configRole.setMemJavaHeapMb(javeHeapMb);
+                    }
                     return CassandraFrameworkConfiguration.newBuilder()
                         .setFrameworkName(frameworkName)
-                        .setDefaultConfigRole(fillConfigRoleGaps(defaultConfigRole))
+                        .setDefaultConfigRole(fillConfigRoleGaps(configRole))
                         .setHealthCheckIntervalSeconds(healthCheckIntervalSeconds)
                         .setBootstrapGraceTimeSeconds(bootstrapGraceTimeSec)
                         .build();
@@ -65,30 +84,31 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         );
     }
 
-    public static CassandraFrameworkProtos.CassandraConfigRole fillConfigRoleGaps(CassandraFrameworkProtos.CassandraConfigRole configRole) {
-        CassandraFrameworkProtos.CassandraConfigRole.Builder builder = CassandraFrameworkProtos.CassandraConfigRole.newBuilder(configRole);
-        if (builder.hasMemMb()) {
-            if (!builder.hasMemJavaHeapMb()) {
-                builder.setMemJavaHeapMb(Math.min(builder.getMemMb() / 2, 16384));
+    public static CassandraFrameworkProtos.CassandraConfigRole.Builder fillConfigRoleGaps(CassandraFrameworkProtos.CassandraConfigRole.Builder configRole) {
+        long memMb = configRole.getResources().getMemMb();
+        if (memMb > 0L) {
+            if (!configRole.hasMemJavaHeapMb()) {
+                configRole.setMemJavaHeapMb(Math.min(memMb / 2, 16384));
             }
-            if (!builder.hasMemAssumeOffHeapMb()) {
-                builder.setMemAssumeOffHeapMb(builder.getMemMb() - builder.getMemJavaHeapMb());
+            if (!configRole.hasMemAssumeOffHeapMb()) {
+                configRole.setMemAssumeOffHeapMb(memMb - configRole.getMemJavaHeapMb());
             }
         } else  {
-            if (builder.hasMemJavaHeapMb()) {
-                if (!builder.hasMemAssumeOffHeapMb()) {
-                    builder.setMemAssumeOffHeapMb(builder.getMemJavaHeapMb());
+            if (configRole.hasMemJavaHeapMb()) {
+                if (!configRole.hasMemAssumeOffHeapMb()) {
+                    configRole.setMemAssumeOffHeapMb(configRole.getMemJavaHeapMb());
                 }
             } else {
-                if (builder.hasMemAssumeOffHeapMb()) {
-                    builder.setMemJavaHeapMb(builder.getMemAssumeOffHeapMb());
+                if (configRole.hasMemAssumeOffHeapMb()) {
+                    configRole.setMemJavaHeapMb(configRole.getMemAssumeOffHeapMb());
                 } else {
                     throw new IllegalArgumentException("Config role is missing memory configuration");
                 }
             }
-            builder.setMemMb(builder.getMemJavaHeapMb() + builder.getMemAssumeOffHeapMb());
+            configRole.setResources(CassandraFrameworkProtos.TaskResources.newBuilder(configRole.getResources())
+                .setMemMb(configRole.getMemJavaHeapMb() + configRole.getMemAssumeOffHeapMb()));
         }
-        return builder.build();
+        return configRole;
     }
 
     @NotNull

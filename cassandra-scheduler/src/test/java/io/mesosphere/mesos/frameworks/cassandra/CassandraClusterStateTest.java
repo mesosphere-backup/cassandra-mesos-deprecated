@@ -163,7 +163,7 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         // cluster now up with 3 running nodes
 
         // server-task no longer running
-        CassandraFrameworkProtos.CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(cluster.cassandraNodeForHostname(slaves[0]._2).get(), CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER);
+        CassandraFrameworkProtos.CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(cluster.cassandraNodeForHostname(slaves[0]._2).get(), CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
         assertNotNull(serverTask);
         cluster.removeTask(serverTask.getTaskId(), null);
 
@@ -172,14 +172,14 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
     }
 
     private CassandraFrameworkProtos.ExecutorMetadata launchServer(CassandraCluster cluster, Tuple2<Protos.SlaveID, String> slave) {
-        return launchTask(cluster, slave, -1, CassandraFrameworkProtos.TaskDetails.TaskType.CASSANDRA_SERVER_RUN);
+        return launchTask(cluster, slave, -1, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
     }
 
     private CassandraFrameworkProtos.ExecutorMetadata launchExecutor(CassandraCluster cluster, Tuple2<Protos.SlaveID, String> slave, int nodeCount) {
-        return launchTask(cluster, slave, nodeCount, CassandraFrameworkProtos.TaskDetails.TaskType.EXECUTOR_METADATA);
+        return launchTask(cluster, slave, nodeCount, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.EXECUTOR_METADATA);
     }
 
-    private CassandraFrameworkProtos.ExecutorMetadata launchTask(CassandraCluster cluster, Tuple2<Protos.SlaveID, String> slave, int nodeCount, CassandraFrameworkProtos.TaskDetails.TaskType taskType) {
+    private CassandraFrameworkProtos.ExecutorMetadata launchTask(CassandraCluster cluster, Tuple2<Protos.SlaveID, String> slave, int nodeCount, CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) {
         Protos.Offer offer = createOffer(slave);
         TasksForOffer tasksForOffer = cluster.getTasksForOffer(offer);
 
@@ -190,7 +190,7 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         assertEquals(0, tasksForOffer.getSubmitTasks().size());
 
         CassandraFrameworkProtos.CassandraNodeTask launchTask = tasksForOffer.getLaunchTasks().get(0);
-        assertEquals(taskType, launchTask.getTaskDetails().getTaskType());
+        assertEquals(taskType, launchTask.getTaskDetails().getType());
         return executorMetadataFor(slave, tasksForOffer.getExecutor().getExecutorId());
     }
 

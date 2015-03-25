@@ -226,10 +226,8 @@ public class ApiControllerTest extends AbstractSchedulerTest {
                 CassandraFrameworkProtos.CassandraNodeExecutor.newBuilder(CassandraFrameworkProtos.CassandraNodeExecutor.getDefaultInstance())
                     .setExecutorId(executorId)
                     .setSource("source")
-                    .setCpuCores(1)
-                    .setMemMb(1)
-                    .setDiskMb(1)
                     .addCommand("comand")
+                    .setResources(someResources())
             )
             .setHostname(ip)
             .setIp(ip)
@@ -239,12 +237,9 @@ public class ApiControllerTest extends AbstractSchedulerTest {
                 .setIp(ip)
                 .setJmxPort(7199))
             .addTasks(CassandraFrameworkProtos.CassandraNodeTask.newBuilder()
-                .setExecutorId(executorId)
                 .setTaskId(executorId + ".server")
-                .setTaskType(CassandraFrameworkProtos.CassandraNodeTask.TaskType.SERVER)
-                .setCpuCores(1)
-                .setMemMb(1)
-                .setDiskMb(1))
+                .setType(CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER)
+                .setResources(someResources()))
             .build());
         cluster.recordHealthCheck(executorId, healthCheckDetailsSuccess("NORMAL", true));
     }
@@ -362,6 +357,14 @@ public class ApiControllerTest extends AbstractSchedulerTest {
         } else {
             throw new IllegalArgumentException("InetAddress type: " + inetAddress.getClass().getName() + " is not supported");
         }
+    }
+
+    private static CassandraFrameworkProtos.TaskResources someResources() {
+        return CassandraFrameworkProtos.TaskResources.newBuilder()
+            .setCpuCores(1)
+            .setMemMb(1)
+            .setDiskMb(1)
+            .build();
     }
 
 }

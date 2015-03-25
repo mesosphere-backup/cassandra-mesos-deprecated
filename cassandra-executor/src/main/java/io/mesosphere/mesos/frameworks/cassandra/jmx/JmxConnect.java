@@ -49,31 +49,11 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public interface JmxConnect extends Closeable {
 
-    public MemoryMXBean getMemoryProxy();
+    RuntimeMXBean getRuntimeProxy();
 
-    public RuntimeMXBean getRuntimeProxy();
+    StorageServiceMBean getStorageServiceProxy();
 
-    public MessagingServiceMBean getMessagingServiceProxy();
+    EndpointSnitchInfoMBean getEndpointSnitchInfoProxy();
 
-    public StorageProxyMBean getStorageProxy();
-
-    public StorageServiceMBean getStorageServiceProxy();
-
-    public EndpointSnitchInfoMBean getEndpointSnitchInfoProxy();
-
-    public StreamManagerMBean getStreamManagerProxy();
-
-    public CacheServiceMBean getCacheServiceProxy();
-
-    public CompactionManagerMBean getCompactionManagerProxy();
-
-    public FailureDetectorMBean getFailureDetectorProxy();
-
-    public GCInspectorMXBean getGCInspectorProxy();
-
-    public GossiperMBean getGossiperProxy();
-
-    public HintedHandOffManagerMBean getHintedHandOffManagerProxy();
-
-    public List<String> getColumnFamilyNames(String keyspace);
+    List<String> getColumnFamilyNames(String keyspace);
 }

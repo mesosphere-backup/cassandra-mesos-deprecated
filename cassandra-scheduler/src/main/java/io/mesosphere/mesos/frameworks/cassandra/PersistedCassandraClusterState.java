@@ -26,7 +26,10 @@ import java.util.List;
 import static io.mesosphere.mesos.util.Functions.append;
 
 final class PersistedCassandraClusterState extends StatePersistedObject<CassandraFrameworkProtos.CassandraClusterState> {
-    public PersistedCassandraClusterState(@NotNull final State state, @NotNull final CassandraFrameworkProtos.CassandraConfigRole defaultConfigRole) {
+    public PersistedCassandraClusterState(
+            @NotNull final State state,
+            final int executorCount,
+            final int seedCount) {
         super(
             "CassandraClusterState",
             state,
@@ -34,8 +37,8 @@ final class PersistedCassandraClusterState extends StatePersistedObject<Cassandr
                 @Override
                 public CassandraFrameworkProtos.CassandraClusterState get() {
                     return CassandraFrameworkProtos.CassandraClusterState.newBuilder()
-                        .setNodesToAcquire(defaultConfigRole.getNumberOfNodes())
-                        .setSeedsToAcquire(defaultConfigRole.getNumberOfSeeds())
+                        .setNodesToAcquire(executorCount)
+                        .setSeedsToAcquire(seedCount)
                         .build();
                 }
             },

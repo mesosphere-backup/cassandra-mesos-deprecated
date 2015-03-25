@@ -14,18 +14,8 @@
 package io.mesosphere.mesos.frameworks.cassandra.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
-import org.apache.cassandra.db.HintedHandOffManager;
-import org.apache.cassandra.db.HintedHandOffManagerMBean;
-import org.apache.cassandra.db.compaction.CompactionManager;
-import org.apache.cassandra.db.compaction.CompactionManagerMBean;
-import org.apache.cassandra.gms.FailureDetector;
-import org.apache.cassandra.gms.FailureDetectorMBean;
-import org.apache.cassandra.gms.GossiperMBean;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
-import org.apache.cassandra.net.MessagingService;
-import org.apache.cassandra.net.MessagingServiceMBean;
 import org.apache.cassandra.service.*;
-import org.apache.cassandra.streaming.StreamManagerMBean;
 
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
@@ -35,7 +25,6 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
 import java.lang.management.RuntimeMXBean;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
@@ -55,8 +44,6 @@ public class ProdJmxConnect implements JmxConnect {
 
     private static final String fmtUrl = "service:jmx:rmi:///jndi/rmi://[%s]:%d/jmxrmi";
 
-    private static final String GOSSIPER_MBEAN_NAME = "org.apache.cassandra.net:type=Gossiper";
-
     private final String host;
     private final int port;
     private final String username;
@@ -66,17 +53,7 @@ public class ProdJmxConnect implements JmxConnect {
     private MBeanServerConnection mbeanServerConn;
 
     private StorageServiceMBean ssProxy;
-    private MessagingServiceMBean msProxy;
-    private StreamManagerMBean streamProxy;
-    private CompactionManagerMBean compactionProxy;
-    private FailureDetectorMBean fdProxy;
-    private CacheServiceMBean cacheService;
-    private StorageProxyMBean spProxy;
-    private HintedHandOffManagerMBean hhProxy;
-    private GCInspectorMXBean gcProxy;
-    private GossiperMBean gossProxy;
     private EndpointSnitchInfoMBean snitchProxy;
-    private MemoryMXBean memProxy;
     private RuntimeMXBean runtimeProxy;
 
     private final ReentrantLock lock = new ReentrantLock();
@@ -116,17 +93,7 @@ public class ProdJmxConnect implements JmxConnect {
             jmxc = null;
             mbeanServerConn = null;
             ssProxy = null;
-            msProxy = null;
-            streamProxy = null;
-            compactionProxy = null;
-            fdProxy = null;
-            cacheService = null;
-            spProxy = null;
-            hhProxy = null;
-            gcProxy = null;
-            gossProxy = null;
             snitchProxy = null;
-            memProxy = null;
             runtimeProxy = null;
         }
     }
@@ -175,32 +142,11 @@ public class ProdJmxConnect implements JmxConnect {
         }
     }
 
-    public MemoryMXBean getMemoryProxy() {
-        if (memProxy == null) {
-            memProxy = newPlatformProxy(ManagementFactory.MEMORY_MXBEAN_NAME, MemoryMXBean.class);
-        }
-        return memProxy;
-    }
-
     public RuntimeMXBean getRuntimeProxy() {
         if (runtimeProxy == null) {
             runtimeProxy = newPlatformProxy(ManagementFactory.RUNTIME_MXBEAN_NAME, RuntimeMXBean.class);
         }
         return runtimeProxy;
-    }
-
-    public MessagingServiceMBean getMessagingServiceProxy() {
-        if (msProxy == null) {
-            msProxy = newProxy(MessagingService.MBEAN_NAME, MessagingServiceMBean.class);
-        }
-        return msProxy;
-    }
-
-    public StorageProxyMBean getStorageProxy() {
-        if (spProxy == null) {
-            spProxy = newProxy(StorageProxy.MBEAN_NAME, StorageProxyMBean.class);
-        }
-        return spProxy;
     }
 
     public StorageServiceMBean getStorageServiceProxy() {
@@ -214,54 +160,6 @@ public class ProdJmxConnect implements JmxConnect {
             snitchProxy = newProxy(ENDPOINT_SNITCH_INFO_NAME, EndpointSnitchInfoMBean.class);
         }
         return snitchProxy;
-    }
-
-    public StreamManagerMBean getStreamManagerProxy() {
-        if (streamProxy == null) {
-            streamProxy = newProxy(StreamManagerMBean.OBJECT_NAME, StreamManagerMBean.class);
-        }
-        return streamProxy;
-    }
-
-    public CacheServiceMBean getCacheServiceProxy() {
-        if (cacheService == null) {
-            cacheService = newProxy(CacheService.MBEAN_NAME, CacheServiceMBean.class);
-        }
-        return cacheService;
-    }
-
-    public CompactionManagerMBean getCompactionManagerProxy() {
-        if (compactionProxy == null) {
-            compactionProxy = newProxy(CompactionManager.MBEAN_OBJECT_NAME, CompactionManagerMBean.class);
-        }
-        return compactionProxy;
-    }
-
-    public FailureDetectorMBean getFailureDetectorProxy() {
-        if (fdProxy == null) {
-            fdProxy = newProxy(FailureDetector.MBEAN_NAME, FailureDetectorMBean.class);
-        }
-        return fdProxy;
-    }
-
-    public GCInspectorMXBean getGCInspectorProxy() {
-        if (gcProxy == null)
-            gcProxy = newProxy(GCInspector.MBEAN_NAME, GCInspectorMXBean.class);
-        return gcProxy;
-    }
-
-    public GossiperMBean getGossiperProxy() {
-        if (gossProxy == null) {
-            gossProxy = newProxy(GOSSIPER_MBEAN_NAME, GossiperMBean.class);
-        }
-        return gossProxy;
-    }
-
-    public HintedHandOffManagerMBean getHintedHandOffManagerProxy() {
-        if (hhProxy == null) {
-            hhProxy = newProxy(HintedHandOffManager.MBEAN_NAME, HintedHandOffManagerMBean.class);
-        }
-        return hhProxy;
     }
 
     public List<String> getColumnFamilyNames(String keyspace) {

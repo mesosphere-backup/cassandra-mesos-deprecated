@@ -22,7 +22,7 @@ Apache Mesos allows you to handle distributed applications in your datacenter. B
 is to define the number of nodes and the resource requirements (RAM, disk, CPU) per node. Everything else is
 done transparently for you.
 
-Apache Mesos uses Apache ZooKeeper to persist its state. Apache ZooKeeper is usually used in a high-availability
+Apache Mesos uses [Apache ZooKeeper] to persist its state. Apache ZooKeeper is usually used in a high-availability
 configuration. "State" means everything beginning with configuration, via nodes (including their status and load) up
 to deployed frameworks like Cassandra-on-Mesos that also store their configuration and current status.
 

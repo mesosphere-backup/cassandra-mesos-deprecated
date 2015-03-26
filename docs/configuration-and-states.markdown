@@ -71,9 +71,9 @@ Messages are submitted via `SchedulerDriver.sendFrameworkMessage()`. Such messag
 1. Cluster job status - to check the status of a node's part of a cluster-wide job (repair and cleanup)
 
 
-```
-    TODO: IMAGE     TODO: IMAGE     TODO: IMAGE     TODO: IMAGE     TODO: IMAGE     Offer handling + communication
-```
+![Offers](offer-and-comm.png "Offers")
+
+![Offer handling details](offer-handling.png "Offer handling details")
 
 ## Node status
 
@@ -91,9 +91,23 @@ it is set to `TERMINATE`.
   this node.
 
 
-```
-    TODO: IMAGE     TODO: IMAGE     TODO: IMAGE     TODO: IMAGE     TODO: IMAGE     CassandraNode status transitions
-```
+![CassandraNode targetRunState transitions](node-state-transition.png "CassandraNode targetRunState transitions")
+
+## Cluster jobs
+
+Cassandra-on-Mesos framework uses so called _cluster jobs_ to ensure that certain tasks like
+_repair_, _cleanup_ and _restart_ are never executed on/against more than one node. Some job types
+(_repair_ and _cleanup_) involve activity performed against the actual Cassandra process. Other job types
+(_restart_) are just a kind of synchonization object.
+
+Only one cluster job can be active at all times. A cluster job can be aborted - effectively after the current
+node has finished its part. At the moment there is no way to interrupt a node's part of a cluster job.
+
+A node's part of a cluster job is effectively cancelled when the Cassandra process or its executor or its
+slave dies.
+
+![Cluster job diagram](cluster-jobs.png "Cluster job diagram")
+
 
 ## Task states
 
@@ -104,10 +118,33 @@ Each started task is added to `CassandraNode.tasks`. A task is only removed from
 the appropiate status update from Mesos via `Scheduler.statusUpdate()`. This means, that the `CassandraNode.tasks`
 list contains only running tasks.
 
+There are three kinds of tasks:
 
-```
-    TODO: IMAGE     TODO: IMAGE     TODO: IMAGE     TODO: IMAGE     TODO: IMAGE     Task states
-```
+* `METADATA` is used to inquire some information about the node the executor runs on.
+  This task does not spawn a process.
+* `SERVER` is the task that writes Cassandra configuration files and starts the Cassandra process.
+  Task status changes from executor to scheduler represent whether the Cassandra process is running.
+* `CLUSTER_JOB` is the task that represents the node's part of a cluster wide job like _repair_ or _cleanup_.
+  This task does not spawn a process.
+* `CONFIG_UPDATE` is the task that just updates Cassandra configuration files.
+  This task does not spawn a process.
+
+Lifetime of a task is notified using the standrad Mesos mechanisms. It's the scheduler's responsibility to
+cancel 
+
+## Framework messages
+
+The scheduler inquires status information periodically via so called Mesos framework messages. Framework
+messages are neither guaranteed to be delivered at all nor guaranteed to arrive in order.
+
+Cassandra-on-Mesos uses two kinds of status request/response framework messages:
+
+* `HEALTH_CHECK_DETAILS` to get information about the status of the Cassandra process.
+* `NODE_JOB_STATUS` to get information about the status and progress of a node's part of a cluster-wide
+  job like _repair_ or _cleanup_.
+
+The executor can submit framework messages on its own as part of another task - for example when detecting
+that the Cassandra process died - to inform the scheduler about a status change.
 
 ## "node-is-live" detection
 

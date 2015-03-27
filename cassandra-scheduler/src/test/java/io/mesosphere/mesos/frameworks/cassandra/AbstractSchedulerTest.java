@@ -53,8 +53,8 @@ public abstract class AbstractSchedulerTest {
                 "2.1.2",
             2, 4096, 4096, 0,
             3, 2,
-            "*"
-        );
+            "*",
+            ".");
 
         cluster = new CassandraCluster(new SystemClock(),
                 "http://127.0.0.1:65535",

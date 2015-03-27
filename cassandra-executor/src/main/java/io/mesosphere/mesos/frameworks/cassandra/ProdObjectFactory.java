@@ -173,10 +173,13 @@ final class ProdObjectFactory implements ObjectFactory {
                     parametersMap.put("seeds", entry.getStringValue());
                     break;
                 default:
-                    if (entry.hasStringValue())
+                    if (entry.hasStringValue()) {
                         yamlMap.put(entry.getName(), entry.getStringValue());
-                    else if (entry.hasLongValue())
+                    } else if (entry.hasLongValue()) {
                         yamlMap.put(entry.getName(), entry.getLongValue());
+                    } else if (!entry.getStringValuesList().isEmpty()) {
+                        yamlMap.put(entry.getName(), entry.getStringValuesList());
+                    }
             }
         }
         if (LOGGER.isDebugEnabled()) {

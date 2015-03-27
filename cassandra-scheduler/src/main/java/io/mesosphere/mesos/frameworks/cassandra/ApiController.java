@@ -1246,7 +1246,7 @@ public final class ApiController {
                 json.writeBooleanField("oldSeedState", cassandraNode.getSeed());
 
                 try {
-                    if (cluster.setNodeSeed(cassandraNode, false)) {
+                    if (cluster.setNodeSeed(cassandraNode, seed)) {
                         json.writeBooleanField("success", true);
                         json.writeBooleanField("seedState", seed);
                     } else {

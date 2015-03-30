@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>io.mesosphere.mesos.frameworks</groupId>
+        <artifactId>cassandra</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <packaging>pom</packaging>
+
+    <licenses>
+        <license>
+            <name>Apache 2</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+            <comments>Apache License Version 2.0</comments>
+        </license>
+    </licenses>
+    <organization>
+        <name>Apache Mesos Cassandra framework</name>
+        <url>http://mesos.apache.org/</url>
+    </organization>
+    <developers>
+        <developer>
+            <name>Ben Whitehead</name>
+            <email>ben.whitehead@mesosphere.io</email>
+        </developer>
+        <developer>
+            <name>Robert Stupp</name>
+            <email>snazy@snazy.de</email>
+        </developer>
+    </developers>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+    <scm>
+        <connection>scm:git:https://github.com/mesosphere/cassandra-mesos.git</connection>
+        <developerConnection>scm:git:https://github.com/mesosphere/cassandra-mesos.git</developerConnection>
+        <url>https://github.com/mesosphere/cassandra-mesos</url>
+    </scm>
+    <issueManagement>
+        <system>Github</system>
+        <url>https://github.com/mesosphere/cassandra-mesos/issues</url>
+    </issueManagement>
+
+    <artifactId>cassandra-dist</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.mesosphere.mesos.frameworks</groupId>
+            <artifactId>cassandra-executor</artifactId>
+            <classifier>jar-with-dependencies</classifier>
+        </dependency>
+        <dependency>
+            <groupId>io.mesosphere.mesos.frameworks</groupId>
+            <artifactId>cassandra-framework</artifactId>
+            <classifier>jar-with-dependencies</classifier>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- License stuff -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>com.googlecode.maven-download-plugin</groupId>
+                <artifactId>download-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>wget</goal>
+                        </goals>
+                        <configuration>
+                            <url>https://downloads.mesosphere.io/cassandra-mesos/cassandra/apache-cassandra-${version.cassandra}-bin.tar.gz</url>
+                            <outputDirectory>${project.build.directory}/tarball</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/tarball</outputDirectory>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>io.mesosphere.mesos.frameworks</groupId>
+                                    <artifactId>cassandra-framework</artifactId>
+                                    <classifier>jar-with-dependencies</classifier>
+                                    <destFileName>cassandra-framework.jar</destFileName>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.mesosphere.mesos.frameworks</groupId>
+                                    <artifactId>cassandra-executor</artifactId>
+                                    <classifier>jar-with-dependencies</classifier>
+                                    <destFileName>cassandra-executor.jar</destFileName>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>src/main/assembly/tarball.xml</descriptor>
+                            </descriptors>
+                            <attach>false</attach>
+                            <appendAssemblyId>false</appendAssemblyId>
+                            <tarLongFileMode>gnu</tarLongFileMode>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>javadoc</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>ideauidesigner-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>javac2</goal>
+                        </goals>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

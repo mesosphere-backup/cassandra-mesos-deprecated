@@ -17,13 +17,13 @@ A design document outlining what features and characteristics are being targeted
 * The Framework can easily be launched by Marathon allowing for easy installation
 * Repair Job coordination
 * Cleanup Job coordination
+* Replace Node
+* Rolling restart
+* Improved heap calculation to allow for memory mapped files
 
 ### Near Term Tasks
 * Integration tests
 * Create stress tests to try and simulate real world workloads and to identify bugs in fault tolerance handling
-* Replace Node
-* Rolling restart
-* Improved heap calculation to allow for memory mapped files
 
 # Running the Framework
 

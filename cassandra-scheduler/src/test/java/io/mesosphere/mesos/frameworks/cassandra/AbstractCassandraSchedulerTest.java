@@ -18,10 +18,7 @@ import io.mesosphere.mesos.util.ProtoUtils;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
@@ -1153,6 +1150,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         scheduler = new CassandraScheduler(configuration, cluster);
 
         driver = new MockSchedulerDriver(scheduler);
+        driver.callRegistered(Protos.FrameworkID.newBuilder().setValue(UUID.randomUUID().toString()).build());
     }
 
     protected static String executorIdValue(Protos.TaskInfo executorMetadata) {

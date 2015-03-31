@@ -134,7 +134,7 @@ public class ApiControllerTest extends AbstractCassandraSchedulerTest {
         JsonNode json = tup._2;
 
         assertEquals("test-cluster", json.get("frameworkName").asText());
-        assertEquals("", json.get("frameworkId").asText());
+        assertThat(json.get("frameworkId").asText()).isNotEmpty();
         assertEquals(9042, json.get("nativePort").asInt());
         assertEquals(9160, json.get("rpcPort").asInt());
     }

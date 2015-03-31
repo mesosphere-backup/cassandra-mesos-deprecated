@@ -134,11 +134,15 @@ public class MockSchedulerDriver implements SchedulerDriver {
 
     @Override
     public Protos.Status reconcileTasks(Collection<Protos.TaskStatus> statuses) {
-        throw new UnsupportedOperationException();
+        return Protos.Status.DRIVER_RUNNING;
     }
 
     public void callRegistered(Protos.FrameworkID frameworkId) {
         scheduler.registered(this, frameworkId, masterInfo);
+    }
+
+    public void callReRegistered() {
+        scheduler.reregistered(this, masterInfo);
     }
 
     public List<Protos.OfferID> declinedOffers() {

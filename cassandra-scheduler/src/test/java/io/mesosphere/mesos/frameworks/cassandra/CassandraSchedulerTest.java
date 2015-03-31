@@ -14,6 +14,7 @@
 package io.mesosphere.mesos.frameworks.cassandra;
 
 import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
+import io.mesosphere.mesos.util.SystemClock;
 import org.apache.mesos.Protos;
 import org.junit.Test;
 
@@ -23,6 +24,53 @@ import static org.assertj.core.api.Assertions.*;
 import static org.junit.Assert.*;
 
 public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
+    @Test
+    public void testReregistration() throws Exception {
+        threeNodeCluster();
+
+        List<CassandraFrameworkProtos.CassandraNode> nodes = cluster.getClusterState().nodes();
+        assertThat(nodes).hasSize(3);
+        for (CassandraFrameworkProtos.CassandraNode node : nodes) {
+            assertNotNull(node);
+            CassandraFrameworkProtos.CassandraNodeExecutor exec = node.getCassandraNodeExecutor();
+            assertNotNull(exec);
+            assertThat(nodes).isNotEmpty();
+            for (CassandraFrameworkProtos.FileDownload down : exec.getDownloadList()) {
+                assertThat(down.getDownloadUrl()).startsWith("http://127.0.0.1:65535/");
+            }
+        }
+
+        scheduler.disconnected(driver);
+
+        //
+
+        cluster = new CassandraCluster(new SystemClock(),
+            "http://127.42.42.42:42",
+            new ExecutorCounter(state, 0L),
+            new PersistedCassandraClusterState(state, 3, 2),
+            new PersistedCassandraClusterHealthCheckHistory(state),
+            new PersistedCassandraClusterJobs(state),
+            configuration);
+        clusterState = cluster.getClusterState();
+        scheduler = new CassandraScheduler(configuration, cluster);
+        driver = new MockSchedulerDriver(scheduler);
+
+        driver.callReRegistered();
+
+        nodes = cluster.getClusterState().nodes();
+        assertThat(nodes).hasSize(3);
+        for (CassandraFrameworkProtos.CassandraNode node : nodes) {
+            assertNotNull(node);
+            CassandraFrameworkProtos.CassandraNodeExecutor exec = node.getCassandraNodeExecutor();
+            assertNotNull(exec);
+            assertThat(nodes).isNotEmpty();
+            for (CassandraFrameworkProtos.FileDownload down : exec.getDownloadList()) {
+                assertThat(down.getDownloadUrl()).startsWith("http://127.42.42.42:42/");
+            }
+        }
+
+    }
+
     @Test
     public void testIsLiveNode() throws Exception {
         cleanState();

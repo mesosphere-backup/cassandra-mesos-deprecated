@@ -167,7 +167,7 @@ public final class CassandraCluster {
         return null;
     }
 
-    public void removeTask(@NotNull final String taskId, Protos.TaskStatus status) {
+    public void removeTask(@NotNull final String taskId, @NotNull Protos.TaskStatus status) {
         List<CassandraNode> nodes = clusterState.nodes();
         List<CassandraNode> newNodes = new ArrayList<>(nodes.size());
         boolean changed = false;
@@ -257,6 +257,16 @@ public final class CassandraCluster {
                 .filter(cassandraNodeForTaskId(taskId))
                 .filter(cassandraNodeHasExecutor())
         );
+    }
+
+    public void updateNodeExecutors() {
+        List<CassandraNode> nodes = new ArrayList<>();
+        for (CassandraNode node : clusterState.nodes()) {
+            nodes.add(CassandraNode.newBuilder(node)
+                .setCassandraNodeExecutor(buildCassandraNodeExecutor(node.getCassandraNodeExecutor().getExecutorId()))
+                .build());
+        }
+        clusterState.nodes(nodes);
     }
 
     public void addExecutorMetadata(@NotNull final ExecutorMetadata executorMetadata) {
@@ -383,7 +393,7 @@ public final class CassandraCluster {
                     return null;
                 }
                 final String executorId = getExecutorIdForOffer(offer);
-                final CassandraNodeExecutor executor = getCassandraNodeExecutorSupplier(executorId);
+                final CassandraNodeExecutor executor = buildCassandraNodeExecutor(executorId);
                 node.setCassandraNodeExecutor(executor);
             }
 
@@ -757,7 +767,7 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private CassandraNodeExecutor getCassandraNodeExecutorSupplier(@NotNull final String executorId) {
+    private CassandraNodeExecutor buildCassandraNodeExecutor(@NotNull final String executorId) {
         String osName = Env.option("OS_NAME").or(Env.osFromSystemProperty());
         String javaExec = "macosx".equals(osName)
             ? "$(pwd)/jre*/Contents/Home/bin/java"

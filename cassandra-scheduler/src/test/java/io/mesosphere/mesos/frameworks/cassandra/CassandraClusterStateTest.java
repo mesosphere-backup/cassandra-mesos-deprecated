@@ -165,7 +165,7 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         // server-task no longer running
         CassandraFrameworkProtos.CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(cluster.cassandraNodeForHostname(slaves[0]._2).get(), CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
         assertNotNull(serverTask);
-        cluster.removeTask(serverTask.getTaskId(), null);
+        cluster.removeTask(serverTask.getTaskId(), Protos.TaskStatus.getDefaultInstance());
 
         // server-task cannot start again
         launchServer(cluster, slaves[0]);

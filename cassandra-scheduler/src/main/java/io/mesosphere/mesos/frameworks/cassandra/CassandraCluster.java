@@ -189,6 +189,18 @@ public final class CassandraCluster {
                     break;
                 case SERVER:
                     builder.clearCassandraDaemonPid();
+                    if (status.hasSource()) {
+                        switch (status.getSource()) {
+                            case SOURCE_MASTER:
+                            case SOURCE_SLAVE:
+                                recordHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId(),
+                                    HealthCheckDetails.newBuilder()
+                                        .setHealthy(false)
+                                        .setMsg("Removing Cassandra server task " + taskId + ". Reason=" + status.getReason() + ", source=" + status.getSource() + ", message=\"" + status.getMessage() + '"')
+                                        .build());
+                                break;
+                        }
+                    }
                     break;
                 case CLUSTER_JOB:
                     jobsState.clearClusterJobCurrentNode(status.getExecutorId().getValue());

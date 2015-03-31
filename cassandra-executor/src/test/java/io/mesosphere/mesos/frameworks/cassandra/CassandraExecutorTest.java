@@ -293,7 +293,18 @@ public class CassandraExecutorTest {
 
         driver.killTask(taskIdServer);
 
-        taskStatus = driver.taskStatusList();
+        for (int i = 0; i < 50; i++) {
+            taskStatus = driver.taskStatusList();
+            if (taskStatus.isEmpty()) {
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                break;
+            }
+        }
         assertEquals(1, taskStatus.size());
         // server task finished...
         assertEquals(taskIdServer, taskStatus.get(0).getTaskId());

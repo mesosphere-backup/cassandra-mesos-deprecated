@@ -542,7 +542,7 @@ public final class CassandraCluster {
     }
 
     private boolean canLaunchServerTask() {
-        return clock.now().getMillis() > nextPossibleServerLaunchTimestamp();
+        return clock.now().getMillis() >= nextPossibleServerLaunchTimestamp();
     }
 
     public long nextPossibleServerLaunchTimestamp() {

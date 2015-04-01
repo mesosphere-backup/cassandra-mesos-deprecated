@@ -212,7 +212,7 @@ MESOS_ZK=zk://localhost:2181/mesos
 ## Development
 For development of the Cassandra Framework you will need access to a Mesos Cluster (for help setting up a cluster see [Setting up a Mesosphere Cluster](http://mesosphere.com/docs/getting-started/datacenter/install/)).
 
-*The main class of the framework, `io.mesosphere.mesos.frameworks.cassandra.Main`, can safely be ran from you IDE if that is your preferred development environment.*
+*The main class of the framework, `io.mesosphere.mesos.frameworks.cassandra.framework.Main`, can safely be ran from you IDE if that is your preferred development environment.*
 
 Run `dev-run.bash` to startup the framework. You should then be able to see tasks being launched in your Mesos UI.
 

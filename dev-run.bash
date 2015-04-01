@@ -19,7 +19,7 @@ function main {(
     export CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS=60
     export CASSANDRA_ZK_TIMEOUT_MS=10000
 
-    java -cp $(pwd)/cassandra-mesos-dist/target/tarball/cassandra-mesos-framework.jar io.mesosphere.mesos.frameworks.cassandra.Main
+    java -cp $(pwd)/cassandra-mesos-dist/target/tarball/cassandra-mesos-framework.jar io.mesosphere.mesos.frameworks.cassandra.framework.Main
 
 )}
 

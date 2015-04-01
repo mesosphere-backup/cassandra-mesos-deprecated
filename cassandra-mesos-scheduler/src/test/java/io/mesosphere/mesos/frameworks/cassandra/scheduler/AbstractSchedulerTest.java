@@ -52,7 +52,7 @@ public abstract class AbstractSchedulerTest {
                 "test-cluster",
                 0, // health-check
                 0, // bootstrap-grace-time
-                "2.1.2",
+                "2.1.4",
             2, 4096, 4096, 0,
             3, 2,
             "*",
@@ -119,7 +119,7 @@ public abstract class AbstractSchedulerTest {
                         .setJoined(joined)
                         .setOperationMode(operationMode)
                         .setUptimeMillis(1234)
-                        .setVersion("2.1.2")
+                        .setVersion("2.1.4")
                         .setNativeTransportRunning(true)
                         .setRpcServerRunning(true)
                 )

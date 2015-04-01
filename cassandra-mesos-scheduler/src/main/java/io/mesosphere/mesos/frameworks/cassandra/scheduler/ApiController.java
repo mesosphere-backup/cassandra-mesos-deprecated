@@ -136,7 +136,7 @@ public final class ApiController {
      * "frameworkName" : "cassandra",
      * "frameworkId" : "20150318-143436-16777343-5050-5621-0000",
      * "defaultConfigRole" : {
-     *     "cassandraVersion" : "2.1.2",
+     *     "cassandraVersion" : "2.1.4",
      *     "targetNodeCount" : 2,
      *     "seedNodeCount" : 1,
      *     "diskMb" : 2048,
@@ -245,7 +245,7 @@ public final class ApiController {
      *     "healthCheckDetails" : {
      *         "healthy" : true,
      *         "msg" : "",
-     *         "version" : "2.1.2",
+     *         "version" : "2.1.4",
      *         "operationMode" : "NORMAL",
      *         "clusterName" : "cassandra",
      *         "dataCenter" : "DC1",
@@ -286,7 +286,7 @@ public final class ApiController {
      *     "healthCheckDetails" : {
      *         "healthy" : true,
      *         "msg" : "",
-     *         "version" : "2.1.2",
+     *         "version" : "2.1.4",
      *         "operationMode" : "JOINING",
      *         "clusterName" : "cassandra",
      *         "dataCenter" : "",

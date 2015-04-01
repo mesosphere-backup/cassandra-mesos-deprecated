@@ -270,13 +270,13 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
             .hasSize(2)
             .contains(
                 "/foo/executor.log",
-                "/foo/apache-cassandra-2.1.2/logs/system.log");
+                "/foo/apache-cassandra-2.1.4/logs/system.log");
 
         assertThat(cluster.getNodeLogFiles(node2))
             .hasSize(2)
             .contains(
                 "/bar/executor.log",
-                "/bar/apache-cassandra-2.1.2/logs/system.log");
+                "/bar/apache-cassandra-2.1.4/logs/system.log");
     }
 
     @Test

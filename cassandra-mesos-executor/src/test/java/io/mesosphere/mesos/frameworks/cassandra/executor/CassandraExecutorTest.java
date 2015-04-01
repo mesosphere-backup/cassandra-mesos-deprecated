@@ -254,7 +254,7 @@ public class CassandraExecutorTest {
             CassandraFrameworkProtos.TaskDetails.newBuilder()
                 .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN)
                 .setCassandraServerRunTask(CassandraFrameworkProtos.CassandraServerRunTask.newBuilder()
-                    .setVersion("2.1.2")
+                    .setVersion("2.1.4")
                     .addCommand("somewhere")
                     .setCassandraServerConfig(CassandraFrameworkProtos.CassandraServerConfig.newBuilder()
                         .setCassandraYamlConfig(CassandraFrameworkProtos.TaskConfig.newBuilder())

@@ -46,7 +46,7 @@ public final class FileResourceController {
         verifyFileExistsAndCanRead(f);
         jreTarFile = f;
 
-        String cassandraVersion = Env.option("CASSANDRA_VERSION").or("2.1.2");
+        String cassandraVersion = Env.option("CASSANDRA_VERSION").or("2.1.4");
         String providedCassandraTar = Env.option("CASSANDRA_FILE_PATH").or(workingDir("/apache-cassandra-" + cassandraVersion + "-bin.tar.gz"));
         //f = null;
         //if (providedCassandraTar != null)

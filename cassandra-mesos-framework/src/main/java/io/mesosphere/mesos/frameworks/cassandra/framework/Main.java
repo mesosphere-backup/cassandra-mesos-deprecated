@@ -111,7 +111,7 @@ public final class Main {
         final long      javaHeapMb              = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_HEAP_MB").or("0"));
         final long      healthCheckIntervalSec  = Long.parseLong(       Env.option("CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS").or("60"));
         final long      bootstrapGraceTimeSec   = Long.parseLong(       Env.option("CASSANDRA_BOOTSTRAP_GRACE_TIME_SECONDS").or("120"));
-        final String    cassandraVersion        =                       "2.1.2"; // TODO Env.option("CASSANDRA_VERSION").or("2.1.2");
+        final String    cassandraVersion        =                       "2.1.4"; // TODO Env.option("CASSANDRA_VERSION").or("2.1.4");
         final String    frameworkName           = frameworkName(Env.option("FRAMEWORK_NAME"));
         final String    zkUrl                   =                       Env.option("CASSANDRA_ZK").or("zk://localhost:2181/cassandra-mesos");
         final long      zkTimeoutMs             = Long.parseLong(Env.option("CASSANDRA_ZK_TIMEOUT_MS").or("10000"));

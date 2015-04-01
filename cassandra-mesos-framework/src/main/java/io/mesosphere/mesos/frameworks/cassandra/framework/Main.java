@@ -180,7 +180,7 @@ public final class Main {
         );
 
         final ResourceConfig rc = new ResourceConfig()
-            .register(new FileResourceController())
+            .register(new FileResourceController(cassandraVersion))
             .register(new ApiController(cassandraCluster));
             //.packages("io.mesosphere.mesos.frameworks.cassandra");
         final HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);

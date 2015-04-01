@@ -1,10 +1,15 @@
 #!/bin/bash
 set -o errexit -o nounset -o pipefail
 
-function main {(
-
+function maven {(
     mvn clean package
+)}
+
+function download {(
     wget --progress=dot -e dotbytes=1M -O "$(pwd)/cassandra-mesos-dist/target/tarball/jre.tar.gz" https://downloads.mesosphere.io/java/jre-7u75-linux-x64.tar.gz
+)}
+
+function execute {(
     export PORT0=18080
     export CASSANDRA_CLUSTER_NAME=dev-cluster
     export MESOS_ZK=zk://localhost:2181/mesos
@@ -20,7 +25,15 @@ function main {(
     export CASSANDRA_ZK_TIMEOUT_MS=10000
 
     java -cp $(pwd)/cassandra-mesos-dist/target/tarball/cassandra-mesos-framework.jar io.mesosphere.mesos.frameworks.cassandra.framework.Main
-
 )}
 
-main
+function main {(
+    maven
+    download
+    execute
+)}
+
+if [[ ${1:-} ]] && declare -F | cut -d' ' -f3 | fgrep -qx -- "${1:-}"
+then "$@"
+else main
+fi

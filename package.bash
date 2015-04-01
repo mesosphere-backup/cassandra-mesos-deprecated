@@ -2,7 +2,7 @@
 set -o errexit -o nounset -o pipefail
 
 PROJECT_DIR=$(pwd)
-TARGET_DIR="cassandra-dist/target/tarball"
+TARGET_DIR="cassandra-mesos-dist/target/tarball"
 
 DOWNLOAD_URL_CASS="https://downloads.mesosphere.io/cassandra-mesos/cassandra/apache-cassandra-2.1.2-bin.tar.gz"
 
@@ -37,8 +37,8 @@ function download {(
 function copy {(
 
     mkdir -p ${TARGET_DIR}
-    cp ${PROJECT_DIR}/cassandra-framework/target/cassandra-framework-*-jar-with-dependencies.jar ${TARGET_DIR}/cassandra-framework.jar
-    cp ${PROJECT_DIR}/cassandra-executor/target/cassandra-executor-*-jar-with-dependencies.jar ${TARGET_DIR}/cassandra-executor.jar
+    cp ${PROJECT_DIR}/cassandra-mesos-framework/target/cassandra-mesos-framework-*-jar-with-dependencies.jar ${TARGET_DIR}/cassandra-mesos-framework.jar
+    cp ${PROJECT_DIR}/cassandra-mesos-executor/target/cassandra-mesos-executor-*-jar-with-dependencies.jar ${TARGET_DIR}/cassandra-mesos-executor.jar
 )}
 
 

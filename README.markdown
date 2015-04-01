@@ -212,7 +212,7 @@ MESOS_ZK=zk://localhost:2181/mesos
 ## Development
 For development of the Cassandra Framework you will need access to a Mesos Cluster (for help setting up a cluster see [Setting up a Mesosphere Cluster](http://mesosphere.com/docs/getting-started/datacenter/install/)).
 
-*The main class of the framework, `io.mesosphere.mesos.frameworks.cassandra.Main`, can safely be ran from you IDE if that is your preferred development environment.*
+*The main class of the framework, `io.mesosphere.mesos.frameworks.cassandra.framework.Main`, can safely be ran from you IDE if that is your preferred development environment.*
 
 Run `dev-run.bash` to startup the framework. You should then be able to see tasks being launched in your Mesos UI.
 
@@ -226,10 +226,10 @@ The following environment variables (with example values) should be specified fo
 ## the mesos slaves.
 PORT0=18080
 
-# The file path to where the cassandra-executor jar-with-dependencies is on the local file system
+# The file path to where the cassandra-mesos-executor jar-with-dependencies is on the local file system
 # This file will be served by the built-in http server so that tasks will be able to easily access
 # the jar.
-EXECUTOR_FILE_PATH=${PROJECT_DIR}/cassandra-executor/target/cassandra-executor-0.1.0-SNAPSHOT-jar-with-dependencies.jar
+EXECUTOR_FILE_PATH=${PROJECT_DIR}/cassandra-mesos-executor/target/cassandra-mesos-executor-0.1.0-SNAPSHOT-jar-with-dependencies.jar
 
 # The file path to where a tar of the Oracle JRE version 7 update 75 is on the local file system.
 # This file will be served by the build-in http server so that tasks will be able to easily access

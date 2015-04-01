@@ -3,12 +3,14 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <groupId>io.mesosphere.mesos.frameworks</groupId>
-        <artifactId>cassandra</artifactId>
+        <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
+        <artifactId>cassandra-mesos-parent</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <packaging>pom</packaging>
+
+    <artifactId>cassandra-mesos-dist</artifactId>
 
     <licenses>
         <license>
@@ -53,17 +55,15 @@
         <url>https://github.com/mesosphere/cassandra-mesos/issues</url>
     </issueManagement>
 
-    <artifactId>cassandra-dist</artifactId>
-
     <dependencies>
         <dependency>
-            <groupId>io.mesosphere.mesos.frameworks</groupId>
-            <artifactId>cassandra-executor</artifactId>
+            <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
+            <artifactId>cassandra-mesos-executor</artifactId>
             <classifier>jar-with-dependencies</classifier>
         </dependency>
         <dependency>
-            <groupId>io.mesosphere.mesos.frameworks</groupId>
-            <artifactId>cassandra-framework</artifactId>
+            <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
+            <artifactId>cassandra-mesos-framework</artifactId>
             <classifier>jar-with-dependencies</classifier>
         </dependency>
     </dependencies>
@@ -103,16 +103,16 @@
                             <outputDirectory>${project.build.directory}/tarball</outputDirectory>
                             <artifactItems>
                                 <artifactItem>
-                                    <groupId>io.mesosphere.mesos.frameworks</groupId>
-                                    <artifactId>cassandra-framework</artifactId>
+                                    <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
+                                    <artifactId>cassandra-mesos-framework</artifactId>
                                     <classifier>jar-with-dependencies</classifier>
-                                    <destFileName>cassandra-framework.jar</destFileName>
+                                    <destFileName>cassandra-mesos-framework.jar</destFileName>
                                 </artifactItem>
                                 <artifactItem>
-                                    <groupId>io.mesosphere.mesos.frameworks</groupId>
-                                    <artifactId>cassandra-executor</artifactId>
+                                    <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
+                                    <artifactId>cassandra-mesos-executor</artifactId>
                                     <classifier>jar-with-dependencies</classifier>
-                                    <destFileName>cassandra-executor.jar</destFileName>
+                                    <destFileName>cassandra-mesos-executor.jar</destFileName>
                                 </artifactItem>
                             </artifactItems>
                         </configuration>

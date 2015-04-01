@@ -1,6 +1,14 @@
 Cassandra Mesos Framework
 =========================
 
+------------
+
+**DISCLAIMER**
+_This is a very early version of Cassandra-on-Mesos framework. This
+document, code behavior, and anything else may change without notice and/or break older installations._
+
+------------
+
 # Design
 A design document outlining what features and characteristics are being targeted by the Cassandra Mesos Framework can be found in the docs folder in [design.markdown](docs/design.markdown).
 

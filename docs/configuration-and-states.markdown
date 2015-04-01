@@ -4,8 +4,8 @@ Cassandra-on-Mesos configuration and state
 ------------
 
 **DISCLAIMER**
-_You are looking at a very early version of Cassandra-on-Meos framework. Things mentioned in this
-document, behavior implemented in the code and anything else may change without notice and/or break older installations._
+_This is a very early version of Cassandra-on-Mesos framework. This
+document, code behavior, and anything else may change without notice and/or break older installations._
 
 ------------
 
@@ -89,7 +89,6 @@ it is set to `TERMINATE`.
 * `TERMINATE` is a 'dead end state'. It means to stop the Cassandra process and the executor. It is not possible
   to set `targetRunState` for this node to another value. All you can do is to do initiate a node-replace for
   this node.
-
 
 ![CassandraNode targetRunState transitions](node-state-transition.png "CassandraNode targetRunState transitions")
 

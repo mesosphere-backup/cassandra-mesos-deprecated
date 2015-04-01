@@ -1,6 +1,7 @@
 Cassandra Mesos Framework
 =========================
 
+
 # Motivation
 
 As the adoption of Apache Mesos expands, the demand to run Distributed Databases such as Cassandra expands as well. As part of running Cassandra on Mesos it is desirable that many operational tasks be automated by the framework rather than having to be done externally.

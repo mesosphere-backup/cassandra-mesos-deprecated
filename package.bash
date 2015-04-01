@@ -3,8 +3,9 @@ set -o errexit -o nounset -o pipefail
 
 PROJECT_DIR=$(pwd)
 TARGET_DIR="cassandra-mesos-dist/target/tarball"
+CASSANDRA_VERSION="2.1.4"
 
-DOWNLOAD_URL_CASS="https://downloads.mesosphere.io/cassandra-mesos/cassandra/apache-cassandra-2.1.4-bin.tar.gz"
+DOWNLOAD_URL_CASS="https://downloads.mesosphere.io/cassandra-mesos/cassandra/apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz"
 
 VERSION=${VERSION:-"dev"}
 CLEAN_VERSION=${VERSION//\//_}
@@ -26,10 +27,10 @@ function clean {(
 
 function download {(
 
-    if [ ! -f "${TARGET_DIR}/apache-cassandra-2.1.4-bin.tar.gz" ] ; then
+    if [ ! -f "${TARGET_DIR}/apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz" ] ; then
         mkdir -p ${TARGET_DIR}
         cd ${TARGET_DIR}
-        _download ${DOWNLOAD_URL_CASS} "apache-cassandra-2.1.4-bin.tar.gz"
+        _download ${DOWNLOAD_URL_CASS} "apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz"
     fi
 
 )}

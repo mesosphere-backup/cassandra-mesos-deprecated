@@ -236,7 +236,7 @@ EXECUTOR_FILE_PATH=${PROJECT_DIR}/cassandra-mesos-executor/target/cassandra-meso
 # the jre, and it doesn't have to be provided by the slave host.
 JRE_FILE_PATH=${PROJECT_DIR}/target/framework-package/jdk.tar.gz
 
-# The file path to where a tar of Apache Cassandra 2.1.2 is on the local file system.
+# The file path to where a tar of Apache Cassandra 2.1.4 is on the local file system.
 # This file will be served by the build-in http server so that tasks will be able to easily access
 # the cassandra server, and it doesn't have to be provided by the slave host.
 CASSANDRA_FILE_PATH=${PROJECT_DIR}/target/framework-package/cassandra.tar.gz
@@ -269,6 +269,32 @@ Environment variables:
 
 Command line options:
 * `--limit N` the number of live nodes to use. Has no effect for cqlsh or nodetool.
+
+## Important security notice
+
+CVE-2015-0225 describes a security vulnerability in Cassandra, which allows an attacker to execute arbitrary code via
+JMX/RMI.
+
+Some non-critical tools of Cassandra-on-Mesos framework rely on some functionality via JMX to be available remotely.
+
+1. `com-nodetool` (as `nodetool` itself) requires the JMX port to be open from outside. 
+1. `com-qa-report` uses `com-nodetool` for some functionality, means, it requires the JMX port to be open from outside.
+
+Do **not** open JMX port without authentication and SSL and proper firewall rules unless you know exactly what you
+are doing! Opening the JMX port will make your Cassandra nodes vulnerable to the security risk.
+If you are really sure that you explicitly want to expose the JMX port, you can pass the environment variables
+`CASSANDRA_JMX_LOCAL=false` and `CASSANDRA_JMX_NO_AUTHENTICATION=true` to the framework upon **initial** invocation
+(i.e. when the framework first registers).
+
+However [CASSANDRA-9089](https://issues.apache.org/jira/browse/CASSANDRA-9089) is meant to let JMX listen to a
+specific IP address, but is is not included in Cassandra 2.1.4.
+
+References:
+
+* [Security announcement](http://www.mail-archive.com/user@cassandra.apache.org/msg41819.html)
+* [CASSANDRA-9085](https://issues.apache.org/jira/browse/CASSANDRA-9085)
+* [JMX security](https://wiki.apache.org/cassandra/JmxSecurity)
+* [JMX agent](http://docs.oracle.com/javase/7/docs/technotes/guides/management/agent.html)
 
 ## Live Cassandra nodes API
 

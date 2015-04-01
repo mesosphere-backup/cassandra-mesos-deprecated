@@ -150,6 +150,11 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
+        public boolean isStarting() {
+            return false;
+        }
+
+        @Override
         public String getReleaseVersion() {
             return "5.6.7";
         }
@@ -391,12 +396,22 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public int forceRepairRangeAsync(String beginToken, String endToken, String keyspaceName, boolean isSequential, Collection<String> dataCenters, Collection<String> hosts, boolean repairedAt, String... columnFamilies) {
+        public int forceRepairAsync(String keyspace, int parallelismDegree, Collection<String> dataCenters, Collection<String> hosts, boolean primaryRange, boolean fullRepair, String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
         public int forceRepairRangeAsync(String beginToken, String endToken, String keyspaceName, boolean isSequential, boolean isLocal, boolean repairedAt, String... columnFamilies) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int forceRepairRangeAsync(String beginToken, String endToken, String keyspaceName, boolean isSequential, Collection<String> dataCenters, Collection<String> hosts, boolean repairedAt, String... columnFamilies) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int forceRepairRangeAsync(String beginToken, String endToken, String keyspaceName, int parallelismDegree, Collection<String> dataCenters, Collection<String> hosts, boolean fullRepair, String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 

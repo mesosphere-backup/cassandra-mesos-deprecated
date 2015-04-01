@@ -3,6 +3,5 @@
 _BINARY=bin/nodetool
 _LIVE_NODES_TYPE=nodetool
 . `dirname $0`/com.in.sh
-#exec `dirname $0`/com_bin bin/nodetool nodetool "$@"
 
 exec ${EXEC} ${ARGS} "$@"

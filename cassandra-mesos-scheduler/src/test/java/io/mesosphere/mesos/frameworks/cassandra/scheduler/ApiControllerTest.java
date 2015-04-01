@@ -349,8 +349,6 @@ public class ApiControllerTest extends AbstractCassandraSchedulerTest {
         assertEquals(200, tup._1.intValue());
         JsonNode json = tup._2;
 
-        assertTrue(json.get("jmxPort").isNumber());
-
         for (int i = 0; i < activeNodes; i++) {
             Tuple2<Protos.SlaveID, String> slave = slaves[i];
             JsonNode node = json.get("nodes").get(executorMetadata[i].getExecutor().getExecutorId().getValue());
@@ -358,6 +356,7 @@ public class ApiControllerTest extends AbstractCassandraSchedulerTest {
             assertTrue(node.has("workdir"));
             assertTrue(node.has("hostname"));
             assertTrue(node.has("targetRunState"));
+            assertTrue(node.has("jmxIp"));
             assertTrue(node.has("jmxPort"));
             assertTrue(node.has("live"));
             assertTrue(node.get("logfiles").isArray());
@@ -373,11 +372,12 @@ public class ApiControllerTest extends AbstractCassandraSchedulerTest {
         assertEquals(200, tup._1.intValue());
 
         try (BufferedReader br = new BufferedReader(new StringReader(tup._2))) {
-            assertTrue(br.readLine().startsWith("JMX: "));
 
             for (int i = 0; i < activeNodes; i++) {
                 Tuple2<Protos.SlaveID, String> slave = slaves[i];
-                assertEquals("IP: " + slave._2, br.readLine());
+                assertThat(br.readLine()).startsWith("JMX_PORT: ");
+                assertEquals("JMX_IP: 127.0.0.1", br.readLine());
+                assertEquals("NODE_IP: " + slave._2, br.readLine());
                 assertEquals("BASE: http://" + slave._2 + ":5051/", br.readLine());
                 assertTrue(br.readLine().startsWith("LOG: "));
                 assertTrue(br.readLine().startsWith("LOG: "));

@@ -26,10 +26,10 @@ function nodetoolInvoke() {
 
 curl -s "${API_BASE_URI}qaReportResources/text" | while read ln ; do
     case $ln in
-        JMX:*)
+        JMX_PORT:*)
             jmxPort="`echo $ln | cut -d\  -f 2`"
             ;;
-        IP:*)
+        NODE_IP:*)
             currentIp="`echo $ln | cut -d\  -f 2`"
             mkdir -p ${targetDir}/${currentIp}
 

@@ -33,7 +33,7 @@ public final class FileResourceController {
     @NotNull
     private final File cassandraTarFile;
 
-    public FileResourceController() {
+    public FileResourceController(String cassandraVersion) {
         File f;
 
         String javaVersion = Env.option("JAVA_VERSION").or("7u76");
@@ -46,7 +46,6 @@ public final class FileResourceController {
         verifyFileExistsAndCanRead(f);
         jreTarFile = f;
 
-        String cassandraVersion = Env.option("CASSANDRA_VERSION").or("2.1.2");
         String providedCassandraTar = Env.option("CASSANDRA_FILE_PATH").or(workingDir("/apache-cassandra-" + cassandraVersion + "-bin.tar.gz"));
         //f = null;
         //if (providedCassandraTar != null)

@@ -90,49 +90,58 @@ message CassandraConfigRole {
      */
     required TaskResources resources = 5;
 
-    // Cassandra memory usage can be categorized into
-    // 1. Java heap (MAX_HEAP_SIZE) - including new-gen (HEAP_NEWSIZE)
-    //    Amount of Java heap in MB.
-    //    (defaults to 50% of memMb, max 16384, if not present)
+    /**
+     * Cassandra memory usage can be categorized into
+     * 1. Java heap (MAX_HEAP_SIZE) - including new-gen (HEAP_NEWSIZE)
+     *    Amount of Java heap in MB.
+     *    (defaults to 50% of memMb, max 16384, if not present)
+     * 2. Off-Heap
+     *    Amount of Off heap in MB.
+     *    (defaults to memMb - memJavaHeapMb, if not present)
+     * 3. OS (add as much as possible for OS block cache)
+     *     This is just the difference between memMb and memJavaHeapMb + memAssumeOffHeapMb
+     *  Production grade memory configuration should include all three memory configuration parameters above.
+     *  Do not forget to add as much memory for OS block cache as possible for improved performance.
+     *
+     *  Off-heap structures (C* 2.1):
+     *  - index-summary (default: 5% of the heap size)
+     *    configured in cassandra.yaml - see index_summary_capacity_in_mb
+     *    default to 5% of the heap size (may exceed)
+     *  - key-cache (default: 5% of the heap size)
+     *    configured in cassandra.yaml - see key_cache_size_in_mb
+     *    default to 5% of the heap size
+     *  - row-cache (default: off)
+     *    configured in cassandra.yaml - see row_cache_size_in_mb (must be explicitly enabled in taskEnv)
+     *    default to 0
+     *  - counter-cache (default: min(2.5% of Heap (in MB), 50MB))
+     *    configured in cassandra.yaml - see counter_cache_size_in_mb
+     *    default: min(2.5% of Heap (in MB), 50MB) ; 0 means no cache
+     *  - memtables (default on-heap)
+     *    configured in cassandra.yaml - see file_cache_size_in_mb
+     *    default to the smaller of 1/4 of heap or 512MB
+     *  - file-cache (default: min(25% of Heap (in MB), 512MB))
+     *    configured in cassandra.yaml - see file_cache_size_in_mb
+     *    default to the smaller of 1/4 of heap or 512MB
+     *  - overhead during flushes/compactions/cleanup
+     *    implicitly defined by workload
+     */
     optional int64 memJavaHeapMb = 6;
-    // 2. Off-Heap
-    //    Amount of Off heap in MB.
-    //    (defaults to memMb - memJavaHeapMb, if not present)
+    /**
+     * see memJavaHeapMb for details
+     */
     optional int64 memAssumeOffHeapMb = 7;
-    // 3. OS (add as much as possible for OS block cache)
-    //    This is just the difference between memMb and memJavaHeapMb + memAssumeOffHeapMb
 
-    // Production grade memory configuration should include all three memory configuration parameters above.
-    // Do not forget to add as much memory for OS block cache as possible for improved performance.
-
-    // Off-heap structures (C* 2.1):
-    // - index-summary (default: 5% of the heap size)
-    //   configured in cassandra.yaml - see index_summary_capacity_in_mb
-    //   default to 5% of the heap size (may exceed)
-    // - key-cache (default: 5% of the heap size)
-    //   configured in cassandra.yaml - see key_cache_size_in_mb
-    //   default to 5% of the heap size
-    // - row-cache (default: off)
-    //   configured in cassandra.yaml - see row_cache_size_in_mb (must be explicitly enabled in taskEnv)
-    //   default to 0
-    // - counter-cache (default: min(2.5% of Heap (in MB), 50MB))
-    //   configured in cassandra.yaml - see counter_cache_size_in_mb
-    //   default: min(2.5% of Heap (in MB), 50MB) ; 0 means no cache
-    // - memtables (default on-heap)
-    //   configured in cassandra.yaml - see file_cache_size_in_mb
-    //   default to the smaller of 1/4 of heap or 512MB
-    // - file-cache (default: min(25% of Heap (in MB), 512MB))
-    //   configured in cassandra.yaml - see file_cache_size_in_mb
-    //   default to the smaller of 1/4 of heap or 512MB
-    // - overhead during flushes/compactions/cleanup
-    //   implicitly defined by workload
-
-    // additional configuration
-    // process environment
+    /**
+     * additional configuration, process environment
+     */
     optional TaskEnv taskEnv = 8;
-    // cassandra.yaml configuration
+    /**
+     * cassandra.yaml configuration
+     */
     optional TaskConfig cassandraYamlConfig = 9;
-    // mesos role to be used to receive resource offers
+    /**
+     * mesos role to be used to receive resource offers
+     */
     optional string mesosRole = 10;
 
     /**
@@ -399,21 +408,31 @@ message CassandraNode {
     optional string replacementForIp = 13;
 
     enum TargetRunState {
-        // If the server task is not active, it is started.
-        // Note that general bootstrap-grace-time settings and other checks (e.g. currently other nodes joining) apply.
+        /**
+         * If the server task is not active, it is started.
+         * Note that general bootstrap-grace-time settings and other checks (e.g. currently other nodes joining) apply.
+         */
         RUN = 0;
-        // If the server-task is active, a server-task shutdown is initiated.
+        /**
+         * If the server-task is active, a server-task shutdown is initiated.
+         */
         STOP = 1;
-        // If the server task is not active, the state is immediately set to RUN.
-        // If the server-task is active, a server-task shutdown is initiated.
-        // Note that general bootstrap-grace-time settings and other checks (e.g. currently other nodes joining) apply.
+        /**
+         * If the server task is not active, the state is immediately set to RUN.
+         * If the server-task is active, a server-task shutdown is initiated.
+         * Note that general bootstrap-grace-time settings and other checks (e.g. currently other nodes joining) apply.
+         */
         RESTART = 2;
-        // Terminate all tasks including the executor itself. There's no way back for a terminated node.
+        /**
+         * Terminate all tasks including the executor itself. There's no way back for a terminated node.
+         */
         TERMINATE = 3;
     }
 
-    // The configuration files of this node need to be updated, but the Cassandra server process does not
-    // need to be restarted.
+    /**
+     * The configuration files of this node need to be updated, but the Cassandra server process does not
+     * need to be restarted.
+     */
     optional bool needsConfigUpdate = 14;
 }
 /**
@@ -828,15 +847,25 @@ message SlaveErrorDetails {
     optional int32 processExitCode = 4;
 
     enum ErrorType {
-        // cassandra server process is not runnning but is expected to be
+        /**
+         * cassandra server process is not runnning but is expected to be
+         */
         PROCESS_NOT_RUNNING = 1;
-        // cassandra server process exited
+        /**
+         * cassandra server process exited
+         */
         PROCESS_EXITED = 2;
-        // protobuf (de)serialization failed
+        /**
+         * protobuf (de)serialization failed
+         */
         PROTOCOL_VIOLATION = 3;
-        // another node job is still running
+        /**
+         * another node job is still running
+         */
         ANOTHER_JOB_RUNNING = 4;
-        // failed to start task
+        /**
+         * failed to start task
+         */
         TASK_START_FAILURE = 5;
     }
 }

@@ -14,7 +14,6 @@
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.*;
 import io.mesosphere.mesos.util.SystemClock;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
@@ -52,11 +51,13 @@ public abstract class AbstractSchedulerTest {
                 "test-cluster",
                 0, // health-check
                 0, // bootstrap-grace-time
-                "2.1.2",
+                "2.1.4",
             2, 4096, 4096, 0,
             3, 2,
             "*",
-            ".");
+            ".",
+            true,
+            false);
 
         cluster = new CassandraCluster(new SystemClock(),
                 "http://127.0.0.1:65535",
@@ -119,7 +120,7 @@ public abstract class AbstractSchedulerTest {
                         .setJoined(joined)
                         .setOperationMode(operationMode)
                         .setUptimeMillis(1234)
-                        .setVersion("2.1.2")
+                        .setVersion("2.1.4")
                         .setNativeTransportRunning(true)
                         .setRpcServerRunning(true)
                 )

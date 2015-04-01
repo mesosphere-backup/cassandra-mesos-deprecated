@@ -39,7 +39,9 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         final int executorCount,
         final int seedCount,
         final String mesosRole,
-        final String dataDirectory
+        final String dataDirectory,
+        final boolean jmxLocal,
+        final boolean jmxNoAuthentication
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -56,7 +58,14 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setNumberOfNodes(executorCount)
                         .setNumberOfSeeds(seedCount)
                         .setMesosRole(mesosRole)
-                        .setPreDefinedDataDirectory(dataDirectory);
+                        .setPreDefinedDataDirectory(dataDirectory)
+                        .setTaskEnv(CassandraFrameworkProtos.TaskEnv.newBuilder()
+                            .addVariables(CassandraFrameworkProtos.TaskEnv.Entry.newBuilder()
+                                .setName("LOCAL_JMX")
+                                .setValue(jmxLocal ? "yes" : "no"))
+                            .addVariables(CassandraFrameworkProtos.TaskEnv.Entry.newBuilder()
+                                .setName("CASSANDRA_JMX_NO_AUTHENTICATION")
+                                .setValue(jmxNoAuthentication ? "yes" : "no")));
                     if (javeHeapMb > 0) {
                         configRole.setMemJavaHeapMb(javeHeapMb);
                     }

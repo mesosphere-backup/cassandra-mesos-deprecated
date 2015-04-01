@@ -39,6 +39,8 @@ import static io.mesosphere.mesos.util.ProtoUtils.protoToString;
 public final class CassandraExecutor implements Executor {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraExecutor.class);
 
+    private static final long SHUTDOWN_TIMEOUT = TimeUnit.MINUTES.toMillis(10);
+
     static {
         // don't let logback load classes ...
         // logback loads classes mentioned in stack traces...
@@ -66,7 +68,7 @@ public final class CassandraExecutor implements Executor {
     public CassandraExecutor(ObjectFactory objectFactory) {
         this.objectFactory = objectFactory;
 
-        this.executorService = new ThreadPoolExecutor(0, 2, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
+        this.executorService = new ThreadPoolExecutor(0, 5, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
             private int seq;
 
             @Override
@@ -342,50 +344,70 @@ public final class CassandraExecutor implements Executor {
 
     //
 
-    private void killCassandraDaemon(ExecutorDriver driver) {
+    private void killCassandraDaemon(final ExecutorDriver driver) {
         if (!killDaemonSingleton.compareAndSet(false, true))
             return;
-        try {
-            TaskInfo task = serverTask;
-
-            if (process != null) {
-                LOGGER.info("Stopping Cassandra Daemon...");
+        // do this asynchronously to let the executor stay responsive to the executor-driver
+        executorService.submit(new Runnable() {
+            @Override
+            public void run() {
                 try {
-                    try {
-                        // note: although we could also use jmxConnect.getStorageServiceProxy().stopDaemon();
-                        // it is safe to do it this way
-                        process.destroy();
-                    } catch (Throwable ignored) {
-                        // any kind of strange exception may occur since shutdown closes everything
-                    }
-                    // TODO make shutdown timeout configurable
-                    long timeoutAt = System.currentTimeMillis() + 1800000L;
-                    while (true) {
-                        if (timeoutAt < System.currentTimeMillis()) {
-                            process.destroyForcibly();
-                            break;
-                        }
+                    TaskInfo task = serverTask;
+
+                    if (process != null) {
+                        LOGGER.info("Stopping Cassandra Daemon...");
                         try {
-                            int exitCode = process.exitValue();
-                            LOGGER.info("Cassandra process terminated with exit code {}", exitCode);
-                            break;
-                        } catch (IllegalThreadStateException e) {
-                            // ignore
+                            try {
+                                // note: although we could also use jmxConnect.getStorageServiceProxy().stopDaemon();
+                                // it is safe to do it this way
+                                process.destroy();
+                            } catch (Throwable ignored) {
+                                // any kind of strange exception may occur since shutdown closes everything
+                            }
+                            // TODO make shutdown timeout configurable
+                            long timeoutAt = System.currentTimeMillis() + SHUTDOWN_TIMEOUT;
+                            while (true) {
+                                if (timeoutAt < System.currentTimeMillis()) {
+                                    process.destroyForcibly();
+                                    break;
+                                }
+                                try {
+                                    int exitCode = process.exitValue();
+                                    LOGGER.info("Cassandra process terminated with exit code {}", exitCode);
+                                    break;
+                                } catch (IllegalThreadStateException e) {
+                                    // ignore
+                                }
+                            }
+                        } catch (Throwable e) {
+                            LOGGER.error("Failed to stop Cassandra daemon - forcing process destroy", e);
+                            try {
+                                process.destroy();
+                            } catch (Throwable ignored) {
+                                // any kind of strange exception may occur since shutdown closes everything
+                            }
+                        } finally {
+                            process = null;
                         }
+
                     }
-                } catch (Exception e) {
-                    LOGGER.error("Failed to stop Cassandra daemon - forcing process destroy", e);
+                    closeJmx();
+                    // send health check that process is no longer alive
+                    healthCheck(driver);
+
+                    serverTask = null;
+
+                    if (task != null) {
+                        LOGGER.debug("Sending status update to scheduler that Cassandra server task has finished");
+                        driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
+                    }
+
+                    LOGGER.info("Cassandra process terminated");
+                } finally {
+                    killDaemonSingleton.set(false);
                 }
             }
-
-            safeShutdown(driver);
-
-            if (task != null) {
-                driver.sendStatusUpdate(taskStatus(task, TaskState.TASK_FINISHED));
-            }
-        } finally {
-            killDaemonSingleton.set(false);
-        }
+        });
     }
 
     private void healthCheck(ExecutorDriver driver) {
@@ -407,14 +429,12 @@ public final class CassandraExecutor implements Executor {
     }
 
     private void safeShutdown(ExecutorDriver driver) {
-        if (jmxConnect != null) {
-            try {
-                jmxConnect.close();
-            } catch (Exception ignores) {
-                // ignore this
-            }
-            jmxConnect = null;
-        }
+        closeJmx();
+        killProcess(driver);
+        serverTask = null;
+    }
+
+    private void killProcess(ExecutorDriver driver) {
         if (process != null) {
             try {
                 // this is only a kind of "last resort" - usual shutdown is performed in killCassandraDaemon() method
@@ -427,7 +447,26 @@ public final class CassandraExecutor implements Executor {
             // send health check that process is no longer alive
             healthCheck(driver);
         }
-        serverTask = null;
+    }
+
+    private void closeJmx() {
+        if (jmxConnect != null) {
+            // close JmxConnect asynchronously because it may take long (*not* funny)
+            final JmxConnect jc = jmxConnect;
+            executorService.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        LOGGER.debug("Closing JMX connection to Cassandra process");
+                        jc.close();
+                    } catch (Exception ignores) {
+                        // ignore this
+                    }
+                }
+            });
+
+            jmxConnect = null;
+        }
     }
 
     @NotNull
@@ -436,8 +475,13 @@ public final class CassandraExecutor implements Executor {
 
         if (process == null) {
             return builder.setHealthy(false)
-                    .setMsg("no Cassandra process")
-                    .build();
+                .setMsg("no Cassandra process")
+                .build();
+        }
+        if (jmxConnect == null) {
+            return builder.setHealthy(false)
+                .setMsg("no JMX connect to Cassandra process")
+                .build();
         }
 
         try {

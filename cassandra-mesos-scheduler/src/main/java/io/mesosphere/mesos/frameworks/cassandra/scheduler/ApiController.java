@@ -307,14 +307,9 @@ public final class ApiController {
     @GET
     @Path("/qaReportResources/text")
     public Response qaReportResourcesText() {
-        CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
-        int jmxPort = CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_JMX);
-
         StringWriter sw = new StringWriter();
         try (PrintWriter pw = new PrintWriter(sw)) {
             // TODO don't write to StringWriter - stream to response as the nodes list might get very long
-
-            pw.println("JMX: " + jmxPort);
 
             CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
             for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
@@ -323,7 +318,9 @@ public final class ApiController {
                     continue;
                 }
 
-                pw.println("IP: " + cassandraNode.getIp());
+                pw.println("JMX_PORT: " + cassandraNode.getJmxConnect().getJmxPort());
+                pw.println("JMX_IP: " + cassandraNode.getJmxConnect().getIp());
+                pw.println("NODE_IP: " + cassandraNode.getIp());
                 pw.println("BASE: http://" + cassandraNode.getIp() + ":5051/");
 
                 for (String logFile : cluster.getNodeLogFiles(cassandraNode)) {
@@ -342,9 +339,6 @@ public final class ApiController {
     @GET
     @Path("/qaReportResources")
     public Response qaReportResources() {
-        CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
-        int jmxPort = CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_JMX);
-
         StringWriter sw = new StringWriter();
         try {
             // TODO don't write to StringWriter - stream to response as the nodes list might get very long
@@ -354,8 +348,6 @@ public final class ApiController {
             json.setPrettyPrinter(new DefaultPrettyPrinter());
 
             json.writeStartObject();
-
-            json.writeNumberField("jmxPort", jmxPort);
 
             CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
             json.writeObjectFieldStart("nodes");
@@ -688,7 +680,7 @@ public final class ApiController {
                     // nodetool options:
                     // -h HOST
                     // -p JMX_PORT
-                    return Response.ok("-h " + first.getIp() + " -p " + first.getJmxConnect().getJmxPort()).build();
+                    return Response.ok("-h " + first.getJmxConnect().getIp() + " -p " + first.getJmxConnect().getJmxPort()).build();
                 case "json":
                     // produce a simple JSON with the native port and live node IPs
                     JsonFactory factory = new JsonFactory();

@@ -14,7 +14,6 @@
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.*;
 import io.mesosphere.mesos.util.SystemClock;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
@@ -56,7 +55,9 @@ public abstract class AbstractSchedulerTest {
             2, 4096, 4096, 0,
             3, 2,
             "*",
-            ".");
+            ".",
+            true,
+            false);
 
         cluster = new CassandraCluster(new SystemClock(),
                 "http://127.0.0.1:65535",

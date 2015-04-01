@@ -118,16 +118,16 @@ final class ProdObjectFactory implements ObjectFactory {
 
     private static void modifyCassandraEnvSh(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask) throws IOException {
         int jmxPort = 0;
+        String localJmx = "yes";
+        boolean noJmxAuth = false;
         for (CassandraFrameworkProtos.TaskEnv.Entry entry : cassandraNodeTask.getCassandraServerConfig().getTaskEnv().getVariablesList()) {
             if ("JMX_PORT".equals(entry.getName())) {
                 jmxPort = Integer.parseInt(entry.getValue());
-                break;
+            } else if ("LOCAL_JMX".equals(entry.getName())) {
+                localJmx = entry.getValue();
+            } else if ("CASSANDRA_JMX_NO_AUTHENTICATION".equals(entry.getName())) {
+                noJmxAuth = "no".equals(entry.getValue());
             }
-        }
-
-        if (jmxPort == 7199 || jmxPort == 0) {
-            // Don't modify, if there's nothing to do...
-            return;
         }
 
         LOGGER.info(taskIdMarker, "Building cassandra-env.sh");
@@ -141,8 +141,15 @@ final class ProdObjectFactory implements ObjectFactory {
         List<String> lines = Files.readLines(cassandraEnvSh, Charset.forName("UTF-8"));
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
-            if (line.startsWith("JMX_PORT="))
-                lines.set(i, "JMX_PORT=\"" + jmxPort + '"');
+            if (line.startsWith("JMX_PORT=")) {
+                lines.set(i, "JMX_PORT=" + jmxPort);
+            } else if (line.startsWith("LOCAL_JMX=")) {
+                lines.set(i, "LOCAL_JMX=" + localJmx);
+            } else if (noJmxAuth) {
+                if (line.contains("JVM_OPTS=\"$JVM_OPTS -Dcom.sun.management.jmxremote.authenticate=")) {
+                    lines.set(i, "JVM_OPTS=\"$JVM_OPTS -Dcom.sun.management.jmxremote.authenticate=false\"");
+                }
+            }
         }
         LOGGER.info(taskIdMarker, "Writing cassandra-env.sh");
         try (PrintWriter pw = new PrintWriter(new FileWriter(cassandraEnvSh))) {

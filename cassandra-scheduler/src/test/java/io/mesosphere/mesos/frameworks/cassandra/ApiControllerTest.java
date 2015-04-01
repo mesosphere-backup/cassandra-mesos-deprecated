@@ -696,7 +696,7 @@ public class ApiControllerTest extends AbstractCassandraSchedulerTest {
 
         try {
             try (ServerSocket sock = new ServerSocket(0)) {
-                httpServerBaseUri = URI.create(String.format("http://%s:%d/", formatInetAddress(InetAddress.getLocalHost()), sock.getLocalPort()));
+                httpServerBaseUri = URI.create(String.format("http://%s:%d/", formatInetAddress(InetAddress.getLoopbackAddress()), sock.getLocalPort()));
             }
 
             final ResourceConfig rc = new ResourceConfig()

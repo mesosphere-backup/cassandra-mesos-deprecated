@@ -56,7 +56,7 @@ public final class FileResourceController {
         cassandraTarFile = f;
 
 
-        cassandraExecutorFile = verifyFileExistsAndCanRead(Env.option("EXECUTOR_FILE_PATH").or(workingDir("/cassandra-executor.jar")));
+        cassandraExecutorFile = verifyFileExistsAndCanRead(Env.option("EXECUTOR_FILE_PATH").or(workingDir("/cassandra-mesos-executor.jar")));
     }
 
     @GET

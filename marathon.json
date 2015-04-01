@@ -20,5 +20,5 @@
     "CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS": "60",
     "CASSANDRA_ZK_TIMEOUT_MS": "10000"
   },
-  "cmd": "$(pwd)/jre*/bin/java $JAVA_OPTS -classpath cassandra-mesos-framework.jar io.mesosphere.mesos.frameworks.cassandra.Main"
+  "cmd": "$(pwd)/jre*/bin/java $JAVA_OPTS -classpath cassandra-mesos-framework.jar io.mesosphere.mesos.frameworks.cassandra.framework.Main"
 }

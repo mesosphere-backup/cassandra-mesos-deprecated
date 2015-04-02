@@ -15,21 +15,16 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.Response;
-import java.io.StringWriter;
+import java.io.IOException;
 
 @Path("/")
 public final class ClusterJobsController extends AbstractApiController {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClusterJobsController.class);
 
     public ClusterJobsController(CassandraCluster cluster) {
         super(cluster);
@@ -258,90 +253,44 @@ public final class ClusterJobsController extends AbstractApiController {
     }
 
     private Response startJob(CassandraFrameworkProtos.ClusterJobType type) {
-        StringWriter sw = new StringWriter();
-        try {
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
-            json.writeStartObject();
-
-            boolean started = cluster.startClusterTask(type);
-            json.writeBooleanField("started", started);
-
-            json.writeEndObject();
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to build JSON response", e);
-            return Response.serverError().build();
-        }
-        return Response.ok(sw.toString(), "application/json").build();
+        final boolean started = cluster.startClusterTask(type);
+        return buildStreamingResponse(new StreamingJsonResponse() {
+            @Override
+            public void write(JsonGenerator json) throws IOException {
+                json.writeBooleanField("started", started);
+            }
+        });
     }
 
     private Response abortJob(CassandraFrameworkProtos.ClusterJobType type) {
-        StringWriter sw = new StringWriter();
-        try {
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
-            json.writeStartObject();
-
-            boolean aborted = cluster.abortClusterJob(type);
-            json.writeBooleanField("aborted", aborted);
-
-            json.writeEndObject();
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to build JSON response", e);
-            return Response.serverError().build();
-        }
-        return Response.ok(sw.toString(), "application/json").build();
+        final boolean aborted = cluster.abortClusterJob(type);
+        return buildStreamingResponse(new StreamingJsonResponse() {
+            @Override
+            public void write(JsonGenerator json) throws IOException {
+                json.writeBooleanField("aborted", aborted);
+            }
+        });
     }
 
-    private Response jobStatus(CassandraFrameworkProtos.ClusterJobType type, String name) {
-        StringWriter sw = new StringWriter();
-        try {
-
-            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
-
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
-            json.writeStartObject();
-
-            CassandraFrameworkProtos.ClusterJobStatus repairJob = cluster.getCurrentClusterJob(type);
-            json.writeBooleanField("running", repairJob != null);
-            writeClusterJob(json, name, repairJob);
-
-            json.writeEndObject();
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to build JSON response", e);
-            return Response.serverError().build();
-        }
-        return Response.ok(sw.toString(), "application/json").build();
+    private Response jobStatus(final CassandraFrameworkProtos.ClusterJobType type, final String name) {
+        final CassandraFrameworkProtos.ClusterJobStatus repairJob = cluster.getCurrentClusterJob(type);
+        return buildStreamingResponse(new StreamingJsonResponse() {
+            @Override
+            public void write(JsonGenerator json) throws IOException {
+                json.writeBooleanField("running", repairJob != null);
+                writeClusterJob(json, name, repairJob);
+            }
+        });
     }
 
-    private Response lastJob(CassandraFrameworkProtos.ClusterJobType type, String name) {
-        StringWriter sw = new StringWriter();
-        try {
-
-            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
-
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
-            json.writeStartObject();
-
-            CassandraFrameworkProtos.ClusterJobStatus repairJob = cluster.getLastClusterJob(type);
-            json.writeBooleanField("present", repairJob != null);
-            writeClusterJob(json, name, repairJob);
-
-            json.writeEndObject();
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to build JSON response", e);
-            return Response.serverError().build();
-        }
-        return Response.ok(sw.toString(), "application/json").build();
+    private Response lastJob(CassandraFrameworkProtos.ClusterJobType type, final String name) {
+        final CassandraFrameworkProtos.ClusterJobStatus repairJob = cluster.getLastClusterJob(type);
+        return buildStreamingResponse(new StreamingJsonResponse() {
+            @Override
+            public void write(JsonGenerator json) throws IOException {
+                json.writeBooleanField("present", repairJob != null);
+                writeClusterJob(json, name, repairJob);
+            }
+        });
     }
 }

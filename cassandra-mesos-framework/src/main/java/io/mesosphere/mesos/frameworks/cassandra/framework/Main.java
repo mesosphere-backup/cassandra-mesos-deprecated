@@ -18,9 +18,7 @@ package io.mesosphere.mesos.frameworks.cassandra.framework;
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.*;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.api.ApiController;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.api.ApiControllerFactory;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.api.FileResourceController;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.Env;
 import io.mesosphere.mesos.util.Clock;
 import io.mesosphere.mesos.util.ProtoUtils;
@@ -189,7 +187,6 @@ public final class Main {
 
         final ResourceConfig rc = new ResourceConfig()
             .registerInstances(ApiControllerFactory.buildInstances(cassandraCluster, cassandraVersion));
-            //.packages("io.mesosphere.mesos.frameworks.cassandra");
         final HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
 
         final MesosSchedulerDriver driver;

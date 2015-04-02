@@ -15,24 +15,19 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.ReplaceNodePreconditionFailed;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
-import java.io.StringWriter;
+import java.io.IOException;
 
 @Path("/")
 public final class NodeStateController extends AbstractApiController {
-    private static final Logger LOGGER = LoggerFactory.getLogger(NodeStateController.class);
 
     public NodeStateController(CassandraCluster cluster) {
         super(cluster);
@@ -91,36 +86,26 @@ public final class NodeStateController extends AbstractApiController {
         return nodeStatusUpdate(cassandraNode);
     }
 
-    private static Response nodeStatusUpdate(CassandraFrameworkProtos.CassandraNode cassandraNode) {
-
-        int status = 200;
-        StringWriter sw = new StringWriter();
-        try {
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
-            json.writeStartObject();
-
-            if (cassandraNode == null) {
-                status = 404;
-            } else {
-                json.writeStringField("ip", cassandraNode.getIp());
-                json.writeStringField("hostname", cassandraNode.getHostname());
-                if (!cassandraNode.hasCassandraNodeExecutor()) {
-                    json.writeNullField("executorId");
-                } else {
-                    json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
-                }
-                json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
-            }
-
-            json.writeEndObject();
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to build JSON response", e);
-            return Response.serverError().build();
+    private Response nodeStatusUpdate(final CassandraFrameworkProtos.CassandraNode cassandraNode) {
+        if (cassandraNode == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
-        return Response.status(status).entity(sw.toString()).type("application/json").build();
+
+        return buildStreamingResponse(
+            new StreamingJsonResponse() {
+                @Override
+                public void write(JsonGenerator json) throws IOException {
+                    json.writeStringField("ip", cassandraNode.getIp());
+                    json.writeStringField("hostname", cassandraNode.getHostname());
+                    if (!cassandraNode.hasCassandraNodeExecutor()) {
+                        json.writeNullField("executorId");
+                    } else {
+                        json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                    }
+                    json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
+                }
+            }
+        );
     }
 
     /**
@@ -131,40 +116,39 @@ public final class NodeStateController extends AbstractApiController {
     @POST
     @Path("/node/replace/{node}")
     public Response nodeReplace(@PathParam("node") String node) {
-        int status = 200;
-        StringWriter sw = new StringWriter();
-        try {
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
-            json.writeStartObject();
+        final CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.findNode(node);
 
-            CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.findNode(node);
-
-            if (cassandraNode == null) {
-                status = 404;
-                json.writeBooleanField("success", false);
-                json.writeStringField("reason", "No such node");
-            } else {
-                json.writeStringField("ipToReplace", cassandraNode.getIp());
-                try {
-                    cluster.replaceNode(node);
-
-                    json.writeBooleanField("success", true);
-                    json.writeStringField("hostname", cassandraNode.getHostname());
-                    json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
-                } catch (ReplaceNodePreconditionFailed e) {
+        if (cassandraNode == null) {
+            return buildStreamingResponse(Response.Status.NOT_FOUND, new StreamingJsonResponse() {
+                @Override
+                public void write(JsonGenerator json) throws IOException {
                     json.writeBooleanField("success", false);
-                    json.writeStringField("reason", e.getMessage());
+                    json.writeStringField("reason", "No such node");
                 }
-            }
-
-            json.writeEndObject();
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to build JSON response", e);
-            return Response.serverError().build();
+            });
         }
-        return Response.status(status).entity(sw.toString()).type("application/json").build();
+
+        try {
+            cluster.replaceNode(node);
+        } catch (ReplaceNodePreconditionFailed replaceNodePreconditionFailed) {
+            return buildStreamingResponse(Response.Status.BAD_REQUEST, new StreamingJsonResponse() {
+                @Override
+                public void write(JsonGenerator json) throws IOException {
+                    json.writeStringField("ipToReplace", cassandraNode.getIp());
+                    json.writeBooleanField("success", false);
+                    json.writeStringField("reason", "No such node");
+                }
+            });
+        }
+
+        return buildStreamingResponse(new StreamingJsonResponse() {
+            @Override
+            public void write(JsonGenerator json) throws IOException {
+                json.writeStringField("ipToReplace", cassandraNode.getIp());
+                json.writeBooleanField("success", true);
+                json.writeStringField("hostname", cassandraNode.getHostname());
+                json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
+            }
+        });
     }
 }

@@ -110,7 +110,7 @@ public class NodeStateControllerTest extends AbstractApiControllerTest {
         //
 
         tup = fetchJson("/node/replace/" + slaves[1]._2, true);
-        assertEquals(200, tup._1.intValue());
+        assertEquals(400, tup._1.intValue());
         json = tup._2;
         assertEquals(slaves[1]._2, json.get("ipToReplace").asText());
         assertFalse(json.get("success").asBoolean());
@@ -134,7 +134,7 @@ public class NodeStateControllerTest extends AbstractApiControllerTest {
         //
 
         tup = fetchJson("/node/replace/" + slaves[2]._2, true);
-        assertEquals(200, tup._1.intValue());
+        assertEquals(400, tup._1.intValue());
         json = tup._2;
         assertEquals(slaves[2]._2, json.get("ipToReplace").asText());
         assertFalse(json.get("success").asBoolean());

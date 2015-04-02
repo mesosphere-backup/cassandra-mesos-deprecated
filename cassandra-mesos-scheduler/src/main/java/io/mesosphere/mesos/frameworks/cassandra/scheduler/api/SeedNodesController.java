@@ -15,25 +15,20 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.SeedChangeException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
-import java.io.StringWriter;
+import java.io.IOException;
 
 @Path("/")
 public final class SeedNodesController extends AbstractApiController {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SeedNodesController.class);
 
     public SeedNodesController(CassandraCluster cluster) {
         super(cluster);
@@ -42,8 +37,8 @@ public final class SeedNodesController extends AbstractApiController {
     /**
      * Returns a JSON with the IP addresses of all seed nodes and native, thrift and JMX port numbers.
      *
-     *     Example:
-     *     <pre>{@code {
+     * Example:
+     * <pre>{@code {
      * "nativePort" : 9042,
      * "rpcPort" : 9160,
      * "jmxPort" : 7199,
@@ -53,29 +48,18 @@ public final class SeedNodesController extends AbstractApiController {
     @GET
     @Path("/seed-nodes")
     public Response seedNodes() {
-        StringWriter sw = new StringWriter();
-        try {
-            CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
+        final CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
+        return buildStreamingResponse(new StreamingJsonResponse() {
+            @Override
+            public void write(JsonGenerator json) throws IOException {
 
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
-            json.writeStartObject();
+                json.writeNumberField("nativePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_NATIVE));
+                json.writeNumberField("rpcPort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_RPC));
+                json.writeNumberField("jmxPort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_JMX));
 
-            json.writeNumberField("nativePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_NATIVE));
-            json.writeNumberField("rpcPort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_RPC));
-            json.writeNumberField("jmxPort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_JMX));
-
-            writeSeedIps(json);
-
-            json.writeEndObject();
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to build seed list", e);
-            return Response.serverError().build();
-        }
-
-        return Response.ok(sw.toString(), "application/json").build();
+                writeSeedIps(json);
+            }
+        });
     }
 
     /**
@@ -91,8 +75,8 @@ public final class SeedNodesController extends AbstractApiController {
      * "success" : "false",
      * "error" : "Some error message"
      * }}</pre>
-     *  <p></p>
-     *  <pre>{@code {
+     *
+     * <pre>{@code {
      * "ip" : "127.0.0.1",
      * "hostname" : "localhost",
      * "executorId" : "cassandra.node.1.executor",
@@ -120,8 +104,8 @@ public final class SeedNodesController extends AbstractApiController {
      * "success" : "false",
      * "error" : "Some error message"
      * }}</pre>
-     *  <p></p>
-     *  <pre>{@code {
+     *
+     * <pre>{@code {
      * "ip" : "127.0.0.1",
      * "hostname" : "localhost",
      * "executorId" : "cassandra.node.1.executor",
@@ -136,55 +120,55 @@ public final class SeedNodesController extends AbstractApiController {
         return nodeUpdateSeed(node, false);
     }
 
-    private Response nodeUpdateSeed(String node, boolean seed) {
-        CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.findNode(node);
+    private Response nodeUpdateSeed(String node, final boolean seed) {
+        final CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.findNode(node);
         if (cassandraNode == null) {
-            Response.status(404).build();
+            return Response.status(404).build();
         }
 
-        int status = 200;
-        StringWriter sw = new StringWriter();
         try {
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
-            json.writeStartObject();
+            final boolean seedChanged = cluster.setNodeSeed(cassandraNode, seed);
 
-            if (cassandraNode == null) {
-                status = 404;
-            } else {
+            return buildStreamingResponse(new StreamingJsonResponse() {
+                @Override
+                public void write(JsonGenerator json) throws IOException {
+                    json.writeStringField("ip", cassandraNode.getIp());
+                    json.writeStringField("hostname", cassandraNode.getHostname());
+                    if (!cassandraNode.hasCassandraNodeExecutor()) {
+                        json.writeNullField("executorId");
+                    } else {
+                        json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                    }
+                    json.writeBooleanField("oldSeedState", cassandraNode.getSeed());
 
-                json.writeStringField("ip", cassandraNode.getIp());
-                json.writeStringField("hostname", cassandraNode.getHostname());
-                if (!cassandraNode.hasCassandraNodeExecutor()) {
-                    json.writeNullField("executorId");
-                } else {
-                    json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
-                }
-                json.writeBooleanField("oldSeedState", cassandraNode.getSeed());
-
-                try {
-                    if (cluster.setNodeSeed(cassandraNode, seed)) {
+                    if (seedChanged) {
                         json.writeBooleanField("success", true);
                         json.writeBooleanField("seedState", seed);
                     } else {
                         json.writeBooleanField("success", false);
                         json.writeBooleanField("seedState", cassandraNode.getSeed());
                     }
-                } catch (SeedChangeException e) {
-                    status = 400;
+
+                }
+            });
+        } catch (final SeedChangeException e) {
+            return buildStreamingResponse(Response.Status.BAD_REQUEST, new StreamingJsonResponse() {
+                @Override
+                public void write(JsonGenerator json) throws IOException {
+                    json.writeStringField("ip", cassandraNode.getIp());
+                    json.writeStringField("hostname", cassandraNode.getHostname());
+                    if (!cassandraNode.hasCassandraNodeExecutor()) {
+                        json.writeNullField("executorId");
+                    } else {
+                        json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                    }
+                    json.writeBooleanField("oldSeedState", cassandraNode.getSeed());
+
                     json.writeBooleanField("success", false);
                     json.writeStringField("error", e.getMessage());
                 }
-
-            }
-
-            json.writeEndObject();
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to build JSON response", e);
-            return Response.serverError().build();
+            });
         }
-        return Response.status(status).entity(sw.toString()).type("application/json").build();
+
     }
 }

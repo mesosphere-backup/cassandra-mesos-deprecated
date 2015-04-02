@@ -15,14 +15,24 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.google.common.base.Optional;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
 
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 
 public abstract class AbstractApiController {
+
+    protected final JsonFactory factory = new JsonFactory();
 
     protected final CassandraCluster cluster;
 
@@ -120,5 +130,36 @@ public abstract class AbstractApiController {
         json.writeEndArray();
 
         json.writeEndObject();
+    }
+
+    protected Response buildStreamingResponse(final StreamingJsonResponse jsonResponse) {
+        return buildStreamingResponse(Response.Status.OK, jsonResponse);
+    }
+
+    protected Response buildStreamingResponse(Response.Status status, final StreamingJsonResponse jsonResponse) {
+        return Response.status(status).entity(new StreamingOutput() {
+            @Override
+            public void write(OutputStream output) throws IOException, WebApplicationException {
+                try (JsonGenerator json = factory.createGenerator(output)) {
+                    json.setPrettyPrinter(new DefaultPrettyPrinter());
+                    json.writeStartObject();
+
+                    jsonResponse.write(json);
+
+                    json.writeEndObject();
+                }
+            }
+        }).type("application/json").build();
+    }
+
+    protected Response buildStreamingResponse(Response.Status status, String type, final StreamingTextResponse textResponse) {
+        return Response.status(status).entity(new StreamingOutput() {
+            @Override
+            public void write(OutputStream output) throws IOException, WebApplicationException {
+                try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(output))) {
+                    textResponse.write(printWriter);
+                }
+            }
+        }).type(type).build();
     }
 }

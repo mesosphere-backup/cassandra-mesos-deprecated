@@ -15,23 +15,18 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.io.StringWriter;
+import java.io.IOException;
 
 @Path("/")
 public final class ApiController extends AbstractApiController {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ApiController.class);
 
     public ApiController(CassandraCluster cluster) {
         super(cluster);
@@ -41,41 +36,30 @@ public final class ApiController extends AbstractApiController {
      * Basially a poor man's index page.
      */
     @GET
-    public Response indexPage(@Context UriInfo uriInfo) {
-        StringWriter sw = new StringWriter();
-        try {
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
-            json.writeStartObject();
+    public Response indexPage(@Context final UriInfo uriInfo) {
+        return buildStreamingResponse(new StreamingJsonResponse() {
+            @Override
+            public void write(JsonGenerator json) throws IOException {
+                String baseUrl = uriInfo.getBaseUri().toString();
 
-            String baseUrl = uriInfo.getBaseUri().toString();
+                json.writeStringField("configuration", baseUrl + "config");
+                json.writeStringField("seedNodes", baseUrl + "seed-nodes");
+                json.writeStringField("allNodes", baseUrl + "nodes");
 
-            json.writeStringField("configuration", baseUrl + "config");
-            json.writeStringField("seedNodes", baseUrl + "seed-nodes");
-            json.writeStringField("allNodes", baseUrl + "nodes");
+                json.writeObjectFieldStart("repair");
+                json.writeStringField("start", baseUrl + "repair/start");
+                json.writeStringField("status", baseUrl + "repair/status");
+                json.writeStringField("lastStatus", baseUrl + "repair/last");
+                json.writeStringField("abort", baseUrl + "repair/abort");
+                json.writeEndObject();
 
-            json.writeObjectFieldStart("repair");
-            json.writeStringField("start", baseUrl + "repair/start");
-            json.writeStringField("status", baseUrl + "repair/status");
-            json.writeStringField("lastStatus", baseUrl + "repair/last");
-            json.writeStringField("abort", baseUrl + "repair/abort");
-            json.writeEndObject();
-
-            json.writeObjectFieldStart("cleanup");
-            json.writeStringField("start", baseUrl + "cleanup/start");
-            json.writeStringField("status", baseUrl + "cleanup/status");
-            json.writeStringField("lastStatus", baseUrl + "cleanup/last");
-            json.writeStringField("abort", baseUrl + "cleanup/abort");
-            json.writeEndObject();
-
-            json.writeEndObject();
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to JSON doc", e);
-            return Response.serverError().build();
-        }
-
-        return Response.ok(sw.toString(), "application/json").build();
+                json.writeObjectFieldStart("cleanup");
+                json.writeStringField("start", baseUrl + "cleanup/start");
+                json.writeStringField("status", baseUrl + "cleanup/status");
+                json.writeStringField("lastStatus", baseUrl + "cleanup/last");
+                json.writeStringField("abort", baseUrl + "cleanup/abort");
+                json.writeEndObject();
+            }
+        });
     }
 }

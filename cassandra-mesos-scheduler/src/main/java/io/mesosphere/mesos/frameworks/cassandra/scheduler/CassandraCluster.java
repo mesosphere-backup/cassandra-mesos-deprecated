@@ -363,17 +363,9 @@ public final class CassandraCluster {
         try {
             final Optional<CassandraNode> nodeOption = cassandraNodeForHostname(offer.getHostname());
 
-            CassandraConfigRole defaultConfigRole = configuration.getDefaultConfigRole();
-
             CassandraNode.Builder node;
             if (!nodeOption.isPresent()) {
                 if (clusterState.get().getNodesToAcquire() <= 0) {
-                    // number of C* cluster nodes already present
-                    return null;
-                }
-
-                NodeCounts nodeCounts = clusterState.nodeCounts();
-                if (nodeCounts.getNodeCount() >= defaultConfigRole.getNumberOfNodes()) {
                     // number of C* cluster nodes already present
                     return null;
                 }
@@ -862,13 +854,15 @@ public final class CassandraCluster {
     }
 
     public int updateNodeCount(int nodeCount) {
-        try {
-            int newNodeCount = configuration.numberOfNodes(nodeCount);
+        int currentNodeCount = clusterState.nodeCounts().getNodeCount() + clusterState.get().getNodesToAcquire();
+        int newNodeCount = nodeCount - currentNodeCount;
+        if (newNodeCount < 0) {
+            LOGGER.info("Cannot shrink number of nodes from {} to {}", currentNodeCount, nodeCount);
+            return currentNodeCount;
+        } else if (newNodeCount > 0) {
             clusterState.acquireNewNodes(newNodeCount);
-        } catch (IllegalArgumentException e) {
-            LOGGER.info("Cannout update number-of-nodes", e);
         }
-        return configuration.getDefaultConfigRole().getNumberOfNodes();
+        return nodeCount;
     }
 
     // cluster tasks

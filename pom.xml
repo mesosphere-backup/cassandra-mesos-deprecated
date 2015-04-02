@@ -292,6 +292,13 @@
     <build>
         <resources>
             <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*</include>
+                </includes>
+                <filtering>false</filtering>
+            </resource>
+            <resource>
                 <directory>${project.basedir}</directory>
                 <includes>
                     <include>THIRD-PARTY.txt</include>
@@ -315,7 +322,6 @@
                             <licenseMerge>CDDL+GPL License|CDDL+GPL</licenseMerge>
                             <licenseMerge>Eclipse Public License 1.0|Eclipse Public License - v 1.0</licenseMerge>
                         </licenseMerges>
-                        <excludedScopes>test</excludedScopes>
                         <!-- If we use something like target/generated-resources/... that path including
                              target/generated-resources would be used in the jar, which is really ugly.
                           -->
@@ -423,7 +429,7 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
                     <windowtitle>Cassandra-Mesos ${project.artifactId}</windowtitle>
-                    <bottom>&amp;copy; 2014 ${project.organization.name} - licensed under &lt;a
+                    <bottom>&amp;copy; 2015 ${project.organization.name} - licensed under &lt;a
                         href="http://www.apache.org/licenses/LICENSE-2.0" target="_new"&gt;Apache License, Version 2&lt;/a&gt;
                         - &lt;a href="http://mesos.apache.org/" target="_new"&gt;Homepage&lt;/a&gt;</bottom>
                     <show>protected</show>

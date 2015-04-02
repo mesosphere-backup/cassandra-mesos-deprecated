@@ -176,6 +176,14 @@ public final class ApiController {
             json.writeStringField("frameworkName", configuration.getFrameworkName());
             json.writeStringField("frameworkId", configuration.getFrameworkId());
             json.writeStringField("clusterName", configuration.getFrameworkName());
+            json.writeNumberField("initialNumberOfNodes", configuration.getInitialNumberOfNodes());
+            json.writeNumberField("initialNumberOfSeeds", configuration.getInitialNumberOfSeeds());
+
+            NodeCounts nodeCounts = cluster.getClusterState().nodeCounts();
+            json.writeNumberField("currentNumberOfNodes", nodeCounts.getNodeCount());
+            json.writeNumberField("currentNumberOfSeeds", nodeCounts.getSeedCount());
+            json.writeNumberField("nodesToAcquire", cluster.getClusterState().get().getNodesToAcquire());
+            json.writeNumberField("seedsToAcquire", cluster.getClusterState().get().getSeedsToAcquire());
 
             CassandraFrameworkProtos.CassandraConfigRole configRole = configuration.getDefaultConfigRole();
             json.writeObjectFieldStart("defaultConfigRole");
@@ -523,8 +531,6 @@ public final class ApiController {
 
     private static void writeConfigRole(JsonGenerator json, CassandraFrameworkProtos.CassandraConfigRole configRole) throws IOException {
         json.writeStringField("cassandraVersion", configRole.getCassandraVersion());
-        json.writeNumberField("targetNodeCount", configRole.getNumberOfNodes());
-        json.writeNumberField("seedNodeCount", configRole.getNumberOfSeeds());
         json.writeNumberField("diskMb", configRole.getResources().getDiskMb());
         json.writeNumberField("cpuCores", configRole.getResources().getCpuCores());
         if (configRole.hasMemJavaHeapMb()) {
@@ -739,9 +745,9 @@ public final class ApiController {
             json.setPrettyPrinter(new DefaultPrettyPrinter());
             json.writeStartObject();
 
-            CassandraFrameworkProtos.CassandraConfigRole configRole = cluster.getConfiguration().getDefaultConfigRole();
-            json.writeNumberField("oldNodeCount", configRole.getNumberOfNodes());
-            json.writeNumberField("seedNodeCount", configRole.getNumberOfSeeds());
+            NodeCounts oldNodeCount = cluster.getClusterState().nodeCounts();
+            json.writeNumberField("oldNodeCount", oldNodeCount.getNodeCount());
+            json.writeNumberField("seedNodeCount", oldNodeCount.getSeedCount());
             int newCount = cluster.updateNodeCount(nodeCount);
             json.writeBooleanField("applied", newCount == nodeCount);
             json.writeNumberField("newNodeCount", newCount);

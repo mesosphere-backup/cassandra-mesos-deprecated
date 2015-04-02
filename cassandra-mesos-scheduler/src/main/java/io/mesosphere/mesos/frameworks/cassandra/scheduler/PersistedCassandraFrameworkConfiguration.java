@@ -55,8 +55,6 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                             .setCpuCores(cpuCores)
                             .setDiskMb(diskMb)
                             .setMemMb(memMb))
-                        .setNumberOfNodes(executorCount)
-                        .setNumberOfSeeds(seedCount)
                         .setMesosRole(mesosRole)
                         .setPreDefinedDataDirectory(dataDirectory)
                         .setTaskEnv(CassandraFrameworkProtos.TaskEnv.newBuilder()
@@ -74,6 +72,8 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setDefaultConfigRole(fillConfigRoleGaps(configRole))
                         .setHealthCheckIntervalSeconds(healthCheckIntervalSeconds)
                         .setBootstrapGraceTimeSeconds(bootstrapGraceTimeSec)
+                        .setInitialNumberOfNodes(executorCount)
+                        .setInitialNumberOfSeeds(seedCount)
                         .build();
                 }
             },
@@ -169,27 +169,6 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     @NotNull
     public String frameworkName() {
         return get().getFrameworkName();
-    }
-
-    public int numberOfNodes(int numberOfNodes) {
-        CassandraFrameworkProtos.CassandraConfigRole configRole = getDefaultConfigRole();
-        int newNodeCount = numberOfNodes - configRole.getNumberOfNodes();
-        if (numberOfNodes <= 0 || configRole.getNumberOfSeeds() > numberOfNodes || newNodeCount <= 0)
-            throw new IllegalArgumentException("Cannot set number of nodes to " + numberOfNodes + ", current #nodes=" + configRole.getNumberOfNodes() + " #seeds=" + configRole.getNumberOfSeeds());
-
-        setDefaultConfigRole(CassandraFrameworkProtos.CassandraConfigRole.newBuilder(configRole)
-            .setNumberOfNodes(numberOfNodes)
-            .build());
-
-        return newNodeCount;
-    }
-
-    private void setDefaultConfigRole(CassandraFrameworkProtos.CassandraConfigRole configRole) {
-        setValue(
-            CassandraFrameworkConfiguration.newBuilder(get())
-                .setDefaultConfigRole(configRole)
-                .build()
-        );
     }
 
     @NotNull

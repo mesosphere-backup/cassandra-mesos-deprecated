@@ -57,6 +57,14 @@ message CassandraFrameworkConfiguration {
      * Default configuration role.
      */
     required CassandraConfigRole defaultConfigRole = 7;
+    /**
+     * Initial target number of Cassandra nodes.
+     */
+    optional int32 initialNumberOfNodes = 8;
+    /**
+     * Initial target number of seed nodes.
+     */
+    optional int32 initialNumberOfSeeds = 9;
 }
 
 /**
@@ -74,21 +82,13 @@ message CassandraConfigRole {
      * Cassandra version string. Example: 2.1.4
      */
     optional string cassandraVersion = 2;
-    /**
-     * Initial target number of Cassandra nodes.
-     */
-    optional int32 numberOfNodes = 3;
-    /**
-     * Initial target number of seed nodes.
-     */
-    optional int32 numberOfSeeds = 4;
 
     /**
      * The resource to provision.
      * Total memory must be greater or equal to memJavaHeapMb + memAssumeOffHeapMb.
      * The field ports is not used in this context.
      */
-    required TaskResources resources = 5;
+    required TaskResources resources = 3;
 
     /**
      * Cassandra memory usage can be categorized into
@@ -125,24 +125,24 @@ message CassandraConfigRole {
      *  - overhead during flushes/compactions/cleanup
      *    implicitly defined by workload
      */
-    optional int64 memJavaHeapMb = 6;
+    optional int64 memJavaHeapMb = 4;
     /**
      * see memJavaHeapMb for details
      */
-    optional int64 memAssumeOffHeapMb = 7;
+    optional int64 memAssumeOffHeapMb = 5;
 
     /**
      * additional configuration, process environment
      */
-    optional TaskEnv taskEnv = 8;
+    optional TaskEnv taskEnv = 6;
     /**
      * cassandra.yaml configuration
      */
-    optional TaskConfig cassandraYamlConfig = 9;
+    optional TaskConfig cassandraYamlConfig = 7;
     /**
      * mesos role to be used to receive resource offers
      */
-    optional string mesosRole = 10;
+    optional string mesosRole = 8;
 
     /**
      * A pre-defined data directory specifying where cassandra should write it's data.
@@ -188,6 +188,9 @@ message CassandraClusterState {
      * option passed to the Cassandra process.
      */
     required int32 nodesToAcquire = 5;
+    /**
+     * The number of seeds that need to be acquired.
+     */
     required int32 seedsToAcquire = 6;
 }
 
@@ -230,6 +233,9 @@ message HealthCheckHistoryEntry {
     required HealthCheckDetails details = 4;
 }
 
+/**
+ * Enumeration of all known cluster job types.
+ */
 enum ClusterJobType {
     CLEANUP = 1;
     REPAIR = 2;
@@ -407,6 +413,9 @@ message CassandraNode {
      */
     optional string replacementForIp = 13;
 
+    /**
+     * The required state of a node.
+     */
     enum TargetRunState {
         /**
          * If the server task is not active, it is started.
@@ -555,6 +564,9 @@ message CassandraNodeTask {
          * Start the node's part of a cluster wide job.
          */
         CLUSTER_JOB = 3;
+        /**
+         * Update the Cassandra configuration files without (re)starting the Cassandra process.
+         */
         CONFIG = 4;
     }
 }
@@ -582,6 +594,9 @@ message TaskDetails {
      * Start a node's part of a cluster wide job.
      */
     optional NodeJobTask nodeJobTask = 4;
+    /**
+     * Update the Cassandra configuration files.
+     */
     optional UpdateConfigTask updateConfigTask = 5;
 
     enum TaskDetailsType {
@@ -610,6 +625,9 @@ message TaskDetails {
          * Via framework message from scheduler to executor.
          */
         NODE_JOB_STATUS = 5;
+        /**
+         * Update the Cassandra configuration files.
+         */
         UPDATE_CONFIG = 6;
     }
 }
@@ -650,10 +668,16 @@ message CassandraServerRunTask {
     required JmxConnect jmx = 4;
 }
 
+/**
+ * Executor task to update the Cassandra configuration files.
+ */
 message UpdateConfigTask {
     required CassandraServerConfig cassandraServerConfig = 1;
 }
 
+/**
+ * Executor task information to update the Cassandra configuration files.
+ */
 message CassandraServerConfig {
     /**
      * Required files.
@@ -715,7 +739,7 @@ message TaskFile {
  */
 message TaskConfig {
     /**
-     * A single config item.
+     * A single cassandra.yaml config item.
      */
     message Entry {
         /**
@@ -723,13 +747,16 @@ message TaskConfig {
          */
         required string name = 1;
         /**
-         * Either a string value ...
+         * Cassandra.yaml string value.
          */
         optional string stringValue = 2;
         /**
-         * ... or an integer value.
+         * Cassandra.yaml integer value.
          */
         optional int64 longValue = 3;
+        /**
+         * Cassandra.yaml list of string values.
+         */
         repeated string stringValues = 4;
     }
 
@@ -743,6 +770,9 @@ message TaskConfig {
  * Describes a collection of environment variables.
  */
 message TaskEnv {
+    /**
+     * Process environment entry.
+     */
     message Entry {
         /**
          * Environment variable name.
@@ -812,6 +842,9 @@ message ExecutorMetadata {
      * ???
      */
     optional string ip = 2;
+    /**
+     * Ephemeral executor work directory.
+     */
     required string workdir = 3;
 }
 

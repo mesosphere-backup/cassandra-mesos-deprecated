@@ -6,6 +6,10 @@
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
+    <description>
+        The Cassandra-on-Mesos framework to deploy Apache Cassandra to Apache Mesos.
+    </description>
+
     <licenses>
         <license>
             <name>Apache 2</name>

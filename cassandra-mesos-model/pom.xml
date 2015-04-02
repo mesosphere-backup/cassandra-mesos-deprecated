@@ -11,6 +11,11 @@
 
     <artifactId>cassandra-mesos-model</artifactId>
 
+    <description>
+        The Cassandra-on-Mesos framework to deploy Apache Cassandra to Apache Mesos.
+        This artifact contains the protobuf generated code.
+    </description>
+
     <licenses>
         <license>
             <name>Apache 2</name>

@@ -1,7 +1,7 @@
-Apache Mesos
-Copyright The Apache Software Foundation
+For a list of 3rd party dependencies and their licenses see:
+    cassandra-mesos-executor/THIRD-PARTY.txt (licenses in cassandra-mesos-executor/licenses directory)
+and
+    cassandra-mesos-framework/THIRD-PARTY.txt (licenses in cassandra-mesos-framework/licenses directory)
+which are generated upon a build.
 
-Apache Cassandra
-Copyright 2009-2014 The Apache Software Foundation
-
-... TODO to be completed with other libraries that will be distributed as part of the framework
+These generated files are included in the generated artifacts.

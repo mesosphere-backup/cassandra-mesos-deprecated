@@ -108,12 +108,6 @@ Cassandra requires some operating system settings. The recommended production se
 page [Cassandra 2.1 recommended production settings] - please follow this guideline seriously for the operating
 system user running Cassandra.
 
-## Build
-The Cassandra Mesos Framework is a maven project with modules for the Framework, Scheduler, Executor and Model. Standard maven convention applies. The Framework and Executor are both built as `jar-with-dependencies` in addition to their standalone jar, so that they are easy to run and distribute.
-
-### Install Maven
-The Cassandra Mesos Framework requires an install of Maven 3.x.x.
-
 ## Cassandra memory usage
 
 Memory used by Cassandra can be roughly categorized into:
@@ -153,6 +147,11 @@ A recommended minimum value for `memMb` is 16GB. In times where RAM is getting c
 afford - with 8 to 16 GB for `memJavaHeapMb`. Remember to figure out the really required numbers in load and
 stress tests with your application.
 
+## Build
+The Cassandra Mesos Framework is a maven project with modules for the Framework, Scheduler, Executor and Model. Standard maven convention applies. The Framework and Executor are both built as `jar-with-dependencies` in addition to their standalone jar, so that they are easy to run and distribute.
+
+### Install Maven
+The Cassandra Mesos Framework requires an install of Maven 3.2.x.
 
 ### Setup maven toolchain for protoc
 

@@ -26,18 +26,18 @@ import org.assertj.core.api.Condition;
 import java.util.UUID;
 
 public abstract class AbstractSchedulerTest {
-    final Protos.FrameworkID frameworkId = Protos.FrameworkID.newBuilder().setValue(randomID()).build();
+    protected final Protos.FrameworkID frameworkId = Protos.FrameworkID.newBuilder().setValue(randomID()).build();
 
-    State state;
+    protected State state;
 
-    PersistedCassandraClusterState clusterState;
-    PersistedCassandraFrameworkConfiguration configuration;
+    protected PersistedCassandraClusterState clusterState;
+    protected PersistedCassandraFrameworkConfiguration configuration;
 
-    CassandraCluster cluster;
+    protected CassandraCluster cluster;
 
-    int activeNodes;
+    protected int activeNodes;
     @SuppressWarnings("unchecked")
-    final Tuple2<Protos.SlaveID, String>[] slaves = new Tuple2[]{
+    protected final Tuple2<Protos.SlaveID, String>[] slaves = new Tuple2[]{
             Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.1.1.1"),
             Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.2.2.2"),
             Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.3.3.3"),

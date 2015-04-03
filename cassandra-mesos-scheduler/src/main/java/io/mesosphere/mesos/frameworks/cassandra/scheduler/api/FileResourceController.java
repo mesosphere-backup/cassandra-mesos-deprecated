@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.mesosphere.mesos.frameworks.cassandra.scheduler.files;
+package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.Env;
 import org.jetbrains.annotations.NotNull;

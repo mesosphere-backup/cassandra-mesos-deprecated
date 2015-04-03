@@ -1,6 +1,14 @@
 Cassandra Mesos Framework
 =========================
 
+------------
+
+**DISCLAIMER**
+_This is a very early version of Cassandra-on-Mesos framework. This
+document, code behavior, and anything else may change without notice and/or break older installations._
+
+------------
+
 # Design
 A design document outlining what features and characteristics are being targeted by the Cassandra Mesos Framework can be found in the docs folder in [design.markdown](docs/design.markdown).
 
@@ -94,6 +102,11 @@ CASSANDRA_FRAMEWORK_MESOS_ROLE=*
 CASSANDRA_DATA_DIRECTORY=.
 ```
 
+## System configuration
+
+Cassandra requires some operating system settings. The recommended production settings are described in on the
+page [Cassandra 2.1 recommended production settings] - please follow this guideline seriously for the operating
+system user running Cassandra.
 
 ## Build
 The Cassandra Mesos Framework is a maven project with modules for the Framework, Scheduler, Executor and Model. Standard maven convention applies. The Framework and Executor are both built as `jar-with-dependencies` in addition to their standalone jar, so that they are easy to run and distribute.
@@ -198,16 +211,6 @@ There is a packaging script `package.bash` that can be used to package the frame
 ```
 
 Generating the `marathon.json` is dependent upon the great JSON command line tool [jq](http://stedolan.github.io/jq/). jq allows for accurate JSON document manipulation using the pipelineing functionality it provides.  See `package.bash` for an example.
-
-## Configuration
-
-All configuration is handled via Environment Variables. This is the most portable and maintainable approach for configuring and running tasks via Marathon.
-
-The following environment variables are required to run the Cassandra Mesos Framework
-```bash
-# The URL to zk where mesos is running
-MESOS_ZK=zk://localhost:2181/mesos
-```
 
 ## Development
 For development of the Cassandra Framework you will need access to a Mesos Cluster (for help setting up a cluster see [Setting up a Mesosphere Cluster](http://mesosphere.com/docs/getting-started/datacenter/install/)).
@@ -325,3 +328,7 @@ curl -s http://192.168.5.101:18080/live-nodes/ascii/2
 ```
 
 Note that the implementation does a best-effort approach to return random nodes.
+
+
+
+[Cassandra 2.1 recommended production settings]: https://www.datastax.com/documentation/cassandra/2.1/cassandra/install/installRecommendSettings.html

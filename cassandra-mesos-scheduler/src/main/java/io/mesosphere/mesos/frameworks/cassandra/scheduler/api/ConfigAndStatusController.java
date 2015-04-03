@@ -15,27 +15,20 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.NodeCounts;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.List;
 
 @Path("/")
 public final class ConfigAndStatusController extends AbstractApiController {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ConfigAndStatusController.class);
-
     public ConfigAndStatusController(CassandraCluster cluster) {
         super(cluster);
     }
@@ -73,156 +66,127 @@ public final class ConfigAndStatusController extends AbstractApiController {
     @GET
     @Path("/config")
     public Response config() {
-        StringWriter sw = new StringWriter();
-        try {
-            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
+        return buildStreamingResponse(new StreamingJsonResponse() {
+            @Override
+            public void write(JsonGenerator json) throws IOException {
 
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
-            json.writeStartObject();
+                CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
 
-            CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
+                json.writeStringField("frameworkName", configuration.getFrameworkName());
+                json.writeStringField("frameworkId", configuration.getFrameworkId());
+                json.writeStringField("clusterName", configuration.getFrameworkName());
+                json.writeNumberField("initialNumberOfNodes", configuration.getInitialNumberOfNodes());
+                json.writeNumberField("initialNumberOfSeeds", configuration.getInitialNumberOfSeeds());
 
-            json.writeStringField("frameworkName", configuration.getFrameworkName());
-            json.writeStringField("frameworkId", configuration.getFrameworkId());
-            json.writeStringField("clusterName", configuration.getFrameworkName());
-            json.writeNumberField("initialNumberOfNodes", configuration.getInitialNumberOfNodes());
-            json.writeNumberField("initialNumberOfSeeds", configuration.getInitialNumberOfSeeds());
+                NodeCounts nodeCounts = cluster.getClusterState().nodeCounts();
+                json.writeNumberField("currentNumberOfNodes", nodeCounts.getNodeCount());
+                json.writeNumberField("currentNumberOfSeeds", nodeCounts.getSeedCount());
+                json.writeNumberField("nodesToAcquire", cluster.getClusterState().get().getNodesToAcquire());
+                json.writeNumberField("seedsToAcquire", cluster.getClusterState().get().getSeedsToAcquire());
 
-            NodeCounts nodeCounts = cluster.getClusterState().nodeCounts();
-            json.writeNumberField("currentNumberOfNodes", nodeCounts.getNodeCount());
-            json.writeNumberField("currentNumberOfSeeds", nodeCounts.getSeedCount());
-            json.writeNumberField("nodesToAcquire", cluster.getClusterState().get().getNodesToAcquire());
-            json.writeNumberField("seedsToAcquire", cluster.getClusterState().get().getSeedsToAcquire());
+                CassandraFrameworkProtos.CassandraConfigRole configRole = configuration.getDefaultConfigRole();
+                json.writeObjectFieldStart("defaultConfigRole");
+                writeConfigRole(json, configRole);
+                json.writeEndObject();
 
-            CassandraFrameworkProtos.CassandraConfigRole configRole = configuration.getDefaultConfigRole();
-            json.writeObjectFieldStart("defaultConfigRole");
-            writeConfigRole(json, configRole);
-            json.writeEndObject();
+                json.writeNumberField("nativePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_NATIVE));
+                json.writeNumberField("rpcPort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_RPC));
+                json.writeNumberField("storagePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_STORAGE));
+                json.writeNumberField("sslStoragePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_STORAGE_SSL));
 
-            json.writeNumberField("nativePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_NATIVE));
-            json.writeNumberField("rpcPort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_RPC));
-            json.writeNumberField("storagePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_STORAGE));
-            json.writeNumberField("sslStoragePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_STORAGE_SSL));
+                writeSeedIps(json);
 
-            writeSeedIps(json);
+                json.writeNumberField("healthCheckIntervalSeconds", configuration.getHealthCheckIntervalSeconds());
+                json.writeNumberField("bootstrapGraceTimeSeconds", configuration.getBootstrapGraceTimeSeconds());
 
-            json.writeNumberField("healthCheckIntervalSeconds", configuration.getHealthCheckIntervalSeconds());
-            json.writeNumberField("bootstrapGraceTimeSeconds", configuration.getBootstrapGraceTimeSeconds());
+                CassandraFrameworkProtos.ClusterJobStatus currentTask = cluster.getCurrentClusterJob();
+                writeClusterJob(json, "currentClusterTask", currentTask);
 
-            CassandraFrameworkProtos.ClusterJobStatus currentTask = cluster.getCurrentClusterJob();
-            writeClusterJob(json, "currentClusterTask", currentTask);
+                CassandraFrameworkProtos.ClusterJobStatus lastRepair = cluster.getLastClusterJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
+                writeClusterJob(json, "lastRepair", lastRepair);
 
-            CassandraFrameworkProtos.ClusterJobStatus lastRepair = cluster.getLastClusterJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
-            writeClusterJob(json, "lastRepair", lastRepair);
+                CassandraFrameworkProtos.ClusterJobStatus lastCleanup = cluster.getLastClusterJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
+                writeClusterJob(json, "lastCleanup", lastCleanup);
 
-            CassandraFrameworkProtos.ClusterJobStatus lastCleanup = cluster.getLastClusterJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
-            writeClusterJob(json, "lastCleanup", lastCleanup);
+                json.writeNumberField("nextPossibleServerLaunchTimestamp", cluster.nextPossibleServerLaunchTimestamp());
 
-            json.writeNumberField("nextPossibleServerLaunchTimestamp", cluster.nextPossibleServerLaunchTimestamp());
-
-            json.writeEndObject();
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to all nodes list", e);
-            return Response.serverError().build();
-        }
-
-        return Response.ok(sw.toString(), "application/json").build();
+            }
+        });
     }
 
     @GET
     @Path("/qaReportResources/text")
     public Response qaReportResourcesText() {
-        StringWriter sw = new StringWriter();
-        try (PrintWriter pw = new PrintWriter(sw)) {
-            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
+        return buildStreamingResponse(Response.Status.OK, "text/plain", new StreamingTextResponse() {
+            @Override
+            public void write(PrintWriter pw) {
+                CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
+                for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
 
-            CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
-            for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
+                    if (!cassandraNode.hasCassandraNodeExecutor()) {
+                        continue;
+                    }
 
-                if (!cassandraNode.hasCassandraNodeExecutor()) {
-                    continue;
+                    pw.println("JMX_PORT: " + cassandraNode.getJmxConnect().getJmxPort());
+                    pw.println("JMX_IP: " + cassandraNode.getJmxConnect().getIp());
+                    pw.println("NODE_IP: " + cassandraNode.getIp());
+                    pw.println("BASE: http://" + cassandraNode.getIp() + ":5051/");
+
+                    for (String logFile : cluster.getNodeLogFiles(cassandraNode)) {
+                        pw.println("LOG: " + logFile);
+                    }
+
                 }
-
-                pw.println("JMX_PORT: " + cassandraNode.getJmxConnect().getJmxPort());
-                pw.println("JMX_IP: " + cassandraNode.getJmxConnect().getIp());
-                pw.println("NODE_IP: " + cassandraNode.getIp());
-                pw.println("BASE: http://" + cassandraNode.getIp() + ":5051/");
-
-                for (String logFile : cluster.getNodeLogFiles(cassandraNode)) {
-                    pw.println("LOG: " + logFile);
-                }
-
             }
-        } catch (Exception e) {
-            LOGGER.error("Failed to all nodes list", e);
-            return Response.serverError().build();
-        }
-
-        return Response.ok(sw.toString(), "text/plain").build();
+        });
     }
 
     @GET
     @Path("/qaReportResources")
     public Response qaReportResources() {
-        StringWriter sw = new StringWriter();
-        try {
-            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
+        return buildStreamingResponse(new StreamingJsonResponse() {
+            @Override
+            public void write(JsonGenerator json) throws IOException {
 
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
+                CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
+                json.writeObjectFieldStart("nodes");
+                for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
 
-            json.writeStartObject();
+                    if (!cassandraNode.hasCassandraNodeExecutor()) {
+                        continue;
+                    }
 
-            CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
-            json.writeObjectFieldStart("nodes");
-            for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
+                    CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                    if (executorMetadata == null) {
+                        continue;
+                    }
 
-                if (!cassandraNode.hasCassandraNodeExecutor()) {
-                    continue;
+                    json.writeObjectFieldStart(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                    String workdir = executorMetadata.getWorkdir();
+                    json.writeStringField("workdir", workdir);
+
+                    json.writeStringField("slaveBaseUri", "http://" + cassandraNode.getIp() + ":5051/");
+
+                    json.writeStringField("ip", cassandraNode.getIp());
+                    json.writeStringField("hostname", cassandraNode.getHostname());
+                    json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
+                    json.writeStringField("jmxIp", cassandraNode.getJmxConnect().getIp());
+                    json.writeNumberField("jmxPort", cassandraNode.getJmxConnect().getJmxPort());
+
+                    json.writeBooleanField("live", cluster.isLiveNode(cassandraNode));
+
+                    json.writeArrayFieldStart("logfiles");
+                    for (String logFile : cluster.getNodeLogFiles(cassandraNode)) {
+                        json.writeString(logFile);
+                    }
+                    json.writeEndArray();
+
+                    json.writeEndObject();
+
                 }
-
-                CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
-                if (executorMetadata == null) {
-                    continue;
-                }
-
-                json.writeObjectFieldStart(cassandraNode.getCassandraNodeExecutor().getExecutorId());
-                String workdir = executorMetadata.getWorkdir();
-                json.writeStringField("workdir", workdir);
-
-                json.writeStringField("slaveBaseUri", "http://" + cassandraNode.getIp() + ":5051/");
-
-                json.writeStringField("ip", cassandraNode.getIp());
-                json.writeStringField("hostname", cassandraNode.getHostname());
-                json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
-                json.writeStringField("jmxIp", cassandraNode.getJmxConnect().getIp());
-                json.writeNumberField("jmxPort", cassandraNode.getJmxConnect().getJmxPort());
-
-                json.writeBooleanField("live", cluster.isLiveNode(cassandraNode));
-
-                json.writeArrayFieldStart("logfiles");
-                for (String logFile : cluster.getNodeLogFiles(cassandraNode)) {
-                    json.writeString(logFile);
-                }
-                json.writeEndArray();
-
                 json.writeEndObject();
-
             }
-            json.writeEndObject();
-
-            json.writeEndObject();
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to all nodes list", e);
-            return Response.serverError().build();
-        }
-
-        return Response.ok(sw.toString(), "application/json").build();
+        });
     }
 
     /**
@@ -319,125 +283,111 @@ public final class ConfigAndStatusController extends AbstractApiController {
     @GET
     @Path("/nodes")
     public Response nodes() {
-        StringWriter sw = new StringWriter();
-        try {
-            // TODO don't write to StringWriter - stream to response as the nodes list might get very long
+        return buildStreamingResponse(new StreamingJsonResponse() {
+            @Override
+            public void write(JsonGenerator json) throws IOException {
+                CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
 
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator json = factory.createGenerator(sw);
-            json.setPrettyPrinter(new DefaultPrettyPrinter());
-
-            json.writeStartObject();
-            CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
-
-            json.writeArrayFieldStart("replaceNodes");
-            for (String ip : clusterState.getReplaceNodeIpsList()) {
-                json.writeString(ip);
-            }
-            json.writeEndArray();
-
-            json.writeNumberField("nodesToAcquire", clusterState.getNodesToAcquire());
-
-            json.writeArrayFieldStart("nodes");
-            for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
-                json.writeStartObject();
-
-                if (cassandraNode.hasReplacementForIp()) {
-                    json.writeStringField("replacementForIp", cassandraNode.getReplacementForIp());
-                }
-
-                json.writeObjectFieldStart("tasks");
-                for (CassandraFrameworkProtos.CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
-                    writeTask(json, cassandraNodeTask);
-                }
-                json.writeEndObject();
-// TODO                cassandraNode.getDataVolumesList();
-
-
-                if (!cassandraNode.hasCassandraNodeExecutor()) {
-                    json.writeNullField("executorId");
-                    json.writeNullField("workdir");
-                } else {
-                    json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
-                    CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
-                    if (executorMetadata != null) {
-                        json.writeStringField("workdir", executorMetadata.getWorkdir());
-                    } else {
-                        json.writeNullField("workdir");
-                    }
-                }
-                json.writeStringField("ip", cassandraNode.getIp());
-                json.writeStringField("hostname", cassandraNode.getHostname());
-                json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
-                json.writeNumberField("jmxPort", cassandraNode.getJmxConnect().getJmxPort());
-                json.writeBooleanField("seedNode", cassandraNode.getSeed());
-                if (!cassandraNode.hasCassandraDaemonPid()) {
-                    json.writeNullField("cassandraDaemonPid");
-                } else {
-                    json.writeNumberField("cassandraDaemonPid", cassandraNode.getCassandraDaemonPid());
-                }
-
-                CassandraFrameworkProtos.HealthCheckHistoryEntry lastHealthCheck =
-                    cassandraNode.hasCassandraNodeExecutor() ? cluster.lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId()) : null;
-
-                if (lastHealthCheck != null) {
-                    json.writeNumberField("lastHealthCheck", lastHealthCheck.getTimestampEnd());
-                } else {
-                    json.writeNullField("lastHealthCheck");
-                }
-
-                if (lastHealthCheck != null) {
-                    json.writeObjectFieldStart("healthCheckDetails");
-
-                    CassandraFrameworkProtos.HealthCheckDetails hcd = lastHealthCheck.getDetails();
-
-                    json.writeBooleanField("healthy", hcd.getHealthy());
-                    json.writeStringField("msg", hcd.getMsg());
-
-                    json.writeStringField("version", hcd.getInfo().getVersion());
-                    json.writeStringField("operationMode", hcd.getInfo().getOperationMode());
-                    json.writeStringField("clusterName", hcd.getInfo().getClusterName());
-                    json.writeStringField("dataCenter", hcd.getInfo().getDataCenter());
-                    json.writeStringField("rack", hcd.getInfo().getRack());
-                    json.writeStringField("endpoint", hcd.getInfo().getEndpoint());
-                    json.writeStringField("hostId", hcd.getInfo().getHostId());
-                    json.writeBooleanField("joined", hcd.getInfo().getJoined());
-                    json.writeBooleanField("gossipInitialized", hcd.getInfo().getGossipInitialized());
-                    json.writeBooleanField("gossipRunning", hcd.getInfo().getGossipRunning());
-                    json.writeBooleanField("nativeTransportRunning", hcd.getInfo().getNativeTransportRunning());
-                    json.writeBooleanField("rpcServerRunning", hcd.getInfo().getRpcServerRunning());
-                    json.writeNumberField("tokenCount", hcd.getInfo().getTokenCount());
-                    json.writeNumberField("uptimeMillis", hcd.getInfo().getUptimeMillis());
-
-                    json.writeEndObject();
-                } else {
-                    json.writeNullField("healthCheckDetails");
-                }
-
-                final List<CassandraFrameworkProtos.DataVolume> dataVolumes = cassandraNode.getDataVolumesList();
-                json.writeArrayFieldStart("dataVolumes");
-                for (final CassandraFrameworkProtos.DataVolume volume : dataVolumes) {
-                    json.writeStartObject();
-                    json.writeStringField("path", volume.getPath());
-                    if (volume.hasSizeMb()) {
-                        json.writeNumberField("size", volume.getSizeMb());
-                    }
-                    json.writeEndObject();
+                json.writeArrayFieldStart("replaceNodes");
+                for (String ip : clusterState.getReplaceNodeIpsList()) {
+                    json.writeString(ip);
                 }
                 json.writeEndArray();
 
-                json.writeEndObject();
+                json.writeNumberField("nodesToAcquire", clusterState.getNodesToAcquire());
+
+                json.writeArrayFieldStart("nodes");
+                for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
+                    json.writeStartObject();
+
+                    if (cassandraNode.hasReplacementForIp()) {
+                        json.writeStringField("replacementForIp", cassandraNode.getReplacementForIp());
+                    }
+
+                    json.writeObjectFieldStart("tasks");
+                    for (CassandraFrameworkProtos.CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
+                        writeTask(json, cassandraNodeTask);
+                    }
+                    json.writeEndObject();
+// TODO                cassandraNode.getDataVolumesList();
+
+                    if (!cassandraNode.hasCassandraNodeExecutor()) {
+                        json.writeNullField("executorId");
+                        json.writeNullField("workdir");
+                    } else {
+                        json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                        CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                        if (executorMetadata != null) {
+                            json.writeStringField("workdir", executorMetadata.getWorkdir());
+                        } else {
+                            json.writeNullField("workdir");
+                        }
+                    }
+                    json.writeStringField("ip", cassandraNode.getIp());
+                    json.writeStringField("hostname", cassandraNode.getHostname());
+                    json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
+                    json.writeNumberField("jmxPort", cassandraNode.getJmxConnect().getJmxPort());
+                    json.writeBooleanField("seedNode", cassandraNode.getSeed());
+                    if (!cassandraNode.hasCassandraDaemonPid()) {
+                        json.writeNullField("cassandraDaemonPid");
+                    } else {
+                        json.writeNumberField("cassandraDaemonPid", cassandraNode.getCassandraDaemonPid());
+                    }
+
+                    CassandraFrameworkProtos.HealthCheckHistoryEntry lastHealthCheck =
+                        cassandraNode.hasCassandraNodeExecutor() ? cluster.lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId()) : null;
+
+                    if (lastHealthCheck != null) {
+                        json.writeNumberField("lastHealthCheck", lastHealthCheck.getTimestampEnd());
+                    } else {
+                        json.writeNullField("lastHealthCheck");
+                    }
+
+                    if (lastHealthCheck != null) {
+                        json.writeObjectFieldStart("healthCheckDetails");
+
+                        CassandraFrameworkProtos.HealthCheckDetails hcd = lastHealthCheck.getDetails();
+
+                        json.writeBooleanField("healthy", hcd.getHealthy());
+                        json.writeStringField("msg", hcd.getMsg());
+
+                        json.writeStringField("version", hcd.getInfo().getVersion());
+                        json.writeStringField("operationMode", hcd.getInfo().getOperationMode());
+                        json.writeStringField("clusterName", hcd.getInfo().getClusterName());
+                        json.writeStringField("dataCenter", hcd.getInfo().getDataCenter());
+                        json.writeStringField("rack", hcd.getInfo().getRack());
+                        json.writeStringField("endpoint", hcd.getInfo().getEndpoint());
+                        json.writeStringField("hostId", hcd.getInfo().getHostId());
+                        json.writeBooleanField("joined", hcd.getInfo().getJoined());
+                        json.writeBooleanField("gossipInitialized", hcd.getInfo().getGossipInitialized());
+                        json.writeBooleanField("gossipRunning", hcd.getInfo().getGossipRunning());
+                        json.writeBooleanField("nativeTransportRunning", hcd.getInfo().getNativeTransportRunning());
+                        json.writeBooleanField("rpcServerRunning", hcd.getInfo().getRpcServerRunning());
+                        json.writeNumberField("tokenCount", hcd.getInfo().getTokenCount());
+                        json.writeNumberField("uptimeMillis", hcd.getInfo().getUptimeMillis());
+
+                        json.writeEndObject();
+                    } else {
+                        json.writeNullField("healthCheckDetails");
+                    }
+
+                    final List<CassandraFrameworkProtos.DataVolume> dataVolumes = cassandraNode.getDataVolumesList();
+                    json.writeArrayFieldStart("dataVolumes");
+                    for (final CassandraFrameworkProtos.DataVolume volume : dataVolumes) {
+                        json.writeStartObject();
+                        json.writeStringField("path", volume.getPath());
+                        if (volume.hasSizeMb()) {
+                            json.writeNumberField("size", volume.getSizeMb());
+                        }
+                        json.writeEndObject();
+                    }
+                    json.writeEndArray();
+
+                    json.writeEndObject();
+                }
+                json.writeEndArray();
             }
-            json.writeEndArray();
-            json.writeEndObject();
-
-            json.close();
-        } catch (Exception e) {
-            LOGGER.error("Failed to all nodes list", e);
-            return Response.serverError().build();
-        }
-
-        return Response.ok(sw.toString(), "application/json").build();
+        });
     }
 
     private static void writeConfigRole(JsonGenerator json, CassandraFrameworkProtos.CassandraConfigRole configRole) throws IOException {

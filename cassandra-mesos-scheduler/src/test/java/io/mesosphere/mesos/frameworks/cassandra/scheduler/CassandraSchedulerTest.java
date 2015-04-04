@@ -17,6 +17,7 @@ package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
+import io.mesosphere.mesos.util.ProtoUtils;
 import io.mesosphere.mesos.util.SystemClock;
 import org.apache.mesos.Protos;
 import org.junit.Test;
@@ -457,7 +458,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
         assertThat(errs)
             .hasSize(6)
             .contains(
-                "Not enough cpu resources for role ROLE. Required 1.000000 only 0.000000 available",
+                "Not enough cpu resources for role ROLE. Required 1.0 only 0.0 available",
                 "Not enough mem resources for role ROLE. Required 2 only 0 available",
                 "Not enough disk resources for role ROLE. Required 3 only 0 available",
                 "Unavailable port 1(port1) for role ROLE. 0 other ports available",
@@ -553,7 +554,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
         assertThat(errs)
             .hasSize(6)
             .contains(
-                "Not enough cpu resources for role FOO_BAR. Required 8.000000 only 0.000000 available",
+                "Not enough cpu resources for role FOO_BAR. Required 8.0 only 0.0 available",
                 "Not enough mem resources for role FOO_BAR. Required 8192 only 0 available",
                 "Not enough disk resources for role FOO_BAR. Required 8192 only 0 available",
                 "Unavailable port 7000(port1) for role FOO_BAR. 0 other ports available",
@@ -561,5 +562,27 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 "Unavailable port 10000(port3) for role FOO_BAR. 0 other ports available"
             );
 
+    }
+
+    @Test
+    public void testHasResource_floatingPointPrecision() throws Exception {
+        Protos.Offer offer = Protos.Offer.newBuilder()
+                .setHostname("host1")
+                .setId(Protos.OfferID.newBuilder().setValue("offer"))
+                .setSlaveId(Protos.SlaveID.newBuilder().setValue("slave"))
+                .setFrameworkId(Protos.FrameworkID.newBuilder().setValue("frw1"))
+                .addResources(ProtoUtils.cpu(0.09999999999999981, "*"))
+                .addResources(ProtoUtils.mem(1024, "*"))
+                .addResources(ProtoUtils.disk(1024, "*"))
+                .build();
+        final CassandraFrameworkProtos.TaskResources resources = resources(
+                0.1,
+                500,
+                500
+        );
+
+        assertThat(CassandraCluster.hasResources(offer, resources, Collections.<String, Long>emptyMap(), "*")).contains(
+                "Not enough cpu resources for role *. Required 0.1 only 0.09999999999999981 available"
+        );
     }
 }

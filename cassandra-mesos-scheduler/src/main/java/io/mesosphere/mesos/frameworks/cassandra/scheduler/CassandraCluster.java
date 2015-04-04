@@ -835,7 +835,7 @@ public final class CassandraCluster {
         final long availableDisk = resourceValueLong(headOption(index.get("disk"))).or(0L);
 
         if (availableCpus < resources.getCpuCores()) {
-            errors.add(String.format("Not enough cpu resources for role %s. Required %f only %f available", mesosRole, resources.getCpuCores(), availableCpus));
+            errors.add(String.format("Not enough cpu resources for role %s. Required %s only %s available", mesosRole, String.valueOf(resources.getCpuCores()), String.valueOf(availableCpus)));
         }
         if (availableMem < resources.getMemMb()) {
             errors.add(String.format("Not enough mem resources for role %s. Required %d only %d available", mesosRole, resources.getMemMb(), availableMem));

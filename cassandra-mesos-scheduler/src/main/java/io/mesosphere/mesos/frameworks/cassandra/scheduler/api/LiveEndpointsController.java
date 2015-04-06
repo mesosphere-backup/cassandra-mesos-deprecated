@@ -15,9 +15,12 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
+import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.JaxRsUtils;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,12 +30,17 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 
-@Path("/")
-public final class LiveEndpointsController extends AbstractApiController {
+@Path("/live-nodes")
+public final class LiveEndpointsController {
     private static final Logger LOGGER = LoggerFactory.getLogger(LiveEndpointsController.class);
+    @NotNull
+    private final CassandraCluster cluster;
+    @NotNull
+    private final JsonFactory factory;
 
-    public LiveEndpointsController(CassandraCluster cluster) {
-        super(cluster);
+    public LiveEndpointsController(@NotNull CassandraCluster cluster, @NotNull final JsonFactory factory) {
+        this.cluster = cluster;
+        this.factory = factory;
     }
 
     /**
@@ -48,7 +56,6 @@ public final class LiveEndpointsController extends AbstractApiController {
      * }}</pre>
      */
     @GET
-    @Path("/live-nodes")
     @Produces("application/json")
     public Response liveEndpointsJson(@QueryParam("limit") @DefaultValue("3") int limit) {
         return liveEndpoints("json", limit);
@@ -67,7 +74,7 @@ public final class LiveEndpointsController extends AbstractApiController {
      * }</pre>
      */
     @GET
-    @Path("/live-nodes/text")
+    @Path("/text")
     @Produces("text/plain")
     public Response liveEndpointsText(@QueryParam("limit") @DefaultValue("3") int limit) {
         return liveEndpoints("text", limit);
@@ -77,7 +84,7 @@ public final class LiveEndpointsController extends AbstractApiController {
      * Variant of the live Cassandra nodes endpoint that produces partial command line for cqlsh.
      */
     @GET
-    @Path("/live-nodes/cqlsh")
+    @Path("/cqlsh")
     @Produces("text/x-cassandra-cqlsh")
     public Response liveEndpointsCqlsh() {
         return liveEndpoints("cqlsh", 1);
@@ -87,7 +94,7 @@ public final class LiveEndpointsController extends AbstractApiController {
      * Variant of the live Cassandra nodes endpoint that produces partial command line for nodetool.
      */
     @GET
-    @Path("/live-nodes/nodetool")
+    @Path("/nodetool")
     @Produces("text/x-cassandra-nodetool")
     public Response liveEndpointsNodetool() {
         return liveEndpoints("nodetool", 1);
@@ -99,7 +106,7 @@ public final class LiveEndpointsController extends AbstractApiController {
      * query parameter {@code limit}.
      */
     @GET
-    @Path("/live-nodes/stress")
+    @Path("/stress")
     @Produces("text/x-cassandra-stress")
     public Response liveEndpointsStress(@QueryParam("limit") @DefaultValue("3") int limit) {
         return liveEndpoints("stress", limit);
@@ -151,7 +158,7 @@ public final class LiveEndpointsController extends AbstractApiController {
                     return Response.ok("-h " + first.getJmxConnect().getIp() + " -p " + first.getJmxConnect().getJmxPort()).build();
                 case "json":
                     // produce a simple JSON with the native port and live node IPs
-                    return buildStreamingResponse(new StreamingJsonResponse() {
+                    return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
                         @Override
                         public void write(JsonGenerator json) throws IOException {
                             json.writeStringField("clusterName", configuration.getFrameworkName());
@@ -168,7 +175,7 @@ public final class LiveEndpointsController extends AbstractApiController {
                     });
                 case "text":
                     // produce a simple text with the native port in the first line and one line per live node IP
-                    return buildStreamingResponse(Response.Status.OK, "text/plain", new StreamingTextResponse() {
+                    return JaxRsUtils.buildStreamingResponse(Response.Status.OK, "text/plain", new StreamingTextResponse() {
                         @Override
                         public void write(PrintWriter pw) {
                             pw.println("NATIVE: " + nativePort);

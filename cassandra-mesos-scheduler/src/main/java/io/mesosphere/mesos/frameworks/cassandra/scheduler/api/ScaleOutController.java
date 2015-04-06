@@ -15,9 +15,12 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.NodeCounts;
+import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.JaxRsUtils;
+import org.jetbrains.annotations.NotNull;
 
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -25,11 +28,17 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 
-@Path("/")
-public final class ScaleOutController extends AbstractApiController {
+@Path("/scale")
+public final class ScaleOutController {
 
-    public ScaleOutController(CassandraCluster cluster) {
-        super(cluster);
+    @NotNull
+    private final CassandraCluster cluster;
+    @NotNull
+    private final JsonFactory factory;
+
+    public ScaleOutController(@NotNull CassandraCluster cluster, @NotNull final JsonFactory factory) {
+        this.cluster = cluster;
+        this.factory = factory;
     }
 
     /**
@@ -38,11 +47,11 @@ public final class ScaleOutController extends AbstractApiController {
      * Must be submitted using HTTP method {@code POST}.
      */
     @POST
-    @Path("/scale/nodes")
+    @Path("/nodes")
     public Response updateNodeCount(@QueryParam("nodes") final int nodeCount) {
         final NodeCounts oldNodeCount = cluster.getClusterState().nodeCounts();
-            final int newCount = cluster.updateNodeCount(nodeCount);
-        return buildStreamingResponse(new StreamingJsonResponse() {
+        final int newCount = cluster.updateNodeCount(nodeCount);
+        return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
             public void write(JsonGenerator json) throws IOException {
                 json.writeNumberField("oldNodeCount", oldNodeCount.getNodeCount());

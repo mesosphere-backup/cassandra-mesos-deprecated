@@ -15,6 +15,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.google.common.collect.Sets;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
 
@@ -24,22 +25,24 @@ public final class ApiControllerFactory {
 
     private ApiControllerFactory() {}
 
-    public static Set<Object> buildInstances(CassandraCluster cassandraCluster, String cassandraVersion) {
+    public static Set<Object> buildInstances(CassandraCluster cassandraCluster, String cassandraVersion, final JsonFactory factory) {
         Set<Object> set = Sets.<Object>newHashSet(
             new FileResourceController(cassandraVersion));
-        set.addAll(buildInstancesWithoutFiles(cassandraCluster));
+        set.addAll(buildInstancesWithoutFiles(cassandraCluster, factory));
         return set;
     }
 
-    public static Set<Object> buildInstancesWithoutFiles(CassandraCluster cassandraCluster) {
-        return Sets.<Object>newHashSet(
-            new ApiController(cassandraCluster),
-            new ClusterJobsController(cassandraCluster),
-            new ConfigAndStatusController(cassandraCluster),
-            new LiveEndpointsController(cassandraCluster),
-            new NodeStateController(cassandraCluster),
-            new ScaleOutController(cassandraCluster),
-            new SeedNodesController(cassandraCluster)
+    public static Set<Object> buildInstancesWithoutFiles(CassandraCluster cassandraCluster, final JsonFactory factory) {
+        return Sets.newHashSet(
+                new ApiController(factory),
+                new ClusterCleanupController(cassandraCluster, factory),
+                new ClusterRepairController(cassandraCluster, factory),
+                new ClusterRollingRestartController(cassandraCluster, factory),
+                new ConfigController(cassandraCluster, factory),
+                new LiveEndpointsController(cassandraCluster, factory),
+                new NodeController(cassandraCluster, factory),
+                new QaReportController(cassandraCluster, factory)/*,
+                new ScaleOutController(cassandraCluster, factory)*/
         );
     }
 }

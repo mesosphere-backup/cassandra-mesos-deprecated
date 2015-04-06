@@ -9,59 +9,249 @@ document, code behavior, and anything else may change without notice and/or brea
 
 ------------
 
-Cassandra-on-Mesos provides a REST API though its scheduler. By default the REST API HTTP listener runs on port
-`18080`. To get a quick introduction, point your browser to `http://127.0.0.1:18080/` (or wherever your 
+Cassandra-on-Mesos provides a REST API though its scheduler. point your browser to `http://127.0.0.1:18080/` (or wherever your 
 Cassandra-on-Mesos scheduler is running).
 
-The 'default' endpoint returns a simple JSON that you can use as a point-of-entry:
+The `/` endpoint returns a simple JSON object that lists all URLs the method to use, and the available `Content-Type`.
 
 ```json
-{
-  "configuration" : "http://192.168.5.101:18080/config",
-  "seedNodes" : "http://192.168.5.101:18080/seed-nodes",
-  "allNodes" : "http://192.168.5.101:18080/nodes",
-  "repair" : {
-    "start" : "http://192.168.5.101:18080/repair/start",
-    "status" : "http://192.168.5.101:18080/repair/status",
-    "lastStatus" : "http://192.168.5.101:18080/repair/last",
-    "abort" : "http://192.168.5.101:18080/repair/abort"
-  },
-  "cleanup" : {
-    "start" : "http://192.168.5.101:18080/cleanup/start",
-    "status" : "http://192.168.5.101:18080/cleanup/status",
-    "lastStatus" : "http://192.168.5.101:18080/cleanup/last",
-    "abort" : "http://192.168.5.101:18080/cleanup/abort"
-  }
-}
+[
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/config"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/cluster/cleanup/start"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/cluster/cleanup/abort"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/cluster/cleanup/status"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/cluster/cleanup/last"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/cluster/repair/start"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/cluster/repair/abort"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/cluster/repair/status"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/cluster/repair/last"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/cluster/rolling-restart/start"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/cluster/rolling-restart/abort"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/cluster/rolling-restart/status"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/cluster/rolling-restart/last"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/node/all"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/node/seed/all"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/node/{node}/stop/"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/node/{node}/start/"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/node/{node}/restart/"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/node/{node}/terminate/"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/node/{node}/replace/"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/node/{node}/make-seed/"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/node/{node}/make-non-seed/"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/live-nodes"
+    },
+    {
+        "contentType": [
+            "text/plain"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/live-nodes/text"
+    },
+    {
+        "contentType": [
+            "text/x-cassandra-cqlsh"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/live-nodes/cqlsh"
+    },
+    {
+        "contentType": [
+            "text/x-cassandra-nodetool"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/live-nodes/nodetool"
+    },
+    {
+        "contentType": [
+            "text/x-cassandra-stress"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/live-nodes/stress"
+    },
+    {
+        "contentType": [
+            "application/json",
+            "text/plain"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/qa/report/resources"
+    }
+]
 ```
 
 # Summary of API endpoints
 
-Endpoint | HTTP method | Description
---- | --- | ---
-`/seed-nodes` | `GET` | IP addresses of all seed nodes and native, thrift, and JMX port numbers.
-`/config` | `GET` | Returns the configuration.
-`/nodes` | `GET` | List all nodes and their status.
-`/live-nodes` | `GET` | Retrieve multiple live nodes, limited to 3 nodes by default. The limit can be changed with the query parameter `limit`.
-`/live-nodes/text` | `GET` | Similar to `/live-nodes` endpoint but it returns plain text.
-`/live-nodes/cqlsh`, `/live-nodes/nodetool`, `/live-nodes/stress` | `GET` | Special live-nodes endpoints that produce command line options for the corresponding Cassandra tools.
-`/scale/nodes` | `POST` | Scale out the Cassandra cluster by increasing the number of nodes. It requires the query parameter `nodes` to define the total number of nodes.
-`/repair/start`, `/repair/status`, `/repair/abort`, `/repair/last` | `POST` for `start` and `abort`, `GET` for `status` and `last`  | Endpoints to start a cluster-wide repair, inquire the current status, abort the cluster-wide repair, and inquire the status of the last repair.
-`/cleanup/start`, `/cleanup/status`, `/cleanup/abort`, `/cleanup/last` | `POST` for `start` and `abort`, `GET` for `status` and `last`  | Similar to repair but for cluster-wide cleanup.
-`/cluster/restart/start`, `/cluster/restart/status`, `/cluster/restart/abort`, `/cluster/restart/last` | `POST` for `start` and `abort`, `GET` for `status` and `last` | Performs a cluster-wide restart of all Cassandra server processes.
-`/node/stop/`+_node_ | `POST` | Sets the run-status of the _node_ (either IP, hostname, or executor ID) to _STOP_, which ensures that the Cassandra process is not running.
-`/node/run/`+_node_ | `POST` | Sets the run-status of the _node_ (either IP, hostname, or executor ID) to _RUN_, which ensures that the Cassandra process is running.
-`/node/restart/`+_node_ | `POST` | Sets the run-status of the _node_ (either IP, hostname, or executor ID) to _RESTART_, which is effectively a sequence of _STOP_ followed by _RUN_.
-`/node/terminate/`+_node_ | `POST` | Sets the requested run-status of the _node_ (either IP, hostname, or executor ID) to _TERMINATE_, which ensures that the Cassandra node can be replaced. There's no way to bring a _terminated_ node back.
-`/node/replace/`+_node_ | `POST` | Alocates a new Cassandra node that is configured to replace the given _node_ (either IP, hostname, or executor ID).
-`/node/seed/`+_node_ | `POST` | Converts a non-seed node to a seed node. Implicitly forces a rollout of the Cassandra configuration to all nodes.
-`/node/non-seed/`+_node_ | `POST` | Converts a seed node to a non-seed node. Implicitly forces a rollout of the Cassandra configuration to all nodes.
-`/qaReportResources` | `GET` | Retrieve a JSON response with relevant information to create a QA report.
-`/qaReportResources/text` | `GET` | Retrieve a plain text response with relevant information to create a QA report.
+Endpoint | HTTP method | Content-Types| Description
+--- | --- | --- | ---
+`/config`                           | `GET`  | `application/json` | Returns the configuration.
+`/cluster/cleanup/start`            | `POST` | `application/json` | Endpoints to start a cluster-wide cleanup.
+`/cluster/cleanup/abort`            | `POST` | `application/json` | Abort the cluster-wide cleanup
+`/cluster/cleanup/status`           | `GET`  | `application/json` | Inquire the current status.
+`/cluster/cleanup/last`             | `GET`  | `application/json` | Inquire the status of the last cleanup.
+`/cluster/repair/start`             | `POST` | `application/json` | Endpoints to start a cluster-wide repair.
+`/cluster/repair/abort`             | `POST` | `application/json` | Abort the cluster-wide repair
+`/cluster/repair/status`            | `GET`  | `application/json` | Inquire the current status.
+`/cluster/repair/last`              | `GET`  | `application/json` | Inquire the status of the last repair.
+`/cluster/rolling-restart/start`    | `POST` | `application/json` | Endpoints to start a cluster-wide rolling-restart.
+`/cluster/rolling-restart/abort`    | `POST` | `application/json` | Abort the cluster-wide rolling-restart
+`/cluster/rolling-restart/status`   | `GET`  | `application/json` | Inquire the current status.
+`/cluster/rolling-restart/last`     | `GET`  | `application/json` | Inquire the status of the last rolling-restart.
+`/node/all`                         | `GET`  | `application/json` | List all nodes and their status.
+`/node/seed/all`                    | `GET`  | `application/json` | IP addresses of all seed nodes and native, thrift, and JMX port numbers.
+`/node/{node}/stop`                 | `POST` | `application/json` | Sets the run-status of the `node` (either IP, hostname, or executor ID) to `STOP`, which ensures that the Cassandra process is not running.
+`/node/{node}/start`                | `POST` | `application/json` | Sets the run-status of the `node` (either IP, hostname, or executor ID) to `RUN`, which ensures that the Cassandra process is running.
+`/node/{node}/restart`              | `POST` | `application/json` | Sets the run-status of the `node` (either IP, hostname, or executor ID) to `RESTART`, which is effectively a sequence of `STOP` followed by `RUN`.
+`/node/{node}/terminate`            | `POST` | `application/json` | Sets the requested run-status of the `node` (either IP, hostname, or executor ID) to `TERMINATE`, which ensures that the Cassandra node can be replaced. There's no way to bring a `terminated` node back.
+`/node/{node}/replace`              | `POST` | `application/json` | Allocates a new Cassandra node that is configured to replace the given _node_ (either IP, hostname, or executor ID).
+`/node/{node}/make-seed`            | `POST` | `application/json` | Converts a non-seed node to a seed node. Implicitly forces a rollout of the Cassandra configuration to all nodes.
+`/node/{node}/make-non-seed`        | `POST` | `application/json` | Converts a seed node to a non-seed node. Implicitly forces a rollout of the Cassandra configuration to all nodes.
+`/live-nodes`                       | `GET`  | `application/json` | Retrieve multiple live nodes, limited to 3 nodes by default. The limit can be changed with the query parameter `limit`.
+`/live-nodes/text`                  | `GET`  | `text/plain`       | Similar to `/live-nodes` endpoint but it returns plain text.
+`/live-nodes/cqlsh`                 | `GET`  | `text/x-cassandra-cqlsh` | Special live-nodes endpoints that produce command line options for the Cassandra tool cqlsh.
+`/live-nodes/nodetool`              | `GET`  | `text/x-cassandra-nodetool` | Special live-nodes endpoints that produce command line options for the Cassandra tool nodetool.
+`/live-nodes/stress`                | `GET`  | `text/x-cassandra-stress` | Special live-nodes endpoints that produce command line options for the Cassandra tool stress.
+`/qa/report/resources`              | `GET`  | `application/json`, `text/plain` | Retrieve a JSON response with relevant information to create a QA report.
 
 # Example response
 
-## `/seed-nodes`
+## `/node/seed/all`
 
 ```json
 {
@@ -103,7 +293,7 @@ Endpoint | HTTP method | Description
 }
 ```
 
-## `/nodes`
+## `/node/all`
 
 ```json
 {
@@ -218,7 +408,7 @@ IP: 127.0.0.1
 IP: 127.0.0.2
 ```
 
-## `/repair/start`
+## `/cluster/repair/start`
 
 ```json
 {
@@ -226,7 +416,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/repair/status`
+## `/cluster/repair/status`
 
 ```json
 {
@@ -262,7 +452,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/repair/abort`
+## `/cluster/repair/abort`
 
 ```json
 {
@@ -270,7 +460,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/repair/last`
+## `/cluster/repair/last`
 
 ```json
 {
@@ -306,7 +496,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/cleanup/start`
+## `/cluster/cleanup/start`
 
 ```json
 {
@@ -314,7 +504,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/cleanup/status`
+## `/cluster/cleanup/status`
 
 ```json
 {
@@ -343,7 +533,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/cleanup/abort`
+## `/cluster/cleanup/abort`
 
 ```json
 {
@@ -351,7 +541,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/cleanup/last`
+## `/cluster/cleanup/last`
 
 ```json
 {
@@ -380,7 +570,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/cluster/restart/start`
+## `/cluster/rolling-restart/start`
 
 ```json
 {
@@ -388,7 +578,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/cluster/restart/status`
+## `/cluster/rolling-restart/status`
 
 ```json
 {
@@ -412,7 +602,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/cluster/restart/abort`
+## `/cluster/rolling-restart/abort`
 
 ```json
 {
@@ -420,7 +610,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/cluster/restart/last`
+## `/cluster/rolling-restart/last`
 
 ```json
 {
@@ -444,7 +634,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/node/stop/`+_node_
+## `/node/{node}/stop`
 
 ```json
 {
@@ -455,7 +645,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/node/run/`+_node_
+## `/node/{node}/run`
 
 ```json
 {
@@ -466,7 +656,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/node/restart/`+_node_
+## `/node/{node}/restart`
 
 ```json
 {
@@ -477,7 +667,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/node/terminate/`+_node_
+## `/node/{node}/terminate`
 
 ```json
 {
@@ -488,7 +678,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/node/replace/`+_node_
+## `/node/{node}/replace`
 
 ```json
 {
@@ -507,18 +697,7 @@ IP: 127.0.0.2
 }
 ```
 
-## `/scale/nodes?nodes=N`
-
-```json
-{
-   "oldNodeCount" : "3",
-   "seedNodeCount" : "2",
-   "applied" : true,
-   "newNodeCount" : 5
-}
-```
-
-## `/node/seed/`+_node_
+## `/node/{node}/make-seed`
 
 ```json
 {
@@ -542,11 +721,11 @@ IP: 127.0.0.2
 }
 ```
 
-## `/node/non-seed/`+_node_
+## `/node/{node}/make-non-seed`
 
-Similar to `/node/non-seed/`+_node_ - see above.
+Similar to `/node/{node}/non-seed`.
 
-## `/qaReportResources`
+## `/qa/report/resources`
 
 ```json
 {
@@ -577,7 +756,7 @@ Similar to `/node/non-seed/`+_node_ - see above.
 }
 ```
 
-## `/qaReportResources/text`
+## GET `/qa/report/resources` Accept: text/plain
 
 ```
 JMX_PORT: 62008

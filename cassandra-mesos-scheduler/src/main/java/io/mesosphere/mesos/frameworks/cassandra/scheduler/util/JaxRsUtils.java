@@ -1,26 +1,14 @@
-/**
- *    Copyright (C) 2015 Mesosphere, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
+package io.mesosphere.mesos.frameworks.cassandra.scheduler.util;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.google.common.base.Optional;
-import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
+import io.mesosphere.mesos.frameworks.cassandra.scheduler.api.StreamingJsonResponse;
+import io.mesosphere.mesos.frameworks.cassandra.scheduler.api.StreamingTextResponse;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -30,17 +18,14 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 
-public abstract class AbstractApiController {
+import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 
-    protected final JsonFactory factory = new JsonFactory();
+public final class JaxRsUtils {
 
-    protected final CassandraCluster cluster;
+    private JaxRsUtils() {}
 
-    protected AbstractApiController(CassandraCluster cluster) {
-        this.cluster = cluster;
-    }
 
-    protected void writeSeedIps(JsonGenerator json) throws IOException {
+    public static void writeSeedIps(@NotNull final CassandraCluster cluster, @NotNull JsonGenerator json) throws IOException {
         json.writeArrayFieldStart("seeds");
         for (String seed : cluster.getSeedNodeIps()) {
             json.writeString(seed);
@@ -48,7 +33,7 @@ public abstract class AbstractApiController {
         json.writeEndArray();
     }
 
-    protected void writeClusterJob(JsonGenerator json, String name, CassandraFrameworkProtos.ClusterJobStatus jobStatus) throws IOException {
+    public static void writeClusterJob(@NotNull final CassandraCluster cluster, @NotNull JsonGenerator json, @NotNull String name, @Nullable ClusterJobStatus jobStatus) throws IOException {
         if (jobStatus != null && jobStatus.hasJobType()) {
             json.writeObjectFieldStart(name);
 
@@ -70,15 +55,15 @@ public abstract class AbstractApiController {
 
             if (jobStatus.hasCurrentNode()) {
                 json.writeObjectFieldStart("currentNode");
-                writeNodeJobStatus(json, jobStatus.getCurrentNode());
+                writeNodeJobStatus(cluster, json, jobStatus.getCurrentNode());
             } else {
                 json.writeNullField("currentNode");
             }
 
             json.writeArrayFieldStart("completedNodes");
-            for (CassandraFrameworkProtos.NodeJobStatus nodeJobStatus : jobStatus.getCompletedNodesList()) {
+            for (NodeJobStatus nodeJobStatus : jobStatus.getCompletedNodesList()) {
                 json.writeStartObject();
-                writeNodeJobStatus(json, nodeJobStatus);
+                writeNodeJobStatus(cluster, json, nodeJobStatus);
             }
             json.writeEndArray();
 
@@ -88,10 +73,10 @@ public abstract class AbstractApiController {
         }
     }
 
-    protected void writeNodeJobStatus(JsonGenerator json, CassandraFrameworkProtos.NodeJobStatus nodeJobStatus) throws IOException {
+    public static void writeNodeJobStatus(@NotNull final CassandraCluster cluster, @NotNull JsonGenerator json, @NotNull NodeJobStatus nodeJobStatus) throws IOException {
         json.writeStringField("executorId", nodeJobStatus.getExecutorId());
         json.writeStringField("taskId", nodeJobStatus.getTaskId());
-        Optional<CassandraFrameworkProtos.CassandraNode> node = cluster.cassandraNodeForExecutorId(nodeJobStatus.getExecutorId());
+        Optional<CassandraNode> node = cluster.cassandraNodeForExecutorId(nodeJobStatus.getExecutorId());
         if (node.isPresent()) {
             json.writeStringField("hostname", node.get().getHostname());
             json.writeStringField("ip", node.get().getIp());
@@ -115,7 +100,7 @@ public abstract class AbstractApiController {
         }
 
         json.writeObjectFieldStart("processedKeyspaces");
-        for (CassandraFrameworkProtos.ClusterJobKeyspaceStatus clusterJobKeyspaceStatus : nodeJobStatus.getProcessedKeyspacesList()) {
+        for (ClusterJobKeyspaceStatus clusterJobKeyspaceStatus : nodeJobStatus.getProcessedKeyspacesList()) {
             json.writeObjectFieldStart(clusterJobKeyspaceStatus.getKeyspace());
             json.writeStringField("status", clusterJobKeyspaceStatus.getStatus());
             json.writeNumberField("durationMillis", clusterJobKeyspaceStatus.getDuration());
@@ -132,11 +117,13 @@ public abstract class AbstractApiController {
         json.writeEndObject();
     }
 
-    protected Response buildStreamingResponse(final StreamingJsonResponse jsonResponse) {
-        return buildStreamingResponse(Response.Status.OK, jsonResponse);
+    @NotNull
+    public static Response buildStreamingResponse(@NotNull final JsonFactory factory, @NotNull final StreamingJsonResponse jsonResponse) {
+        return buildStreamingResponse(factory, Response.Status.OK, jsonResponse);
     }
 
-    protected Response buildStreamingResponse(Response.Status status, final StreamingJsonResponse jsonResponse) {
+    @NotNull
+    public static Response buildStreamingResponse(@NotNull final JsonFactory factory, @NotNull Response.Status status, @NotNull final StreamingJsonResponse jsonResponse) {
         return Response.status(status).entity(new StreamingOutput() {
             @Override
             public void write(OutputStream output) throws IOException, WebApplicationException {
@@ -152,7 +139,8 @@ public abstract class AbstractApiController {
         }).type("application/json").build();
     }
 
-    protected Response buildStreamingResponse(Response.Status status, String type, final StreamingTextResponse textResponse) {
+    @NotNull
+    public static Response buildStreamingResponse(@NotNull Response.Status status, @NotNull String type, @NotNull final StreamingTextResponse textResponse) {
         return Response.status(status).entity(new StreamingOutput() {
             @Override
             public void write(OutputStream output) throws IOException, WebApplicationException {
@@ -161,5 +149,49 @@ public abstract class AbstractApiController {
                 }
             }
         }).type(type).build();
+    }
+
+    public static void writeConfigRole(JsonGenerator json, CassandraConfigRole configRole) throws IOException {
+        json.writeStringField("cassandraVersion", configRole.getCassandraVersion());
+        json.writeNumberField("diskMb", configRole.getResources().getDiskMb());
+        json.writeNumberField("cpuCores", configRole.getResources().getCpuCores());
+        if (configRole.hasMemJavaHeapMb()) {
+            json.writeNumberField("memJavaHeapMb", configRole.getMemJavaHeapMb());
+        }
+        if (configRole.hasMemAssumeOffHeapMb()) {
+            json.writeNumberField("memAssumeOffHeapMb", configRole.getMemAssumeOffHeapMb());
+        }
+        json.writeNumberField("memMb", configRole.getResources().getMemMb());
+
+        if (!configRole.hasTaskEnv()) {
+            json.writeNullField("taskEnv");
+        } else {
+            json.writeObjectFieldStart("taskEnv");
+            for (TaskEnv.Entry entry : configRole.getTaskEnv().getVariablesList()) {
+                json.writeStringField(entry.getName(), entry.getValue());
+            }
+            json.writeEndObject();
+            json.writeObjectFieldStart("cassandraYaml");
+            for (TaskConfig.Entry entry : configRole.getCassandraYamlConfig().getVariablesList()) {
+                if (entry.hasLongValue()) {
+                    json.writeNumberField(entry.getName(), entry.getLongValue());
+                }
+                if (entry.hasStringValue()) {
+                    json.writeStringField(entry.getName(), entry.getStringValue());
+                }
+            }
+            json.writeEndObject();
+        }
+    }
+
+    public static void writeTask(JsonGenerator json, CassandraNodeTask task) throws IOException {
+        if (task != null && task.hasTaskId()) {
+            json.writeObjectFieldStart(task.getType().toString());
+            json.writeNumberField("cpuCores", task.getResources().getCpuCores());
+            json.writeNumberField("diskMb", task.getResources().getDiskMb());
+            json.writeNumberField("memMb", task.getResources().getMemMb());
+            json.writeStringField("taskId", task.getTaskId());
+            json.writeEndObject();
+        }
     }
 }

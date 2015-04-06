@@ -21,31 +21,22 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class ClusterJobsControllerTest extends AbstractApiControllerTest {
+public class ClusterRepairControllerTest extends AbstractApiControllerTest {
 
     @Test
-    public void testRepair() throws Exception {
-        testClusterJob("repair", "repair", "cleanup");
-    }
-
-    @Test
-    public void testCleanup() throws Exception {
-        testClusterJob("cleanup", "cleanup", "repair");
-    }
-
-    protected void testClusterJob(String urlPart, String name, String other) throws Exception {
+    public void testrepair() throws Exception {
         threeNodeCluster();
 
-        Tuple2<Integer, JsonNode> tup = fetchJson('/' + urlPart + "/start", true);
+        Tuple2<Integer, JsonNode> tup = fetchJson("/cluster/repair/start", true);
         assertEquals(200, tup._1.intValue());
         JsonNode json = tup._2;
 
         assertTrue(json.has("started"));
         assertTrue(json.get("started").asBoolean());
 
-        // fail for cleanup
+        // fail for repair
 
-        tup = fetchJson('/' + other + "/start", true);
+        tup = fetchJson("/cluster/cleanup/start", true);
         assertEquals(200, tup._1.intValue());
         json = tup._2;
 
@@ -54,11 +45,11 @@ public class ClusterJobsControllerTest extends AbstractApiControllerTest {
 
         // status
 
-        tup = fetchJson('/' + urlPart + "/status", false);
+        tup = fetchJson("/cluster/repair/status", false);
         assertEquals(200, tup._1.intValue());
         json = tup._2;
         assertTrue(json.get("running").asBoolean());
-        JsonNode status = json.get(name);
+        JsonNode status = json.get("repair");
         assertTrue(status.has("type"));
         assertTrue(status.has("started"));
         assertTrue(status.get("started").isNumber());
@@ -74,25 +65,26 @@ public class ClusterJobsControllerTest extends AbstractApiControllerTest {
 
         // abort
 
-        tup = fetchJson('/' + urlPart + "/abort", true);
+        tup = fetchJson("/cluster/repair/abort", true);
         assertEquals(200, tup._1.intValue());
         json = tup._2;
         assertTrue(json.get("aborted").asBoolean());
 
-        tup = fetchJson('/' + urlPart + "/status", false);
+        tup = fetchJson("/cluster/repair/status", false);
         assertEquals(200, tup._1.intValue());
         json = tup._2;
-        status = json.get(name);
+        status = json.get("repair");
         assertTrue(status.has("aborted"));
         assertTrue(status.get("aborted").asBoolean());
 
         // last
 
-        tup = fetchJson('/' + urlPart + "/last", false);
+        tup = fetchJson("/cluster/repair/last", false);
         assertEquals(200, tup._1.intValue());
         json = tup._2;
         assertFalse(json.get("present").asBoolean());
-        assertTrue(json.get(name).isNull());
+        assertTrue(json.get("repair").isNull());
     }
+
 
 }

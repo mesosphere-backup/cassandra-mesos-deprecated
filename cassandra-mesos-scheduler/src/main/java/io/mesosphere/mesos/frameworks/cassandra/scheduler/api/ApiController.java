@@ -15,51 +15,122 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonFactory;
+import org.jetbrains.annotations.NotNull;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.io.IOException;
+import java.util.List;
+
+import static com.google.common.collect.Lists.newArrayList;
 
 @Path("/")
-public final class ApiController extends AbstractApiController {
+public final class ApiController {
 
-    public ApiController(CassandraCluster cluster) {
-        super(cluster);
+    @NotNull
+    private final JsonFactory factory;
+
+    public ApiController(final @NotNull JsonFactory factory) {
+        this.factory = factory;
     }
 
     /**
      * Basially a poor man's index page.
      */
     @GET
-    public Response indexPage(@Context final UriInfo uriInfo) {
-        return buildStreamingResponse(new StreamingJsonResponse() {
-            @Override
-            public void write(JsonGenerator json) throws IOException {
-                String baseUrl = uriInfo.getBaseUri().toString();
+    @Produces("application/json")
+    public List<ApiEndpoint> indexPage(@Context final UriInfo uriInfo) {
+        final String baseUri = uriInfo.getBaseUri().toString();
+        return newArrayList(
+                new ApiEndpoint("GET",  baseUri + "config", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "cluster/cleanup/start", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "cluster/cleanup/abort", newArrayList("application/json")),
+                new ApiEndpoint("GET",  baseUri + "cluster/cleanup/status", newArrayList("application/json")),
+                new ApiEndpoint("GET",  baseUri + "cluster/cleanup/last", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "cluster/repair/start", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "cluster/repair/abort", newArrayList("application/json")),
+                new ApiEndpoint("GET",  baseUri + "cluster/repair/status", newArrayList("application/json")),
+                new ApiEndpoint("GET",  baseUri + "cluster/repair/last", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "cluster/rolling-restart/start", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "cluster/rolling-restart/abort", newArrayList("application/json")),
+                new ApiEndpoint("GET",  baseUri + "cluster/rolling-restart/status", newArrayList("application/json")),
+                new ApiEndpoint("GET",  baseUri + "cluster/rolling-restart/last", newArrayList("application/json")),
+                new ApiEndpoint("GET",  baseUri + "node/all", newArrayList("application/json")),
+                new ApiEndpoint("GET",  baseUri + "node/seed/all", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "node/{node}/stop/", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "node/{node}/start/", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "node/{node}/restart/", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "node/{node}/terminate/", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "node/{node}/replace/", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "node/{node}/make-seed/", newArrayList("application/json")),
+                new ApiEndpoint("POST", baseUri + "node/{node}/make-non-seed/", newArrayList("application/json")),
+                new ApiEndpoint("GET",  baseUri + "live-nodes", newArrayList("application/json")),
+                new ApiEndpoint("GET",  baseUri + "live-nodes/text", newArrayList("text/plain")),
+                new ApiEndpoint("GET",  baseUri + "live-nodes/cqlsh", newArrayList("text/x-cassandra-cqlsh")),
+                new ApiEndpoint("GET",  baseUri + "live-nodes/nodetool", newArrayList("text/x-cassandra-nodetool")),
+                new ApiEndpoint("GET",  baseUri + "live-nodes/stress", newArrayList("text/x-cassandra-stress")),
+                new ApiEndpoint("GET",  baseUri + "qa/report/resources", newArrayList("application/json", "text/plain"))
+        );
+    }
 
-                json.writeStringField("configuration", baseUrl + "config");
-                json.writeStringField("seedNodes", baseUrl + "seed-nodes");
-                json.writeStringField("allNodes", baseUrl + "nodes");
+    public static final class ApiEndpoint {
+        @NotNull
+        private final String method;
+        @NotNull
+        private final String url;
+        @NotNull
+        private final List<String> contentType;
 
-                json.writeObjectFieldStart("repair");
-                json.writeStringField("start", baseUrl + "repair/start");
-                json.writeStringField("status", baseUrl + "repair/status");
-                json.writeStringField("lastStatus", baseUrl + "repair/last");
-                json.writeStringField("abort", baseUrl + "repair/abort");
-                json.writeEndObject();
+        @JsonCreator
+        public ApiEndpoint(
+                @NotNull @JsonProperty("method") final String method,
+                @NotNull @JsonProperty("url") final String url,
+                @NotNull @JsonProperty("contentType") final List<String> contentType
+        ) {
+            this.method = method;
+            this.url = url;
+            this.contentType = contentType;
+        }
 
-                json.writeObjectFieldStart("cleanup");
-                json.writeStringField("start", baseUrl + "cleanup/start");
-                json.writeStringField("status", baseUrl + "cleanup/status");
-                json.writeStringField("lastStatus", baseUrl + "cleanup/last");
-                json.writeStringField("abort", baseUrl + "cleanup/abort");
-                json.writeEndObject();
-            }
-        });
+        @NotNull
+        public String getMethod() {
+            return method;
+        }
+
+        @NotNull
+        public String getUrl() {
+            return url;
+        }
+
+        @NotNull
+        public List<String> getContentType() {
+            return contentType;
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            final ApiEndpoint that = (ApiEndpoint) o;
+
+            if (!method.equals(that.method)) return false;
+            if (!url.equals(that.url)) return false;
+            return contentType.equals(that.contentType);
+
+        }
+
+        @Override
+        public int hashCode() {
+            int result = method.hashCode();
+            result = 31 * result + url.hashCode();
+            result = 31 * result + contentType.hashCode();
+            return result;
+        }
     }
 }

@@ -147,6 +147,10 @@ A recommended minimum value for `memMb` is 16GB. In times where RAM is getting c
 afford - with 8 to 16 GB for `memJavaHeapMb`. Remember to figure out the really required numbers in load and
 stress tests with your application.
 
+## Rest API
+
+See the [Rest API Doc](docs/rest-api.markdown)
+
 ## Build
 The Cassandra Mesos Framework is a maven project with modules for the Framework, Scheduler, Executor and Model. Standard maven convention applies. The Framework and Executor are both built as `jar-with-dependencies` in addition to their standalone jar, so that they are easy to run and distribute.
 
@@ -298,36 +302,6 @@ References:
 * [JMX security](https://wiki.apache.org/cassandra/JmxSecurity)
 * [JMX agent](http://docs.oracle.com/javase/7/docs/technotes/guides/management/agent.html)
 
-## Live Cassandra nodes API
+## Resources
 
-This framework provides API endpoints for most tools. All you need is `curl` and the hostname/IP of
-the node running the scheduler of this framework.
-
-There are also two endpoints - one returns a simple JSON structure and one just plain ASCII with the native port
-in the first line and node IP addresses on each following line. The number as the last part of the path determines
-the number of nodes you'd like to have.
-
-Example for `json` endpoint:
-```
-curl -s http://192.168.5.101:18080/live-nodes/json/2
-{
-  "nativePort" : 9042,
-  "rpcPort" : 9160,
-  "jmxPort" : 7199,
-  "liveNodes" : [ "127.0.0.2", "127.0.0.1" ]
-}
-```
-
-Example for `ascii` endpoint:
-```
-curl -s http://192.168.5.101:18080/live-nodes/ascii/2
-9042
-127.0.0.1
-127.0.0.2
-```
-
-Note that the implementation does a best-effort approach to return random nodes.
-
-
-
-[Cassandra 2.1 recommended production settings]: https://www.datastax.com/documentation/cassandra/2.1/cassandra/install/installRecommendSettings.html
+[Cassandra 2.1 recommended production settings](https://www.datastax.com/documentation/cassandra/2.1/cassandra/install/installRecommendSettings.html)

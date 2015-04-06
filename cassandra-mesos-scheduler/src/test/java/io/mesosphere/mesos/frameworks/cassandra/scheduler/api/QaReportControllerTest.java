@@ -27,25 +27,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class ConfigAndStatusControllerTest extends AbstractApiControllerTest {
-
-    @Test
-    public void testConfig() throws Exception {
-        Tuple2<Integer, JsonNode> tup = fetchJson("/config", false);
-        assertEquals(200, tup._1.intValue());
-        JsonNode json = tup._2;
-
-        assertEquals("test-cluster", json.get("frameworkName").asText());
-        assertThat(json.get("frameworkId").asText()).isNotEmpty();
-        assertEquals(9042, json.get("nativePort").asInt());
-        assertEquals(9160, json.get("rpcPort").asInt());
-    }
+public class QaReportControllerTest extends AbstractApiControllerTest {
 
     @Test
     public void testQaReportResources() throws Exception {
         threeNodeCluster();
 
-        Tuple2<Integer, JsonNode> tup = fetchJson("/qaReportResources", false);
+        Tuple2<Integer, JsonNode> tup = fetchJson("/qa/report/resources", false);
         assertEquals(200, tup._1.intValue());
         JsonNode json = tup._2;
 
@@ -65,10 +53,10 @@ public class ConfigAndStatusControllerTest extends AbstractApiControllerTest {
     }
 
     @Test
-    public void testQaReportResourcesText() throws Exception {
+    public void testQaReportResources_text() throws Exception {
         threeNodeCluster();
 
-        Tuple2<Integer, String> tup = fetchText("/qaReportResources/text", "text/plain");
+        Tuple2<Integer, String> tup = fetchText("/qa/report/resources", "text/plain");
         assertEquals(200, tup._1.intValue());
 
         try (BufferedReader br = new BufferedReader(new StringReader(tup._2))) {

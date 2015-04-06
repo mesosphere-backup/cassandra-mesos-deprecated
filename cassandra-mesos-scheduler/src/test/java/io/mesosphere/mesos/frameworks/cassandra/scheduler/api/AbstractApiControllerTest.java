@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.AbstractCassandraSchedulerTest;
+import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.InetAddressUtils;
 import io.mesosphere.mesos.util.Tuple2;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
@@ -36,6 +37,7 @@ import java.net.*;
 import static org.junit.Assert.assertEquals;
 
 public abstract class AbstractApiControllerTest extends AbstractCassandraSchedulerTest {
+    private final JsonFactory factory = new JsonFactory();
     protected URI httpServerBaseUri;
     protected HttpServer httpServer;
 
@@ -63,11 +65,20 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
         cluster.recordHealthCheck(executorId, healthCheckDetailsSuccess("NORMAL", true));
     }
 
+    protected Tuple2<Integer, JsonNode> getJson(@NotNull String rel) throws Exception {
+        return fetchJson(rel, false);
+    }
+
+    protected Tuple2<Integer, JsonNode> postJson(@NotNull String rel) throws Exception {
+        return fetchJson(rel, true);
+    }
+
     protected Tuple2<Integer, JsonNode> fetchJson(String rel, boolean post) throws Exception {
         JsonFactory factory = new JsonFactory();
         HttpURLConnection conn = (HttpURLConnection) resolve(rel).toURL().openConnection();
         try {
             conn.setRequestMethod(post ? "POST" : "GET");
+            conn.setRequestProperty("Accept", "application/json");
             conn.connect();
 
             int responseCode = conn.getResponseCode();
@@ -100,6 +111,7 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
     protected Tuple2<Integer, String> fetchText(String rel, String expectedContentType) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) resolve(rel).toURL().openConnection();
         try {
+            conn.setRequestProperty("Accept", expectedContentType);
             conn.connect();
 
             int responseCode = conn.getResponseCode();
@@ -142,11 +154,11 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
 
         try {
             try (ServerSocket sock = new ServerSocket(0)) {
-                httpServerBaseUri = URI.create(String.format("http://%s:%d/", formatInetAddress(InetAddress.getLoopbackAddress()), sock.getLocalPort()));
+                httpServerBaseUri = URI.create(String.format("http://%s:%d/", InetAddressUtils.formatInetAddress(InetAddress.getLoopbackAddress()), sock.getLocalPort()));
             }
 
             final ResourceConfig rc = new ResourceConfig()
-                .registerInstances(ApiControllerFactory.buildInstancesWithoutFiles(cluster));
+                .registerInstances(ApiControllerFactory.buildInstancesWithoutFiles(cluster, factory));
             httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
             httpServer.start();
 
@@ -159,19 +171,6 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
     public void cleanup() {
         if (httpServer != null) {
             httpServer.shutdown();
-        }
-    }
-
-    @NotNull
-    protected static String formatInetAddress(@NotNull final InetAddress inetAddress) {
-        if (inetAddress instanceof Inet4Address) {
-            final Inet4Address address = (Inet4Address) inetAddress;
-            return address.getHostAddress();
-        } else if (inetAddress instanceof Inet6Address) {
-            final Inet6Address address = (Inet6Address) inetAddress;
-            return String.format("[%s]", address.getHostAddress());
-        } else {
-            throw new IllegalArgumentException("InetAddress type: " + inetAddress.getClass().getName() + " is not supported");
         }
     }
 

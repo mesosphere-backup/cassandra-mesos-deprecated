@@ -15,6 +15,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.framework;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.*;
@@ -33,13 +34,14 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.intellij.lang.annotations.Language;
-import org.jetbrains.annotations.NotNull;
 import org.joda.time.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
-import java.net.*;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -47,6 +49,7 @@ import java.util.logging.LogManager;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.mesosphere.mesos.frameworks.cassandra.scheduler.util.InetAddressUtils.formatInetAddress;
 import static io.mesosphere.mesos.util.ProtoUtils.frameworkId;
 
 public final class Main {
@@ -185,8 +188,10 @@ public final class Main {
             cassandraCluster
         );
 
+        final JsonFactory factory = new JsonFactory();
+
         final ResourceConfig rc = new ResourceConfig()
-            .registerInstances(ApiControllerFactory.buildInstances(cassandraCluster, cassandraVersion));
+            .registerInstances(ApiControllerFactory.buildInstances(cassandraCluster, cassandraVersion, factory));
         final HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
 
         final MesosSchedulerDriver driver;
@@ -235,19 +240,6 @@ public final class Main {
             return "cassandra." + clusterName.get();
         } else {
             return "cassandra";
-        }
-    }
-
-    @NotNull
-    private static String formatInetAddress(@NotNull final InetAddress inetAddress) {
-        if (inetAddress instanceof Inet4Address) {
-            final Inet4Address address = (Inet4Address) inetAddress;
-            return address.getHostAddress();
-        } else if (inetAddress instanceof Inet6Address) {
-            final Inet6Address address = (Inet6Address) inetAddress;
-            return String.format("[%s]", address.getHostAddress());
-        } else {
-            throw new IllegalArgumentException("InetAddress type: " + inetAddress.getClass().getName() + " is not supported");
         }
     }
 

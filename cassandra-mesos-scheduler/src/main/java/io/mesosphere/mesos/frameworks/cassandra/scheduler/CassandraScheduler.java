@@ -33,7 +33,6 @@ import org.slf4j.MarkerFactory;
 import java.util.Collections;
 import java.util.List;
 
-import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 import static io.mesosphere.mesos.util.ProtoUtils.*;
@@ -327,7 +326,7 @@ public final class CassandraScheduler implements Scheduler {
             }
 
             final TaskInfo task = TaskInfo.newBuilder()
-                .setName(taskId.getValue())
+                .setName(getTaskName(cassandraNodeTask.getTaskName(), taskId.getValue()))
                 .setTaskId(taskId)
                 .setSlaveId(offer.getSlaveId())
                 .setData(ByteString.copyFrom(taskDetails.toByteArray()))
@@ -348,6 +347,15 @@ public final class CassandraScheduler implements Scheduler {
         driver.launchTasks(Collections.singleton(offer.getId()), taskInfos);
 
         return true;
+    }
+
+    @NotNull
+    public static String getTaskName(final String taskName, final String taskIdValue) {
+        if (taskName == null || taskName.trim().isEmpty()) {
+            return taskIdValue;
+        } else {
+            return taskName;
+        }
     }
 
     private List<Resource> resourceList(TaskResources resources) {

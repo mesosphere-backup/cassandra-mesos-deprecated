@@ -571,6 +571,10 @@ message CassandraNodeTask {
          */
         CONFIG = 4;
     }
+    /**
+     * name of the task.
+     */
+    optional string taskName = 5;
 }
 
 /**

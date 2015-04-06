@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.google.common.base.Optional;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
+import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraScheduler;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.api.StreamingJsonResponse;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.api.StreamingTextResponse;
 import org.jetbrains.annotations.NotNull;
@@ -191,6 +192,7 @@ public final class JaxRsUtils {
             json.writeNumberField("diskMb", task.getResources().getDiskMb());
             json.writeNumberField("memMb", task.getResources().getMemMb());
             json.writeStringField("taskId", task.getTaskId());
+            json.writeStringField("taskName", CassandraScheduler.getTaskName(task.getTaskName(), task.getTaskId()));
             json.writeEndObject();
         }
     }

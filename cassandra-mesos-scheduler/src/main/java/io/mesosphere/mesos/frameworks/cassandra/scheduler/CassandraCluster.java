@@ -488,7 +488,7 @@ public final class CassandraCluster {
                             LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
                         } else {
                             final ExecutorMetadata metadata = maybeMetadata.get();
-                            final CassandraNodeTask task = getServerTask(serverTaskId(node), metadata, node);
+                            final CassandraNodeTask task = getServerTask(serverTaskId(node), serverTaskName(), metadata, node);
                             node.addTasks(task)
                                 .setNeedsConfigUpdate(false);
                             result.getLaunchTasks().add(task);
@@ -549,6 +549,11 @@ public final class CassandraCluster {
     @NotNull
     private static String configUpdateTaskId(CassandraNode.Builder node) {
         return executorTaskId(node) + ".config";
+    }
+
+    @NotNull
+    private String serverTaskName() {
+        return configuration.frameworkName() + ".node";
     }
 
     @NotNull
@@ -676,6 +681,7 @@ public final class CassandraCluster {
     @NotNull
     private CassandraNodeTask getServerTask(
         @NotNull final String taskId,
+        @NotNull final String taskName,
         @NotNull final ExecutorMetadata metadata,
         @NotNull final CassandraNode.Builder node) {
         CassandraFrameworkConfiguration config = configuration.get();
@@ -719,6 +725,7 @@ public final class CassandraCluster {
         return CassandraNodeTask.newBuilder()
             .setType(CassandraNodeTask.NodeTaskType.SERVER)
             .setTaskId(taskId)
+            .setTaskName(taskName)
             .setResources(TaskResources.newBuilder(configRole.getResources())
                 .addAllPorts(portMappings(config).values()))
             .setTaskDetails(taskDetails)

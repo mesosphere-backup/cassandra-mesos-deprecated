@@ -585,4 +585,24 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 "Not enough cpu resources for role *. Required 0.1 only 0.09999999999999981 available"
         );
     }
+
+    @Test
+    public void testGetTaskName_nameSpecified() throws Exception {
+        assertThat(CassandraScheduler.getTaskName("name", "task")).isEqualTo("name");
+    }
+
+    @Test
+    public void testGetTaskName_nameNull() throws Exception {
+        assertThat(CassandraScheduler.getTaskName(null, "task")).isEqualTo("task");
+    }
+
+    @Test
+    public void testGetTaskName_nameEmpty() throws Exception {
+        assertThat(CassandraScheduler.getTaskName("", "task")).isEqualTo("task");
+    }
+
+    @Test
+    public void testGetTaskName_nameEmptyAfterTrim() throws Exception {
+        assertThat(CassandraScheduler.getTaskName("   \t", "task")).isEqualTo("task");
+    }
 }

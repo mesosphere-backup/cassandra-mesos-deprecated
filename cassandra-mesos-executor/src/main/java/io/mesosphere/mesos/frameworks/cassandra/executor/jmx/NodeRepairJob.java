@@ -18,6 +18,7 @@ package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.mesos.Protos;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,21 +28,24 @@ import javax.management.NotificationListener;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 public class NodeRepairJob extends AbstractNodeJob implements NotificationListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(NodeRepairJob.class);
 
     private final Map<Integer, String> commandToKeyspace = new HashMap<>();
 
-    public NodeRepairJob(Protos.TaskID taskId) {
+    public NodeRepairJob(final Protos.TaskID taskId) {
         super(taskId);
     }
 
+    @NotNull
     @Override
     public CassandraFrameworkProtos.ClusterJobType getType() {
         return CassandraFrameworkProtos.ClusterJobType.REPAIR;
     }
 
-    public boolean start(JmxConnect jmxConnect) {
+    public boolean start(@NotNull final JmxConnect jmxConnect) {
         if (!super.start(jmxConnect)) {
             return false;
         }
@@ -55,7 +59,7 @@ public class NodeRepairJob extends AbstractNodeJob implements NotificationListen
 
     public void startNextKeyspace() {
         while (true) {
-            String keyspace = super.nextKeyspace();
+            final String keyspace = super.nextKeyspace();
             if (keyspace == null) {
                 return;
             }
@@ -63,7 +67,7 @@ public class NodeRepairJob extends AbstractNodeJob implements NotificationListen
             LOGGER.info("Starting repair on keyspace {}", keyspace);
 
             // equivalent to 'nodetool repair' WITHOUT --partitioner-range, --full, --in-local-dc, --sequential
-            int commandNo = jmxConnect.getStorageServiceProxy().forceRepairAsync(keyspace, false, false, false, false);
+            final int commandNo = checkNotNull(jmxConnect).getStorageServiceProxy().forceRepairAsync(keyspace, false, false, false, false);
             if (commandNo == 0) {
                 LOGGER.info("Nothing to repair for keyspace {}", keyspace);
                 continue;
@@ -79,24 +83,24 @@ public class NodeRepairJob extends AbstractNodeJob implements NotificationListen
     protected void cleanupAfterJobFinished() {
         try {
             super.cleanupAfterJobFinished();
-            jmxConnect.getStorageServiceProxy().removeNotificationListener(this);
+            checkNotNull(jmxConnect).getStorageServiceProxy().removeNotificationListener(this);
             close();
-        } catch (ListenerNotFoundException ignored) {
+        } catch (final ListenerNotFoundException ignored) {
             // ignore this
         }
     }
 
     @Override
-    public void handleNotification(Notification notification, Object handback) {
+    public void handleNotification(final Notification notification, final Object handback) {
         if (!"repair".equals(notification.getType())) {
             return;
         }
 
-        int[] result = (int[]) notification.getUserData();
-        int repairCommandNo = result[0];
-        ActiveRepairService.Status status = ActiveRepairService.Status.values()[result[1]];
+        final int[] result = (int[]) notification.getUserData();
+        final int repairCommandNo = result[0];
+        final ActiveRepairService.Status status = ActiveRepairService.Status.values()[result[1]];
 
-        String keyspace = commandToKeyspace.get(repairCommandNo);
+        final String keyspace = commandToKeyspace.get(repairCommandNo);
 
         switch (status) {
             case STARTED:

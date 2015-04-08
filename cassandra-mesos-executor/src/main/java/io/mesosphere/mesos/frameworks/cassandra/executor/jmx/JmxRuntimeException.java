@@ -15,12 +15,14 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
+import org.jetbrains.annotations.NotNull;
+
 public class JmxRuntimeException extends RuntimeException {
-    public JmxRuntimeException(String message) {
+    public JmxRuntimeException(@NotNull final String message) {
         super(message);
     }
 
-    public JmxRuntimeException(String message, Throwable cause) {
+    public JmxRuntimeException(@NotNull final String message, @NotNull final Throwable cause) {
         super(message, cause);
     }
 }

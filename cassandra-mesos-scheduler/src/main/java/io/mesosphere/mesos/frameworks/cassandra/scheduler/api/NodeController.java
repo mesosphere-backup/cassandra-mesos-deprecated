@@ -38,7 +38,7 @@ public final class NodeController {
     @NotNull
     private final JsonFactory factory;
 
-    public NodeController(@NotNull CassandraCluster cluster, @NotNull final JsonFactory factory) {
+    public NodeController(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory) {
         this.cluster = cluster;
         this.factory = factory;
     }
@@ -139,11 +139,11 @@ public final class NodeController {
     public Response nodes() {
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
-            public void write(JsonGenerator json) throws IOException {
-                CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
+            public void write(final JsonGenerator json) throws IOException {
+                final CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
 
                 json.writeArrayFieldStart("replaceNodes");
-                for (String ip : clusterState.getReplaceNodeIpsList()) {
+                for (final String ip : clusterState.getReplaceNodeIpsList()) {
                     json.writeString(ip);
                 }
                 json.writeEndArray();
@@ -151,7 +151,7 @@ public final class NodeController {
                 json.writeNumberField("nodesToAcquire", clusterState.getNodesToAcquire());
 
                 json.writeArrayFieldStart("nodes");
-                for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
+                for (final CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
                     json.writeStartObject();
 
                     if (cassandraNode.hasReplacementForIp()) {
@@ -159,7 +159,7 @@ public final class NodeController {
                     }
 
                     json.writeObjectFieldStart("tasks");
-                    for (CassandraFrameworkProtos.CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
+                    for (final CassandraFrameworkProtos.CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
                         JaxRsUtils.writeTask(json, cassandraNodeTask);
                     }
                     json.writeEndObject();
@@ -170,7 +170,7 @@ public final class NodeController {
                         json.writeNullField("workdir");
                     } else {
                         json.writeStringField("executorId", cassandraNode.getCassandraNodeExecutor().getExecutorId());
-                        CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                        final CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
                         if (executorMetadata != null) {
                             json.writeStringField("workdir", executorMetadata.getWorkdir());
                         } else {
@@ -188,7 +188,7 @@ public final class NodeController {
                         json.writeNumberField("cassandraDaemonPid", cassandraNode.getCassandraDaemonPid());
                     }
 
-                    CassandraFrameworkProtos.HealthCheckHistoryEntry lastHealthCheck =
+                    final CassandraFrameworkProtos.HealthCheckHistoryEntry lastHealthCheck =
                             cassandraNode.hasCassandraNodeExecutor() ? cluster.lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId()) : null;
 
                     if (lastHealthCheck != null) {
@@ -200,7 +200,7 @@ public final class NodeController {
                     if (lastHealthCheck != null) {
                         json.writeObjectFieldStart("healthCheckDetails");
 
-                        CassandraFrameworkProtos.HealthCheckDetails hcd = lastHealthCheck.getDetails();
+                        final CassandraFrameworkProtos.HealthCheckDetails hcd = lastHealthCheck.getDetails();
 
                         json.writeBooleanField("healthy", hcd.getHealthy());
                         json.writeStringField("msg", hcd.getMsg());
@@ -261,7 +261,7 @@ public final class NodeController {
         final CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
-            public void write(JsonGenerator json) throws IOException {
+            public void write(final JsonGenerator json) throws IOException {
 
                 json.writeNumberField("nativePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_NATIVE));
                 json.writeNumberField("rpcPort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_RPC));
@@ -297,7 +297,7 @@ public final class NodeController {
      */
     @POST
     @Path("/{node}/make-seed")
-    public Response nodeMakeSeed(@PathParam("node") String node) {
+    public Response nodeMakeSeed(@PathParam("node") final String node) {
         return nodeUpdateSeed(node, true);
     }
 
@@ -326,11 +326,11 @@ public final class NodeController {
      */
     @POST
     @Path("/{node}/make-non-seed")
-    public Response nodeMakeNonSeed(@PathParam("node") String node) {
+    public Response nodeMakeNonSeed(@PathParam("node") final String node) {
         return nodeUpdateSeed(node, false);
     }
 
-    private Response nodeUpdateSeed(String node, final boolean seed) {
+    private Response nodeUpdateSeed(final String node, final boolean seed) {
         final CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.findNode(node);
         if (cassandraNode == null) {
             return Response.status(404).build();
@@ -341,7 +341,7 @@ public final class NodeController {
 
             return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
                 @Override
-                public void write(JsonGenerator json) throws IOException {
+                public void write(final JsonGenerator json) throws IOException {
                     json.writeStringField("ip", cassandraNode.getIp());
                     json.writeStringField("hostname", cassandraNode.getHostname());
                     if (!cassandraNode.hasCassandraNodeExecutor()) {
@@ -364,7 +364,7 @@ public final class NodeController {
         } catch (final SeedChangeException e) {
             return JaxRsUtils.buildStreamingResponse(factory, Response.Status.BAD_REQUEST, new StreamingJsonResponse() {
                 @Override
-                public void write(JsonGenerator json) throws IOException {
+                public void write(final JsonGenerator json) throws IOException {
                     json.writeStringField("ip", cassandraNode.getIp());
                     json.writeStringField("hostname", cassandraNode.getHostname());
                     if (!cassandraNode.hasCassandraNodeExecutor()) {
@@ -390,8 +390,8 @@ public final class NodeController {
      */
     @POST
     @Path("/{node}/stop")
-    public Response nodeStop(@PathParam("node") String node) {
-        CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeStop(node);
+    public Response nodeStop(@PathParam("node") final String node) {
+        final CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeStop(node);
 
         return nodeStatusUpdate(cassandraNode);
     }
@@ -403,8 +403,8 @@ public final class NodeController {
      */
     @POST
     @Path("/{node}/start")
-    public Response nodeStart(@PathParam("node") String node) {
-        CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeRun(node);
+    public Response nodeStart(@PathParam("node") final String node) {
+        final CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeRun(node);
 
         return nodeStatusUpdate(cassandraNode);
     }
@@ -416,8 +416,8 @@ public final class NodeController {
      */
     @POST
     @Path("/{node}/restart")
-    public Response nodeRestart(@PathParam("node") String node) {
-        CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeRestart(node);
+    public Response nodeRestart(@PathParam("node") final String node) {
+        final CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeRestart(node);
 
         return nodeStatusUpdate(cassandraNode);
     }
@@ -430,8 +430,8 @@ public final class NodeController {
      */
     @POST
     @Path("/{node}/terminate")
-    public Response nodeTerminate(@PathParam("node") String node) {
-        CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeTerminate(node);
+    public Response nodeTerminate(@PathParam("node") final String node) {
+        final CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.nodeTerminate(node);
 
         return nodeStatusUpdate(cassandraNode);
     }
@@ -443,13 +443,13 @@ public final class NodeController {
      */
     @POST
     @Path("/{node}/replace")
-    public Response nodeReplace(@PathParam("node") String node) {
+    public Response nodeReplace(@PathParam("node") final String node) {
         final CassandraFrameworkProtos.CassandraNode cassandraNode = cluster.findNode(node);
 
         if (cassandraNode == null) {
             return JaxRsUtils.buildStreamingResponse(factory, Response.Status.NOT_FOUND, new StreamingJsonResponse() {
                 @Override
-                public void write(JsonGenerator json) throws IOException {
+                public void write(final JsonGenerator json) throws IOException {
                     json.writeBooleanField("success", false);
                     json.writeStringField("reason", "No such node");
                 }
@@ -458,10 +458,10 @@ public final class NodeController {
 
         try {
             cluster.replaceNode(node);
-        } catch (ReplaceNodePreconditionFailed replaceNodePreconditionFailed) {
+        } catch (final ReplaceNodePreconditionFailed replaceNodePreconditionFailed) {
             return JaxRsUtils.buildStreamingResponse(factory, Response.Status.BAD_REQUEST, new StreamingJsonResponse() {
                 @Override
-                public void write(JsonGenerator json) throws IOException {
+                public void write(final JsonGenerator json) throws IOException {
                     json.writeStringField("ipToReplace", cassandraNode.getIp());
                     json.writeBooleanField("success", false);
                     json.writeStringField("reason", "No such node");
@@ -471,7 +471,7 @@ public final class NodeController {
 
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
-            public void write(JsonGenerator json) throws IOException {
+            public void write(final JsonGenerator json) throws IOException {
                 json.writeStringField("ipToReplace", cassandraNode.getIp());
                 json.writeBooleanField("success", true);
                 json.writeStringField("hostname", cassandraNode.getHostname());
@@ -488,7 +488,7 @@ public final class NodeController {
         return JaxRsUtils.buildStreamingResponse(
                 factory, new StreamingJsonResponse() {
                     @Override
-                    public void write(JsonGenerator json) throws IOException {
+                    public void write(final JsonGenerator json) throws IOException {
                         json.writeStringField("ip", cassandraNode.getIp());
                         json.writeStringField("hostname", cassandraNode.getHostname());
                         if (!cassandraNode.hasCassandraNodeExecutor()) {

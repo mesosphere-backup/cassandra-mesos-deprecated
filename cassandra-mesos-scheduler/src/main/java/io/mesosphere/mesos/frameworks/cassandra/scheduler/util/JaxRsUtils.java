@@ -26,15 +26,15 @@ public final class JaxRsUtils {
     private JaxRsUtils() {}
 
 
-    public static void writeSeedIps(@NotNull final CassandraCluster cluster, @NotNull JsonGenerator json) throws IOException {
+    public static void writeSeedIps(@NotNull final CassandraCluster cluster, @NotNull final JsonGenerator json) throws IOException {
         json.writeArrayFieldStart("seeds");
-        for (String seed : cluster.getSeedNodeIps()) {
+        for (final String seed : cluster.getSeedNodeIps()) {
             json.writeString(seed);
         }
         json.writeEndArray();
     }
 
-    public static void writeClusterJob(@NotNull final CassandraCluster cluster, @NotNull JsonGenerator json, @NotNull String name, @Nullable ClusterJobStatus jobStatus) throws IOException {
+    public static void writeClusterJob(@NotNull final CassandraCluster cluster, @NotNull final JsonGenerator json, @NotNull final String name, @Nullable final ClusterJobStatus jobStatus) throws IOException {
         if (jobStatus != null && jobStatus.hasJobType()) {
             json.writeObjectFieldStart(name);
 
@@ -49,7 +49,7 @@ public final class JaxRsUtils {
             json.writeBooleanField("aborted", jobStatus.getAborted());
 
             json.writeArrayFieldStart("remainingNodes");
-            for (String node : jobStatus.getRemainingNodesList()) {
+            for (final String node : jobStatus.getRemainingNodesList()) {
                 json.writeString(node);
             }
             json.writeEndArray();
@@ -62,7 +62,7 @@ public final class JaxRsUtils {
             }
 
             json.writeArrayFieldStart("completedNodes");
-            for (NodeJobStatus nodeJobStatus : jobStatus.getCompletedNodesList()) {
+            for (final NodeJobStatus nodeJobStatus : jobStatus.getCompletedNodesList()) {
                 json.writeStartObject();
                 writeNodeJobStatus(cluster, json, nodeJobStatus);
             }
@@ -74,10 +74,10 @@ public final class JaxRsUtils {
         }
     }
 
-    public static void writeNodeJobStatus(@NotNull final CassandraCluster cluster, @NotNull JsonGenerator json, @NotNull NodeJobStatus nodeJobStatus) throws IOException {
+    public static void writeNodeJobStatus(@NotNull final CassandraCluster cluster, @NotNull final JsonGenerator json, @NotNull final NodeJobStatus nodeJobStatus) throws IOException {
         json.writeStringField("executorId", nodeJobStatus.getExecutorId());
         json.writeStringField("taskId", nodeJobStatus.getTaskId());
-        Optional<CassandraNode> node = cluster.cassandraNodeForExecutorId(nodeJobStatus.getExecutorId());
+        final Optional<CassandraNode> node = cluster.cassandraNodeForExecutorId(nodeJobStatus.getExecutorId());
         if (node.isPresent()) {
             json.writeStringField("hostname", node.get().getHostname());
             json.writeStringField("ip", node.get().getIp());
@@ -101,7 +101,7 @@ public final class JaxRsUtils {
         }
 
         json.writeObjectFieldStart("processedKeyspaces");
-        for (ClusterJobKeyspaceStatus clusterJobKeyspaceStatus : nodeJobStatus.getProcessedKeyspacesList()) {
+        for (final ClusterJobKeyspaceStatus clusterJobKeyspaceStatus : nodeJobStatus.getProcessedKeyspacesList()) {
             json.writeObjectFieldStart(clusterJobKeyspaceStatus.getKeyspace());
             json.writeStringField("status", clusterJobKeyspaceStatus.getStatus());
             json.writeNumberField("durationMillis", clusterJobKeyspaceStatus.getDuration());
@@ -110,7 +110,7 @@ public final class JaxRsUtils {
         json.writeEndObject();
 
         json.writeArrayFieldStart("remainingKeyspaces");
-        for (String keyspace : nodeJobStatus.getRemainingKeyspacesList()) {
+        for (final String keyspace : nodeJobStatus.getRemainingKeyspacesList()) {
             json.writeString(keyspace);
         }
         json.writeEndArray();
@@ -124,10 +124,10 @@ public final class JaxRsUtils {
     }
 
     @NotNull
-    public static Response buildStreamingResponse(@NotNull final JsonFactory factory, @NotNull Response.Status status, @NotNull final StreamingJsonResponse jsonResponse) {
+    public static Response buildStreamingResponse(@NotNull final JsonFactory factory, @NotNull final Response.Status status, @NotNull final StreamingJsonResponse jsonResponse) {
         return Response.status(status).entity(new StreamingOutput() {
             @Override
-            public void write(OutputStream output) throws IOException, WebApplicationException {
+            public void write(final OutputStream output) throws IOException, WebApplicationException {
                 try (JsonGenerator json = factory.createGenerator(output)) {
                     json.setPrettyPrinter(new DefaultPrettyPrinter());
                     json.writeStartObject();
@@ -141,10 +141,10 @@ public final class JaxRsUtils {
     }
 
     @NotNull
-    public static Response buildStreamingResponse(@NotNull Response.Status status, @NotNull String type, @NotNull final StreamingTextResponse textResponse) {
+    public static Response buildStreamingResponse(@NotNull final Response.Status status, @NotNull final String type, @NotNull final StreamingTextResponse textResponse) {
         return Response.status(status).entity(new StreamingOutput() {
             @Override
-            public void write(OutputStream output) throws IOException, WebApplicationException {
+            public void write(final OutputStream output) throws IOException, WebApplicationException {
                 try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(output))) {
                     textResponse.write(printWriter);
                 }
@@ -152,7 +152,7 @@ public final class JaxRsUtils {
         }).type(type).build();
     }
 
-    public static void writeConfigRole(JsonGenerator json, CassandraConfigRole configRole) throws IOException {
+    public static void writeConfigRole(final JsonGenerator json, final CassandraConfigRole configRole) throws IOException {
         json.writeStringField("cassandraVersion", configRole.getCassandraVersion());
         json.writeNumberField("diskMb", configRole.getResources().getDiskMb());
         json.writeNumberField("cpuCores", configRole.getResources().getCpuCores());
@@ -168,12 +168,12 @@ public final class JaxRsUtils {
             json.writeNullField("taskEnv");
         } else {
             json.writeObjectFieldStart("taskEnv");
-            for (TaskEnv.Entry entry : configRole.getTaskEnv().getVariablesList()) {
+            for (final TaskEnv.Entry entry : configRole.getTaskEnv().getVariablesList()) {
                 json.writeStringField(entry.getName(), entry.getValue());
             }
             json.writeEndObject();
             json.writeObjectFieldStart("cassandraYaml");
-            for (TaskConfig.Entry entry : configRole.getCassandraYamlConfig().getVariablesList()) {
+            for (final TaskConfig.Entry entry : configRole.getCassandraYamlConfig().getVariablesList()) {
                 if (entry.hasLongValue()) {
                     json.writeNumberField(entry.getName(), entry.getLongValue());
                 }
@@ -185,7 +185,7 @@ public final class JaxRsUtils {
         }
     }
 
-    public static void writeTask(JsonGenerator json, CassandraNodeTask task) throws IOException {
+    public static void writeTask(final JsonGenerator json, final CassandraNodeTask task) throws IOException {
         if (task != null && task.hasTaskId()) {
             json.writeObjectFieldStart(task.getType().toString());
             json.writeNumberField("cpuCores", task.getResources().getCpuCores());

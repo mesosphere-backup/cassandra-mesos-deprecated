@@ -17,7 +17,9 @@ package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
-import org.apache.cassandra.service.*;
+import org.apache.cassandra.service.StorageServiceMBean;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
@@ -46,9 +48,12 @@ public class ProdJmxConnect implements JmxConnect {
 
     private static final String fmtUrl = "service:jmx:rmi:///jndi/rmi://[%s]:%d/jmxrmi";
 
+    @NotNull
     private final String host;
     private final int port;
+    @Nullable
     private final String username;
+    @Nullable
     private final String password;
 
     private JMXConnector jmxc;
@@ -58,9 +63,10 @@ public class ProdJmxConnect implements JmxConnect {
     private EndpointSnitchInfoMBean snitchProxy;
     private RuntimeMXBean runtimeProxy;
 
+    @NotNull
     private final ReentrantLock lock = new ReentrantLock();
 
-    public ProdJmxConnect(String host, int port, String username, String password) {
+    public ProdJmxConnect(@Nullable String host, int port, @Nullable final String username, @Nullable final String password) {
         if (host == null || host.trim().isEmpty())
             host = DEFATULT_CASSANDRA_JMX_HOST;
         if (port <= 0)
@@ -72,11 +78,11 @@ public class ProdJmxConnect implements JmxConnect {
         this.password = password;
     }
 
-    public ProdJmxConnect(String host, int port) {
+    public ProdJmxConnect(@Nullable final String host, final int port) {
         this(host, port, null, null);
     }
 
-    public ProdJmxConnect(CassandraFrameworkProtos.JmxConnect jmxInfo) {
+    public ProdJmxConnect(@NotNull final CassandraFrameworkProtos.JmxConnect jmxInfo) {
         this(jmxInfo.getIp(), jmxInfo.getJmxPort());
     }
 
@@ -107,10 +113,10 @@ public class ProdJmxConnect implements JmxConnect {
                 return;
             }
 
-            JMXServiceURL jmxUrl = new JMXServiceURL(String.format(fmtUrl, host, port));
-            Map<String, Object> env = new HashMap<>();
+            final JMXServiceURL jmxUrl = new JMXServiceURL(String.format(fmtUrl, host, port));
+            final Map<String, Object> env = new HashMap<>();
             if (username != null) {
-                String[] creds = {username, password};
+                final String[] creds = {username, password};
                 env.put(JMXConnector.CREDENTIALS, creds);
             }
             jmxc = JMXConnectorFactory.connect(jmxUrl, env);
@@ -120,30 +126,33 @@ public class ProdJmxConnect implements JmxConnect {
         }
     }
 
-    private <T> T newProxy(String name, Class<T> type) {
+    @NotNull
+    private <T> T newProxy(final String name, final Class<T> type) {
         lock.lock();
         try {
             connect();
             return JMX.newMBeanProxy(mbeanServerConn, new ObjectName(name), type);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new JmxRuntimeException("Failed to create proxy for " + name, e);
         } finally {
             lock.unlock();
         }
     }
 
-    private <T> T newPlatformProxy(String name, Class<T> type) {
+    @NotNull
+    private <T> T newPlatformProxy(final String name, final Class<T> type) {
         lock.lock();
         try {
             connect();
             return ManagementFactory.newPlatformMXBeanProxy(mbeanServerConn, name, type);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new JmxRuntimeException("Failed to create proxy for " + name, e);
         } finally {
             lock.unlock();
         }
     }
 
+    @NotNull
     public RuntimeMXBean getRuntimeProxy() {
         if (runtimeProxy == null) {
             runtimeProxy = newPlatformProxy(ManagementFactory.RUNTIME_MXBEAN_NAME, RuntimeMXBean.class);
@@ -151,12 +160,14 @@ public class ProdJmxConnect implements JmxConnect {
         return runtimeProxy;
     }
 
+    @NotNull
     public StorageServiceMBean getStorageServiceProxy() {
         if (ssProxy == null)
             ssProxy = newProxy(STORAGE_SERVICE_NAME, StorageServiceMBean.class);
         return ssProxy;
     }
 
+    @NotNull
     public EndpointSnitchInfoMBean getEndpointSnitchInfoProxy() {
         if (snitchProxy == null) {
             snitchProxy = newProxy(ENDPOINT_SNITCH_INFO_NAME, EndpointSnitchInfoMBean.class);
@@ -164,18 +175,19 @@ public class ProdJmxConnect implements JmxConnect {
         return snitchProxy;
     }
 
-    public List<String> getColumnFamilyNames(String keyspace) {
+    @NotNull
+    public List<String> getColumnFamilyNames(@NotNull final String keyspace) {
         try {
-            ObjectName query = new ObjectName("org.apache.cassandra.db:type=ColumnFamilies,keyspace=" + keyspace + ",*");
-            Set<ObjectName> cfObjects = mbeanServerConn.queryNames(query, null);
-            List<String> r = new ArrayList<>();
-            for(ObjectName n : cfObjects)
+            final ObjectName query = new ObjectName("org.apache.cassandra.db:type=ColumnFamilies,keyspace=" + keyspace + ",*");
+            final Set<ObjectName> cfObjects = mbeanServerConn.queryNames(query, null);
+            final List<String> r = new ArrayList<>();
+            for(final ObjectName n : cfObjects)
             {
-                String cfName = n.getKeyProperty("columnfamily");
+                final String cfName = n.getKeyProperty("columnfamily");
                 r.add(cfName);
             }
             return r;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new JmxRuntimeException("Failed to get column family names for keyspace " + keyspace, e);
         }
     }

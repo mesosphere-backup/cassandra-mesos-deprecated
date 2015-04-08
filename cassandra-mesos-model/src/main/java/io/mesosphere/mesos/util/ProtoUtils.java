@@ -58,17 +58,17 @@ public final class ProtoUtils {
     }
 
     @NotNull
-    public static Resource cpu(@NotNull final double value, @NotNull final String role) {
+    public static Resource cpu(final double value, @NotNull final String role) {
         return scalarResource("cpus", value, role);
     }
 
     @NotNull
-    public static Resource mem(@NotNull final double value, @NotNull final String role) {
+    public static Resource mem(final double value, @NotNull final String role) {
         return scalarResource("mem", value, role);
     }
 
     @NotNull
-    public static Resource disk(@NotNull final double value, @NotNull final String role) {
+    public static Resource disk(final double value, @NotNull final String role) {
         return scalarResource("disk", value, role);
     }
 

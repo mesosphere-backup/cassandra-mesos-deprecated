@@ -38,7 +38,7 @@ public final class LiveEndpointsController {
     @NotNull
     private final JsonFactory factory;
 
-    public LiveEndpointsController(@NotNull CassandraCluster cluster, @NotNull final JsonFactory factory) {
+    public LiveEndpointsController(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory) {
         this.cluster = cluster;
         this.factory = factory;
     }
@@ -57,7 +57,7 @@ public final class LiveEndpointsController {
      */
     @GET
     @Produces("application/json")
-    public Response liveEndpointsJson(@QueryParam("limit") @DefaultValue("3") int limit) {
+    public Response liveEndpointsJson(@QueryParam("limit") @DefaultValue("3") final int limit) {
         return liveEndpoints("json", limit);
     }
 
@@ -76,7 +76,7 @@ public final class LiveEndpointsController {
     @GET
     @Path("/text")
     @Produces("text/plain")
-    public Response liveEndpointsText(@QueryParam("limit") @DefaultValue("3") int limit) {
+    public Response liveEndpointsText(@QueryParam("limit") @DefaultValue("3") final int limit) {
         return liveEndpoints("text", limit);
     }
 
@@ -108,11 +108,11 @@ public final class LiveEndpointsController {
     @GET
     @Path("/stress")
     @Produces("text/x-cassandra-stress")
-    public Response liveEndpointsStress(@QueryParam("limit") @DefaultValue("3") int limit) {
+    public Response liveEndpointsStress(@QueryParam("limit") @DefaultValue("3") final int limit) {
         return liveEndpoints("stress", limit);
     }
 
-    private Response liveEndpoints(String forTool, int limit) {
+    private Response liveEndpoints(final String forTool, final int limit) {
         final List<CassandraFrameworkProtos.CassandraNode> liveNodes = cluster.liveNodes(limit);
 
         if (liveNodes.isEmpty()) {
@@ -125,7 +125,7 @@ public final class LiveEndpointsController {
         final int rpcPort = CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_RPC);
         final int jmxPort = CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_JMX);
 
-        CassandraFrameworkProtos.CassandraNode first = liveNodes.get(0);
+        final CassandraFrameworkProtos.CassandraNode first = liveNodes.get(0);
 
         try {
             switch (forTool) {
@@ -136,7 +136,7 @@ public final class LiveEndpointsController {
                     // cassandra-stress options:
                     // -node NODE1,NODE2,...
                     // -port [native=NATIVE_PORT] [thrift=THRIFT_PORT] [jmx=JMX_PORT]
-                    StringBuilder sb = new StringBuilder();
+                    final StringBuilder sb = new StringBuilder();
                     sb.append("-node ");
                     for (int i = 0; i < liveNodes.size(); i++) {
                         if (i > 0) {
@@ -160,14 +160,14 @@ public final class LiveEndpointsController {
                     // produce a simple JSON with the native port and live node IPs
                     return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
                         @Override
-                        public void write(JsonGenerator json) throws IOException {
+                        public void write(final JsonGenerator json) throws IOException {
                             json.writeStringField("clusterName", configuration.getFrameworkName());
                             json.writeNumberField("nativePort", nativePort);
                             json.writeNumberField("rpcPort", rpcPort);
                             json.writeNumberField("jmxPort", jmxPort);
 
                             json.writeArrayFieldStart("liveNodes");
-                            for (CassandraFrameworkProtos.CassandraNode liveNode : liveNodes) {
+                            for (final CassandraFrameworkProtos.CassandraNode liveNode : liveNodes) {
                                 json.writeString(liveNode.getIp());
                             }
                             json.writeEndArray();
@@ -177,11 +177,11 @@ public final class LiveEndpointsController {
                     // produce a simple text with the native port in the first line and one line per live node IP
                     return JaxRsUtils.buildStreamingResponse(Response.Status.OK, "text/plain", new StreamingTextResponse() {
                         @Override
-                        public void write(PrintWriter pw) {
+                        public void write(final PrintWriter pw) {
                             pw.println("NATIVE: " + nativePort);
                             pw.println("RPC: " + rpcPort);
                             pw.println("JMX: " + jmxPort);
-                            for (CassandraFrameworkProtos.CassandraNode liveNode : liveNodes) {
+                            for (final CassandraFrameworkProtos.CassandraNode liveNode : liveNodes) {
                                 pw.println("IP: " + liveNode.getIp());
                             }
                         }
@@ -189,7 +189,7 @@ public final class LiveEndpointsController {
             }
 
             return Response.status(404).build();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             LOGGER.error("Failed to all nodes list", e);
             return Response.serverError().build();
         }

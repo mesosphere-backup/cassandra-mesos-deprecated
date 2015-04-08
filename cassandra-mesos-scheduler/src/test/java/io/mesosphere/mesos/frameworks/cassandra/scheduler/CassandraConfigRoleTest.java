@@ -16,15 +16,14 @@
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.PersistedCassandraFrameworkConfiguration;
 import org.junit.Test;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class CassandraConfigRoleTest {
     @Test(expected = IllegalArgumentException.class)
     public void testMemoryParametersNone() {
-        CassandraFrameworkProtos.CassandraConfigRole.Builder builder = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
+        final CassandraFrameworkProtos.CassandraConfigRole.Builder builder = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
             .setResources(CassandraFrameworkProtos.TaskResources.newBuilder()
                 .setMemMb(0)
                 .setDiskMb(1)
@@ -32,7 +31,7 @@ public class CassandraConfigRoleTest {
         PersistedCassandraFrameworkConfiguration.fillConfigRoleGaps(builder).build();
     }
 
-    @Test()
+    @Test
     public void testMemoryParameters() {
         CassandraFrameworkProtos.CassandraConfigRole.Builder builder;
         CassandraFrameworkProtos.CassandraConfigRole configRole;

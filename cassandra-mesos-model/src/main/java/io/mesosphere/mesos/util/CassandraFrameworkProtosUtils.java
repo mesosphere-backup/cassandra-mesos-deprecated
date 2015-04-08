@@ -110,20 +110,20 @@ public final class CassandraFrameworkProtosUtils {
         return TaskConfig.Entry.newBuilder().setName(name).addAllStringValues(values).build();
     }
 
-    public static List<String> getSeedNodeIps(@NotNull List<CassandraNode> nodes) {
+    public static List<String> getSeedNodeIps(@NotNull final List<CassandraNode> nodes) {
         return newArrayList(from(nodes)
             .filter(new Predicate<CassandraNode>() {
                 @Override
-                public boolean apply(CassandraNode v) {
+                public boolean apply(final CassandraNode v) {
                     return v.getSeed();
                 }
             })
             .transform(cassandraNodeToIp()));
     }
 
-    public static void addTaskEnvEntry(@NotNull final TaskEnv.Builder taskEnv, boolean replace, @NotNull final String name, @NotNull final String value) {
+    public static void addTaskEnvEntry(@NotNull final TaskEnv.Builder taskEnv, final boolean replace, @NotNull final String name, @NotNull final String value) {
         for (int i = 0; i < taskEnv.getVariablesList().size(); i++) {
-            TaskEnv.Entry entry = taskEnv.getVariables(i);
+            final TaskEnv.Entry entry = taskEnv.getVariables(i);
             if (name.equals(entry.getName())) {
                 if (replace)
                     taskEnv.setVariables(i, TaskEnv.Entry.newBuilder().setName(name).setValue(value).build());
@@ -135,7 +135,7 @@ public final class CassandraFrameworkProtosUtils {
 
     public static void setTaskConfig(@NotNull final TaskConfig.Builder taskConfig, @NotNull final TaskConfig.Entry entry) {
         for (int i = 0; i < taskConfig.getVariablesList().size(); i++) {
-            TaskConfig.Entry e = taskConfig.getVariables(i);
+            final TaskConfig.Entry e = taskConfig.getVariables(i);
             if (entry.getName().equals(e.getName())) {
                 taskConfig.setVariables(i, entry);
                 return;
@@ -144,26 +144,26 @@ public final class CassandraFrameworkProtosUtils {
         taskConfig.addVariables(entry);
     }
 
-    public static CassandraNodeTask getTaskForNode(@NotNull CassandraNode cassandraNode, @NotNull String taskId) {
-        for (CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
+    public static CassandraNodeTask getTaskForNode(@NotNull final CassandraNode cassandraNode, @NotNull final String taskId) {
+        for (final CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
             if (cassandraNodeTask.getTaskId().equals(taskId))
                 return cassandraNodeTask;
         }
         return null;
     }
 
-    public static CassandraNodeTask getTaskForNode(@NotNull CassandraNode cassandraNode, @NotNull CassandraNodeTask.NodeTaskType taskType) {
-        for (CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
+    public static CassandraNodeTask getTaskForNode(@NotNull final CassandraNode cassandraNode, @NotNull final CassandraNodeTask.NodeTaskType taskType) {
+        for (final CassandraNodeTask cassandraNodeTask : cassandraNode.getTasksList()) {
             if (cassandraNodeTask.getType() == taskType)
                 return cassandraNodeTask;
         }
         return null;
     }
 
-    public static CassandraNode.Builder removeTask(@NotNull CassandraNode cassandraNode, @NotNull CassandraNodeTask nodeTask) {
-        CassandraNode.Builder builder = CassandraNode.newBuilder(cassandraNode);
+    public static CassandraNode.Builder removeTask(@NotNull final CassandraNode cassandraNode, @NotNull final CassandraNodeTask nodeTask) {
+        final CassandraNode.Builder builder = CassandraNode.newBuilder(cassandraNode);
         for (int i = 0; i < builder.getTasksList().size(); i++) {
-            CassandraNodeTask t = builder.getTasks(i);
+            final CassandraNodeTask t = builder.getTasks(i);
             if (t.getTaskId().equals(nodeTask.getTaskId())) {
                 builder.removeTasks(i);
                 break;
@@ -209,7 +209,7 @@ public final class CassandraFrameworkProtosUtils {
 
         @Override
         public boolean apply(@NotNull final CassandraNode item) {
-            for (CassandraNodeTask cassandraNodeTask : item.getTasksList()) {
+            for (final CassandraNodeTask cassandraNodeTask : item.getTasksList()) {
                 if (cassandraNodeTask.getTaskId().equals(taskId))
                     return true;
             }

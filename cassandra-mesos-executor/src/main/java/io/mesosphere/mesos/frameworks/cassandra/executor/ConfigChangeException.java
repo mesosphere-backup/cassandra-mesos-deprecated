@@ -16,11 +16,11 @@
 package io.mesosphere.mesos.frameworks.cassandra.executor;
 
 public class ConfigChangeException extends RuntimeException {
-    public ConfigChangeException(String message) {
+    public ConfigChangeException(final String message) {
         super(message);
     }
 
-    public ConfigChangeException(String message, Throwable cause) {
+    public ConfigChangeException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }

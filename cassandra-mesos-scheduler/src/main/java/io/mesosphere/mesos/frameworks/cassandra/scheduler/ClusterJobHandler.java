@@ -18,31 +18,34 @@ package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 import com.google.common.base.Optional;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.mesos.Protos;
+import org.jetbrains.annotations.NotNull;
 
 public abstract class ClusterJobHandler {
+    @NotNull
     protected final CassandraCluster cluster;
+    @NotNull
     protected final PersistedCassandraClusterJobs jobsState;
 
-    protected ClusterJobHandler(CassandraCluster cluster, PersistedCassandraClusterJobs jobsState) {
+    protected ClusterJobHandler(@NotNull final CassandraCluster cluster, @NotNull final PersistedCassandraClusterJobs jobsState) {
         this.cluster = cluster;
         this.jobsState = jobsState;
     }
 
-    public void onTaskRemoved(Protos.TaskStatus status, CassandraFrameworkProtos.ClusterJobStatus clusterJob) {
+    public void onTaskRemoved(@NotNull final Protos.TaskStatus status, @NotNull final CassandraFrameworkProtos.ClusterJobStatus clusterJob) {
         jobsState.removeTaskForCurrentNode(status, clusterJob);
     }
 
-    public abstract void handleTaskOffer(CassandraFrameworkProtos.ClusterJobStatus currentJob, String executorId, Optional<CassandraFrameworkProtos.CassandraNode> nodeForExecutorId, TasksForOffer tasksForOffer);
+    public abstract void handleTaskOffer(@NotNull CassandraFrameworkProtos.ClusterJobStatus currentJob, @NotNull String executorId, @NotNull Optional<CassandraFrameworkProtos.CassandraNode> nodeForExecutorId, @NotNull TasksForOffer tasksForOffer);
 
-    public abstract void onNodeJobStatus(CassandraFrameworkProtos.ClusterJobStatus currentJob, CassandraFrameworkProtos.NodeJobStatus nodeJobStatus);
+    public abstract void onNodeJobStatus(@NotNull CassandraFrameworkProtos.ClusterJobStatus currentJob, @NotNull CassandraFrameworkProtos.NodeJobStatus nodeJobStatus);
 
-    protected void nodeFinished(CassandraFrameworkProtos.NodeJobStatus nodeJobStatus, CassandraFrameworkProtos.ClusterJobStatus currentJob) {
-        CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob)
+    protected final void nodeFinished(@NotNull final CassandraFrameworkProtos.NodeJobStatus nodeJobStatus, @NotNull final CassandraFrameworkProtos.ClusterJobStatus currentJob) {
+        final CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob)
             .clearCurrentNode()
             .clearRemainingNodes()
             .addCompletedNodes(nodeJobStatus);
 
-        for (String nodeExecutorId : currentJob.getRemainingNodesList()) {
+        for (final String nodeExecutorId : currentJob.getRemainingNodesList()) {
             if (!nodeExecutorId.equals(nodeJobStatus.getExecutorId())) {
                 builder.addRemainingNodes(nodeExecutorId);
             }

@@ -20,6 +20,7 @@ import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.Protos;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,15 +28,21 @@ import java.util.UUID;
 
 public class MockExecutorDriver implements ExecutorDriver {
 
+    @NotNull
     final Executor executor;
+    @NotNull
     final Protos.ExecutorInfo executorInfo;
+    @NotNull
     final Protos.FrameworkInfo frameworkInfo;
+    @NotNull
     final Protos.SlaveInfo slaveInfo;
 
+    @NotNull
     private List<Protos.TaskStatus> taskStatusList = new ArrayList<>();
+    @NotNull
     private List<CassandraFrameworkProtos.SlaveStatusDetails> frameworkMessages = new ArrayList<>();
 
-    public MockExecutorDriver(Executor executor, Protos.ExecutorID executorId) {
+    public MockExecutorDriver(@NotNull final Executor executor, @NotNull final Protos.ExecutorID executorId) {
         this.executor = executor;
 
         slaveInfo = Protos.SlaveInfo.newBuilder()
@@ -85,21 +92,22 @@ public class MockExecutorDriver implements ExecutorDriver {
     }
 
     @Override
-    public Protos.Status sendStatusUpdate(Protos.TaskStatus status) {
+    public Protos.Status sendStatusUpdate(final Protos.TaskStatus status) {
         taskStatusList.add(status);
         return Protos.Status.DRIVER_RUNNING;
     }
 
     @Override
-    public Protos.Status sendFrameworkMessage(byte[] data) {
+    public Protos.Status sendFrameworkMessage(final byte[] data) {
         try {
             frameworkMessages.add(CassandraFrameworkProtos.SlaveStatusDetails.parseFrom(data));
-        } catch (InvalidProtocolBufferException e) {
+        } catch (final InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
         return Protos.Status.DRIVER_RUNNING;
     }
 
+    @NotNull
     public List<Protos.TaskStatus> taskStatusList() {
         try {
             return taskStatusList;
@@ -108,6 +116,7 @@ public class MockExecutorDriver implements ExecutorDriver {
         }
     }
 
+    @NotNull
     public List<CassandraFrameworkProtos.SlaveStatusDetails> frameworkMessages() {
         try {
             return frameworkMessages;
@@ -120,8 +129,13 @@ public class MockExecutorDriver implements ExecutorDriver {
         executor.registered(this, executorInfo, frameworkInfo, slaveInfo);
     }
 
-    public void launchTask(Protos.TaskID taskId, Protos.CommandInfo commandInfo, CassandraFrameworkProtos.TaskDetails taskDetails,
-                           String name, Iterable<? extends Protos.Resource> resources) {
+    public void launchTask(
+        @NotNull final Protos.TaskID taskId,
+        @NotNull final Protos.CommandInfo commandInfo,
+        @NotNull final CassandraFrameworkProtos.TaskDetails taskDetails,
+        @NotNull final String name,
+        @NotNull final Iterable<? extends Protos.Resource> resources
+    ) {
         executor.launchTask(this, Protos.TaskInfo.newBuilder()
             .setTaskId(taskId)
             .setCommand(commandInfo)
@@ -133,11 +147,11 @@ public class MockExecutorDriver implements ExecutorDriver {
             .build());
     }
 
-    public void frameworkMessage(CassandraFrameworkProtos.TaskDetails taskDetails) {
+    public void frameworkMessage(final CassandraFrameworkProtos.TaskDetails taskDetails) {
         executor.frameworkMessage(this, taskDetails.toByteArray());
     }
 
-    public void killTask(Protos.TaskID taskId) {
+    public void killTask(final Protos.TaskID taskId) {
         executor.killTask(this, taskId);
     }
 }

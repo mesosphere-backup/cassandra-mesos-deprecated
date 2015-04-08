@@ -34,12 +34,12 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
 
         List<CassandraFrameworkProtos.CassandraNode> nodes = cluster.getClusterState().nodes();
         assertThat(nodes).hasSize(3);
-        for (CassandraFrameworkProtos.CassandraNode node : nodes) {
+        for (final CassandraFrameworkProtos.CassandraNode node : nodes) {
             assertNotNull(node);
-            CassandraFrameworkProtos.CassandraNodeExecutor exec = node.getCassandraNodeExecutor();
+            final CassandraFrameworkProtos.CassandraNodeExecutor exec = node.getCassandraNodeExecutor();
             assertNotNull(exec);
             assertThat(nodes).isNotEmpty();
-            for (CassandraFrameworkProtos.FileDownload down : exec.getDownloadList()) {
+            for (final CassandraFrameworkProtos.FileDownload down : exec.getDownloadList()) {
                 assertThat(down.getDownloadUrl()).startsWith("http://127.0.0.1:65535/");
             }
         }
@@ -63,12 +63,12 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
 
         nodes = cluster.getClusterState().nodes();
         assertThat(nodes).hasSize(3);
-        for (CassandraFrameworkProtos.CassandraNode node : nodes) {
+        for (final CassandraFrameworkProtos.CassandraNode node : nodes) {
             assertNotNull(node);
-            CassandraFrameworkProtos.CassandraNodeExecutor exec = node.getCassandraNodeExecutor();
+            final CassandraFrameworkProtos.CassandraNodeExecutor exec = node.getCassandraNodeExecutor();
             assertNotNull(exec);
             assertThat(nodes).isNotEmpty();
-            for (CassandraFrameworkProtos.FileDownload down : exec.getDownloadList()) {
+            for (final CassandraFrameworkProtos.FileDownload down : exec.getDownloadList()) {
                 assertThat(down.getDownloadUrl()).startsWith("http://127.42.42.42:42/");
             }
         }
@@ -79,7 +79,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
     public void testIsLiveNode() throws Exception {
         cleanState();
 
-        CassandraFrameworkProtos.CassandraNode.Builder node = CassandraFrameworkProtos.CassandraNode.newBuilder()
+        final CassandraFrameworkProtos.CassandraNode.Builder node = CassandraFrameworkProtos.CassandraNode.newBuilder()
             .setHostname("bart")
             .setIp("1.2.3.4")
             .setSeed(false)
@@ -107,7 +107,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
         assertNotNull(CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
         assertFalse(cluster.isLiveNode(node.build()));
 
-        CassandraFrameworkProtos.HealthCheckDetails.Builder hcd = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
+        final CassandraFrameworkProtos.HealthCheckDetails.Builder hcd = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
             .setHealthy(false);
         cluster.recordHealthCheck("exec", hcd.build());
         assertNotNull(cluster.lastHealthCheck("exec"));
@@ -118,7 +118,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
         assertNotNull(cluster.lastHealthCheck("exec"));
         assertFalse(cluster.isLiveNode(node.build()));
 
-        CassandraFrameworkProtos.NodeInfo.Builder ni = CassandraFrameworkProtos.NodeInfo.newBuilder();
+        final CassandraFrameworkProtos.NodeInfo.Builder ni = CassandraFrameworkProtos.NodeInfo.newBuilder();
         hcd.setInfo(ni);
         cluster.recordHealthCheck("exec", hcd.build());
         assertFalse(cluster.isLiveNode(node.build()));
@@ -147,7 +147,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
         try {
             CassandraCluster.getPortMapping(config, "foobar");
             fail();
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // OK
         }
 
@@ -228,7 +228,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
     public void testNodeLogFiles() {
         cleanState();
 
-        CassandraFrameworkProtos.CassandraNode node1 = CassandraFrameworkProtos.CassandraNode.newBuilder()
+        final CassandraFrameworkProtos.CassandraNode node1 = CassandraFrameworkProtos.CassandraNode.newBuilder()
             .setIp("1.1.1.1")
             .setHostname("host1")
             .setJmxConnect(CassandraFrameworkProtos.JmxConnect.newBuilder().setJmxPort(1).setIp("1.1.1.1"))
@@ -239,7 +239,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .setSource("src")
                 .setExecutorId("host1"))
             .build();
-        CassandraFrameworkProtos.CassandraNode node2 = CassandraFrameworkProtos.CassandraNode.newBuilder()
+        final CassandraFrameworkProtos.CassandraNode node2 = CassandraFrameworkProtos.CassandraNode.newBuilder()
             .setIp("2.2.2.2")
             .setHostname("host2")
             .setJmxConnect(CassandraFrameworkProtos.JmxConnect.newBuilder().setJmxPort(1).setIp("2.2.2.2"))
@@ -286,7 +286,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
     public void testServerProcessPid() {
         cleanState();
 
-        CassandraFrameworkProtos.CassandraNode node1 = CassandraFrameworkProtos.CassandraNode.newBuilder()
+        final CassandraFrameworkProtos.CassandraNode node1 = CassandraFrameworkProtos.CassandraNode.newBuilder()
             .setIp("1.1.1.1")
             .setHostname("host1")
             .setJmxConnect(CassandraFrameworkProtos.JmxConnect.newBuilder().setJmxPort(1).setIp("1.1.1.1"))
@@ -297,7 +297,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .setSource("src")
                 .setExecutorId("host1"))
             .build();
-        CassandraFrameworkProtos.CassandraNode node2 = CassandraFrameworkProtos.CassandraNode.newBuilder()
+        final CassandraFrameworkProtos.CassandraNode node2 = CassandraFrameworkProtos.CassandraNode.newBuilder()
             .setIp("2.2.2.2")
             .setHostname("host2")
             .setJmxConnect(CassandraFrameworkProtos.JmxConnect.newBuilder().setJmxPort(1).setIp("2.2.2.2"))
@@ -566,7 +566,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
 
     @Test
     public void testHasResource_floatingPointPrecision() throws Exception {
-        Protos.Offer offer = Protos.Offer.newBuilder()
+        final Protos.Offer offer = Protos.Offer.newBuilder()
                 .setHostname("host1")
                 .setId(Protos.OfferID.newBuilder().setValue("offer"))
                 .setSlaveId(Protos.SlaveID.newBuilder().setValue("slave"))

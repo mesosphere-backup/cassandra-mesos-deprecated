@@ -16,10 +16,10 @@
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.collect.Lists.newArrayList;
 import static io.mesosphere.mesos.util.ProtoUtils.protoToString;
 
 public abstract class AbstractNodeJob implements Closeable {
@@ -39,27 +41,33 @@ public abstract class AbstractNodeJob implements Closeable {
 
     protected final long startTimestamp = System.currentTimeMillis();
 
+    @NotNull
     private final Protos.TaskID taskId;
 
+    @Nullable
     protected JmxConnect jmxConnect;
+    @Nullable
     private List<String> remainingKeyspaces;
+    @NotNull
     private final Map<String, CassandraFrameworkProtos.ClusterJobKeyspaceStatus> keyspaceStatus = new HashMap<>();
 
     private volatile long keyspaceStartedAt;
 
     private long finishedTimestamp;
 
-    protected AbstractNodeJob(Protos.TaskID taskId) {
+    protected AbstractNodeJob(@NotNull final Protos.TaskID taskId) {
         this.taskId = taskId;
     }
 
+    @NotNull
     public Protos.TaskID getTaskId() {
         return taskId;
     }
 
+    @NotNull
     public abstract CassandraFrameworkProtos.ClusterJobType getType();
 
-    public boolean start(JmxConnect jmxConnect) {
+    public boolean start(@NotNull final JmxConnect jmxConnect) {
         this.jmxConnect = jmxConnect;
 
         if (!"NORMAL".equals(jmxConnect.getStorageServiceProxy().getOperationMode())) {
@@ -75,8 +83,8 @@ public abstract class AbstractNodeJob implements Closeable {
     @Override
     public void close() {
         try {
-            jmxConnect.close();
-        } catch (IOException e) {
+            checkNotNull(jmxConnect).close();
+        } catch (final IOException e) {
             // ignore
         }
     }
@@ -93,17 +101,22 @@ public abstract class AbstractNodeJob implements Closeable {
         return finishedTimestamp;
     }
 
+    @NotNull
     public List<String> getRemainingKeyspaces() {
+        if (remainingKeyspaces == null) {
+            remainingKeyspaces = newArrayList();
+        }
         return remainingKeyspaces;
     }
 
+    @NotNull
     public Map<String, CassandraFrameworkProtos.ClusterJobKeyspaceStatus> getKeyspaceStatus() {
         return keyspaceStatus;
     }
 
     protected void cleanupAfterJobFinished() {
         finishedTimestamp = System.currentTimeMillis();
-        long duration = System.currentTimeMillis() - startTimestamp;
+        final long duration = System.currentTimeMillis() - startTimestamp;
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("{} finished in {} seconds : {}",
                 getClass().getSimpleName(),
@@ -117,7 +130,7 @@ public abstract class AbstractNodeJob implements Closeable {
         keyspaceStartedAt = System.currentTimeMillis();
     }
 
-    protected void keyspaceFinished(String status, String keyspace) {
+    protected void keyspaceFinished(@NotNull final String status, @NotNull final String keyspace) {
         keyspaceStatus.put(keyspace, CassandraFrameworkProtos.ClusterJobKeyspaceStatus.newBuilder()
                 .setDuration(System.currentTimeMillis() - keyspaceStartedAt)
                 .setStatus(status)
@@ -125,13 +138,17 @@ public abstract class AbstractNodeJob implements Closeable {
                 .build());
     }
 
+    @Nullable
     public String nextKeyspace() {
-        if (remainingKeyspaces.isEmpty()) {
-            cleanupAfterJobFinished();
-            return null;
-        }
+        if (remainingKeyspaces != null) {
+            if (remainingKeyspaces.isEmpty()) {
+                cleanupAfterJobFinished();
+                return null;
+            }
 
-        return remainingKeyspaces.remove(0);
+            return remainingKeyspaces.remove(0);
+        }
+        return null;
     }
 
     public abstract void startNextKeyspace();
@@ -140,8 +157,9 @@ public abstract class AbstractNodeJob implements Closeable {
         cleanupAfterJobFinished();
     }
 
+    @NotNull
     private static String keyspaceStatusLogString(@NotNull final Map<String, CassandraFrameworkProtos.ClusterJobKeyspaceStatus> map) {
-        final List<String> strings = Lists.newArrayList();
+        final List<String> strings = newArrayList();
         for (final Map.Entry<String, CassandraFrameworkProtos.ClusterJobKeyspaceStatus> entry : map.entrySet()) {
             strings.add(String.format("%s -> {%s}", entry.getKey(), protoToString(entry.getValue())));
         }

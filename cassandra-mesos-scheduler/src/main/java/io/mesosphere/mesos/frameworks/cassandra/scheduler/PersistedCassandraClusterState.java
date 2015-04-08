@@ -22,6 +22,7 @@ import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.util.ProtoUtils;
 import org.apache.mesos.state.State;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +51,7 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
                 public CassandraFrameworkProtos.CassandraClusterState apply(final byte[] input) {
                     try {
                         return CassandraFrameworkProtos.CassandraClusterState.parseFrom(input);
-                    } catch (InvalidProtocolBufferException e) {
+                    } catch (final InvalidProtocolBufferException e) {
                         throw new ProtoUtils.RuntimeInvalidProtocolBufferException(e);
                     }
                 }
@@ -93,12 +94,12 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
     }
 
     /**
-     * Add a node, making sure to replace any previoud node with the same hostname
+     * Add a node, making sure to replace any previous node with the same hostname
      */
-    public void addOrSetNode(final CassandraFrameworkProtos.CassandraNode node) {
-        List<CassandraFrameworkProtos.CassandraNode> nodeList = new ArrayList<>(nodes());
+    public void addOrSetNode(@NotNull final CassandraFrameworkProtos.CassandraNode node) {
+        final List<CassandraFrameworkProtos.CassandraNode> nodeList = new ArrayList<>(nodes());
         for (int i = 0; i < nodeList.size(); i++) {
-            CassandraFrameworkProtos.CassandraNode candidate = nodeList.get(i);
+            final CassandraFrameworkProtos.CassandraNode candidate = nodeList.get(i);
             if (node.getHostname().equals(candidate.getHostname())) {
                 nodeList.set(i, node);
                 nodes(nodeList);
@@ -112,8 +113,8 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
     /**
      * Sets the {@code needsConfigUpdate} flag on all nodes and update the given {@code node}.
      */
-    public void setNodeAndUpdateConfig(CassandraFrameworkProtos.CassandraNode.Builder node) {
-        List<CassandraFrameworkProtos.CassandraNode> nodeList = new ArrayList<>();
+    public void setNodeAndUpdateConfig(@NotNull final CassandraFrameworkProtos.CassandraNode.Builder node) {
+        final List<CassandraFrameworkProtos.CassandraNode> nodeList = new ArrayList<>();
         for (CassandraFrameworkProtos.CassandraNode candidate : nodes()) {
             if (node.getHostname().equals(candidate.getHostname())) {
                 nodeList.add(node
@@ -129,10 +130,11 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
         nodes(nodeList);
     }
 
+    @NotNull
     public NodeCounts nodeCounts() {
         int nodeCount = 0;
         int seedCount = 0;
-        for (CassandraFrameworkProtos.CassandraNode n : nodes()) {
+        for (final CassandraFrameworkProtos.CassandraNode n : nodes()) {
             if (n.getTargetRunState() == CassandraFrameworkProtos.CassandraNode.TargetRunState.TERMINATE) {
                 // not a live node - do not count
                 continue;
@@ -145,7 +147,7 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
         return new NodeCounts(nodeCount, seedCount);
     }
 
-    public void updateLastServerLaunchTimestamp(long lastServerLaunchTimestamp) {
+    public void updateLastServerLaunchTimestamp(final long lastServerLaunchTimestamp) {
         setValue(
                 CassandraFrameworkProtos.CassandraClusterState.newBuilder(get())
                         .setLastServerLaunchTimestamp(lastServerLaunchTimestamp)
@@ -153,8 +155,8 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
         );
     }
 
-    public void replaceNode(String ip) {
-        CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(get());
+    public void replaceNode(final String ip) {
+        final CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(get());
         setValue(
             builder
                 .addReplaceNodeIps(ip)
@@ -163,11 +165,11 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
         );
     }
 
-    public void nodeAcquired(CassandraFrameworkProtos.CassandraNode newNode) {
-        CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(get());
+    public void nodeAcquired(final CassandraFrameworkProtos.CassandraNode newNode) {
+        final CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(get());
 
         if (newNode.hasReplacementForIp()) {
-            List<String> replacements = new ArrayList<>(builder.getReplaceNodeIpsList());
+            final List<String> replacements = new ArrayList<>(builder.getReplaceNodeIpsList());
             replacements.remove(newNode.getReplacementForIp());
             builder.clearReplaceNodeIps().addAllReplaceNodeIps(replacements);
         }
@@ -184,13 +186,14 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
         );
     }
 
+    @Nullable
     public String nextReplacementIp() {
-        List<String> list = get().getReplaceNodeIpsList();
+        final List<String> list = get().getReplaceNodeIpsList();
         return list.isEmpty() ? null : list.get(0);
     }
 
-    public void acquireNewNodes(int newNodeCount) {
-        CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(get());
+    public void acquireNewNodes(final int newNodeCount) {
+        final CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(get());
         setValue(
             builder
                 .setNodesToAcquire(builder.getNodesToAcquire() + newNodeCount)
@@ -198,12 +201,12 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
         );
     }
 
-    public void nodeReplaced(CassandraFrameworkProtos.CassandraNode cassandraNode) {
-        CassandraFrameworkProtos.CassandraClusterState prev = get();
-        CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(prev)
+    public void nodeReplaced(@NotNull final CassandraFrameworkProtos.CassandraNode cassandraNode) {
+        final CassandraFrameworkProtos.CassandraClusterState prev = get();
+        final CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(prev)
             .clearNodes();
 
-        for (CassandraFrameworkProtos.CassandraNode node : prev.getNodesList()) {
+        for (final CassandraFrameworkProtos.CassandraNode node : prev.getNodesList()) {
             // add all but the node that has been replaced (effectively removing it)
             if (node.getIp().equals(cassandraNode.getIp())) {
                 builder.addNodes(CassandraFrameworkProtos.CassandraNode.newBuilder(cassandraNode).clearReplacementForIp());
@@ -215,7 +218,7 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
         setValue(builder.build());
     }
     public boolean doAcquireNewNodeAsSeed() {
-        CassandraFrameworkProtos.CassandraClusterState value = get();
+        final CassandraFrameworkProtos.CassandraClusterState value = get();
         if (value.getSeedsToAcquire() == 0) {
             return false;
         }

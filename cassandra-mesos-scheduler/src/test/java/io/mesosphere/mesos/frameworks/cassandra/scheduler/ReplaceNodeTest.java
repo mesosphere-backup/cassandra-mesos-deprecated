@@ -34,11 +34,11 @@ public class ReplaceNodeTest extends AbstractCassandraSchedulerTest {
             // non-existing node
             cluster.replaceNode("foobar");
             fail();
-        } catch (ReplaceNodePreconditionFailed e) {
+        } catch (final ReplaceNodePreconditionFailed e) {
             assertTrue(e.getMessage().startsWith("Non-existing node "));
         }
 
-        CassandraFrameworkProtos.CassandraNode.Builder node = CassandraFrameworkProtos.CassandraNode.newBuilder()
+        final CassandraFrameworkProtos.CassandraNode.Builder node = CassandraFrameworkProtos.CassandraNode.newBuilder()
             .setHostname("bart")
             .setIp("1.2.3.4")
             .setSeed(true)
@@ -60,7 +60,7 @@ public class ReplaceNodeTest extends AbstractCassandraSchedulerTest {
                 .setTaskId("task")
                 .setType(CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER));
         cluster.getClusterState().addOrSetNode(node.build());
-        CassandraFrameworkProtos.HealthCheckDetails.Builder hcd = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
+        final CassandraFrameworkProtos.HealthCheckDetails.Builder hcd = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
             .setHealthy(true)
             .setInfo(CassandraFrameworkProtos.NodeInfo.newBuilder()
                 .setRpcServerRunning(true)
@@ -73,7 +73,7 @@ public class ReplaceNodeTest extends AbstractCassandraSchedulerTest {
         try {
             cluster.replaceNode("bart");
             fail();
-        } catch (ReplaceNodePreconditionFailed e) {
+        } catch (final ReplaceNodePreconditionFailed e) {
             assertTrue(e.getMessage().endsWith("to replace is a seed node"));
         }
 
@@ -84,7 +84,7 @@ public class ReplaceNodeTest extends AbstractCassandraSchedulerTest {
         try {
             cluster.replaceNode("bart");
             fail();
-        } catch (ReplaceNodePreconditionFailed e) {
+        } catch (final ReplaceNodePreconditionFailed e) {
             assertTrue(e.getMessage().startsWith("Cannot replace live node "));
         }
 
@@ -97,7 +97,7 @@ public class ReplaceNodeTest extends AbstractCassandraSchedulerTest {
         try {
             cluster.replaceNode("bart");
             fail();
-        } catch (ReplaceNodePreconditionFailed e) {
+        } catch (final ReplaceNodePreconditionFailed e) {
             assertTrue(e.getMessage().startsWith("Cannot replace non-terminated node "));
         }
 
@@ -108,7 +108,7 @@ public class ReplaceNodeTest extends AbstractCassandraSchedulerTest {
         try {
             cluster.replaceNode("1.2.3.4");
             fail();
-        } catch (ReplaceNodePreconditionFailed e) {
+        } catch (final ReplaceNodePreconditionFailed e) {
             assertTrue(e.getMessage().endsWith(" to replace has active tasks"));
         }
 
@@ -121,7 +121,7 @@ public class ReplaceNodeTest extends AbstractCassandraSchedulerTest {
         try {
             cluster.replaceNode("bart");
             fail();
-        } catch (ReplaceNodePreconditionFailed e) {
+        } catch (final ReplaceNodePreconditionFailed e) {
             assertTrue(e.getMessage().endsWith(" already in replace-list"));
         }
 
@@ -136,7 +136,7 @@ public class ReplaceNodeTest extends AbstractCassandraSchedulerTest {
         assertNotNull(node3);
         assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.TERMINATE, node3.getTargetRunState());
 
-        CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node3, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
+        final CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node3, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
         assertNotNull(taskForNode);
 
         // verify that kill-task is launched
@@ -156,7 +156,7 @@ public class ReplaceNodeTest extends AbstractCassandraSchedulerTest {
         try {
             cluster.replaceNode(slaves[2]._2);
             fail();
-        } catch (ReplaceNodePreconditionFailed ignored) {
+        } catch (final ReplaceNodePreconditionFailed ignored) {
             // ignored
         }
 
@@ -168,7 +168,7 @@ public class ReplaceNodeTest extends AbstractCassandraSchedulerTest {
         try {
             cluster.replaceNode(slaves[2]._2);
             fail();
-        } catch (ReplaceNodePreconditionFailed ignored) {
+        } catch (final ReplaceNodePreconditionFailed ignored) {
             // ignored
         }
 
@@ -194,7 +194,7 @@ public class ReplaceNodeTest extends AbstractCassandraSchedulerTest {
         assertThat(cluster.getClusterState().get().getReplaceNodeIpsList()).isEmpty();
         assertEquals(4, cluster.getClusterState().get().getNodesCount());
 
-        List<String> args = executorServer[3]._2.getCassandraServerRunTask().getCommandList();
+        final List<String> args = executorServer[3]._2.getCassandraServerRunTask().getCommandList();
         assertThat(args).contains("-Dcassandra.replace_address=" + slaves[2]._2);
 
         node3 = cluster.findNode(slaves[3]._2);

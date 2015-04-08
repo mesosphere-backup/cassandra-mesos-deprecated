@@ -44,18 +44,20 @@ class TestObjectFactory implements ObjectFactory {
     final MockEndpointSnitchInfo endpointSnitchInfo = new MockEndpointSnitchInfo();
     TestWrappedProcess process;
 
+    @NotNull
     @Override
-    public JmxConnect newJmxConnect(CassandraFrameworkProtos.JmxConnect jmx) {
+    public JmxConnect newJmxConnect(@NotNull final CassandraFrameworkProtos.JmxConnect jmx) {
         return new TestJmxConnect();
     }
 
+    @NotNull
     @Override
-    public WrappedProcess launchCassandraNodeTask(Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask) throws LaunchNodeException {
+    public WrappedProcess launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask) throws LaunchNodeException {
         return process = new TestWrappedProcess();
     }
 
     @Override
-    public void updateCassandraServerConfig(@NotNull Marker taskIdMarker, CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask, @NotNull CassandraFrameworkProtos.UpdateConfigTask updateConfigTask) {
+    public void updateCassandraServerConfig(@NotNull final Marker taskIdMarker, @NotNull final CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask, @NotNull final CassandraFrameworkProtos.UpdateConfigTask updateConfigTask) {
         // nop
     }
 
@@ -92,23 +94,27 @@ class TestObjectFactory implements ObjectFactory {
 
     final class TestJmxConnect implements JmxConnect {
 
+        @NotNull
         @Override
         public StorageServiceMBean getStorageServiceProxy() {
             return storageServiceProxy;
         }
 
+        @NotNull
         @Override
         public EndpointSnitchInfoMBean getEndpointSnitchInfoProxy() {
             return endpointSnitchInfo;
         }
 
+        @NotNull
         @Override
         public RuntimeMXBean getRuntimeProxy() {
             return ManagementFactory.getRuntimeMXBean();
         }
 
         @Override
-        public List<String> getColumnFamilyNames(String keyspace) {
+        @NotNull
+        public List<String> getColumnFamilyNames(@NotNull final String keyspace) {
             return Arrays.asList(keyspace + "_a", keyspace + "_b", keyspace + "_c");
         }
 
@@ -172,7 +178,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public List<String> getTokens(String endpoint) {
+        public List<String> getTokens(final String endpoint) {
             return Arrays.asList("1", "2");
         }
 
@@ -196,17 +202,17 @@ class TestObjectFactory implements ObjectFactory {
         final List<NotificationListener> listeners = new ArrayList<>();
 
         @Override
-        public void removeNotificationListener(NotificationListener listener, NotificationFilter filter, Object handback) {
+        public void removeNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) {
             listeners.remove(listener);
         }
 
         @Override
-        public void addNotificationListener(NotificationListener listener, NotificationFilter filter, Object handback) throws IllegalArgumentException {
+        public void addNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) throws IllegalArgumentException {
             listeners.add(listener);
         }
 
         @Override
-        public void removeNotificationListener(NotificationListener listener) {
+        public void removeNotificationListener(final NotificationListener listener) {
             listeners.remove(listener);
         }
 
@@ -216,19 +222,19 @@ class TestObjectFactory implements ObjectFactory {
         long sequence;
 
         @Override
-        public int forceRepairAsync(String keyspace, boolean isSequential, boolean isLocal, boolean primaryRange, boolean fullRepair, String... columnFamilies) {
+        public int forceRepairAsync(final String keyspace, final boolean isSequential, final boolean isLocal, final boolean primaryRange, final boolean fullRepair, final String... columnFamilies) {
             return ++commandSeq;
         }
 
 
-        public void emitRepairNotification(ActiveRepairService.Status status) {
-            Notification notification = new Notification("repair", this, ++sequence, System.currentTimeMillis(), "hello world");
+        public void emitRepairNotification(final ActiveRepairService.Status status) {
+            final Notification notification = new Notification("repair", this, ++sequence, System.currentTimeMillis(), "hello world");
             notification.setUserData(new int[]{commandSeq, status.ordinal()});
             emitNotification(notification);
         }
 
-        public void emitNotification(Notification notification) {
-            for (NotificationListener listener : new ArrayList<>(listeners)) {
+        public void emitNotification(final Notification notification) {
+            for (final NotificationListener listener : new ArrayList<>(listeners)) {
                 listener.handleNotification(notification, null);
             }
         }
@@ -241,7 +247,7 @@ class TestObjectFactory implements ObjectFactory {
         //
 
         @Override
-        public int forceKeyspaceCleanup(String keyspaceName, String... columnFamilies) {
+        public int forceKeyspaceCleanup(final String keyspaceName, final String... columnFamilies) {
             return CompactionManager.AllSSTableOpStatus.SUCCESSFUL.statusCode;
         }
 
@@ -293,22 +299,22 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public Map<List<String>, List<String>> getRangeToEndpointMap(String keyspace) {
+        public Map<List<String>, List<String>> getRangeToEndpointMap(final String keyspace) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public Map<List<String>, List<String>> getRangeToRpcaddressMap(String keyspace) {
+        public Map<List<String>, List<String>> getRangeToRpcaddressMap(final String keyspace) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public List<String> describeRingJMX(String keyspace) {
+        public List<String> describeRingJMX(final String keyspace) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public Map<List<String>, List<String>> getPendingRangeToEndpointMap(String keyspace) {
+        public Map<List<String>, List<String>> getPendingRangeToEndpointMap(final String keyspace) {
             throw new UnsupportedOperationException();
         }
 
@@ -338,27 +344,27 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public List<InetAddress> getNaturalEndpoints(String keyspaceName, String cf, String key) {
+        public List<InetAddress> getNaturalEndpoints(final String keyspaceName, final String cf, final String key) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public List<InetAddress> getNaturalEndpoints(String keyspaceName, ByteBuffer key) {
+        public List<InetAddress> getNaturalEndpoints(final String keyspaceName, final ByteBuffer key) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void takeSnapshot(String tag, String... keyspaceNames) {
+        public void takeSnapshot(final String tag, final String... keyspaceNames) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void takeColumnFamilySnapshot(String keyspaceName, String columnFamilyName, String tag) {
+        public void takeColumnFamilySnapshot(final String keyspaceName, final String columnFamilyName, final String tag) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void clearSnapshot(String tag, String... keyspaceNames) {
+        public void clearSnapshot(final String tag, final String... keyspaceNames) {
             throw new UnsupportedOperationException();
         }
 
@@ -373,47 +379,47 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void forceKeyspaceCompaction(String keyspaceName, String... columnFamilies) {
+        public void forceKeyspaceCompaction(final String keyspaceName, final String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public int scrub(boolean disableSnapshot, boolean skipCorrupted, String keyspaceName, String... columnFamilies) {
+        public int scrub(final boolean disableSnapshot, final boolean skipCorrupted, final String keyspaceName, final String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public int upgradeSSTables(String keyspaceName, boolean excludeCurrentVersion, String... columnFamilies) {
+        public int upgradeSSTables(final String keyspaceName, final boolean excludeCurrentVersion, final String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void forceKeyspaceFlush(String keyspaceName, String... columnFamilies) {
+        public void forceKeyspaceFlush(final String keyspaceName, final String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public int forceRepairAsync(String keyspace, boolean isSequential, Collection<String> dataCenters, Collection<String> hosts, boolean primaryRange, boolean repairedAt, String... columnFamilies) {
+        public int forceRepairAsync(final String keyspace, final boolean isSequential, final Collection<String> dataCenters, final Collection<String> hosts, final boolean primaryRange, final boolean repairedAt, final String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public int forceRepairAsync(String keyspace, int parallelismDegree, Collection<String> dataCenters, Collection<String> hosts, boolean primaryRange, boolean fullRepair, String... columnFamilies) {
+        public int forceRepairAsync(final String keyspace, final int parallelismDegree, final Collection<String> dataCenters, final Collection<String> hosts, final boolean primaryRange, final boolean fullRepair, final String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public int forceRepairRangeAsync(String beginToken, String endToken, String keyspaceName, boolean isSequential, boolean isLocal, boolean repairedAt, String... columnFamilies) {
+        public int forceRepairRangeAsync(final String beginToken, final String endToken, final String keyspaceName, final boolean isSequential, final boolean isLocal, final boolean repairedAt, final String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public int forceRepairRangeAsync(String beginToken, String endToken, String keyspaceName, boolean isSequential, Collection<String> dataCenters, Collection<String> hosts, boolean repairedAt, String... columnFamilies) {
+        public int forceRepairRangeAsync(final String beginToken, final String endToken, final String keyspaceName, final boolean isSequential, final Collection<String> dataCenters, final Collection<String> hosts, final boolean repairedAt, final String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public int forceRepairRangeAsync(String beginToken, String endToken, String keyspaceName, int parallelismDegree, Collection<String> dataCenters, Collection<String> hosts, boolean fullRepair, String... columnFamilies) {
+        public int forceRepairRangeAsync(final String beginToken, final String endToken, final String keyspaceName, final int parallelismDegree, final Collection<String> dataCenters, final Collection<String> hosts, final boolean fullRepair, final String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
@@ -428,12 +434,12 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void move(String newToken) {
+        public void move(final String newToken) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void removeNode(String token) {
+        public void removeNode(final String token) {
             throw new UnsupportedOperationException();
         }
 
@@ -448,7 +454,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void setLoggingLevel(String classQualifier, String level) throws Exception {
+        public void setLoggingLevel(final String classQualifier, final String level) throws Exception {
             throw new UnsupportedOperationException();
         }
 
@@ -468,7 +474,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void truncate(String keyspace, String columnFamily) {
+        public void truncate(final String keyspace, final String columnFamily) {
             throw new UnsupportedOperationException();
         }
 
@@ -478,12 +484,12 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public Map<InetAddress, Float> effectiveOwnership(String keyspace) throws IllegalStateException {
+        public Map<InetAddress, Float> effectiveOwnership(final String keyspace) throws IllegalStateException {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void updateSnitch(String epSnitchClassName, Boolean dynamic, Integer dynamicUpdateInterval, Integer dynamicResetInterval, Double dynamicBadnessThreshold) {
+        public void updateSnitch(final String epSnitchClassName, final Boolean dynamic, final Integer dynamicUpdateInterval, final Integer dynamicResetInterval, final Double dynamicBadnessThreshold) {
             throw new UnsupportedOperationException();
         }
 
@@ -528,7 +534,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void setStreamThroughputMbPerSec(int value) {
+        public void setStreamThroughputMbPerSec(final int value) {
             throw new UnsupportedOperationException();
         }
 
@@ -543,7 +549,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void setCompactionThroughputMbPerSec(int value) {
+        public void setCompactionThroughputMbPerSec(final int value) {
             throw new UnsupportedOperationException();
         }
 
@@ -553,22 +559,22 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void setIncrementalBackupsEnabled(boolean value) {
+        public void setIncrementalBackupsEnabled(final boolean value) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void rebuild(String sourceDc) {
+        public void rebuild(final String sourceDc) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void bulkLoad(String directory) {
+        public void bulkLoad(final String directory) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public String bulkLoadAsync(String directory) {
+        public String bulkLoadAsync(final String directory) {
             throw new UnsupportedOperationException();
         }
 
@@ -578,7 +584,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void loadNewSSTables(String ksName, String cfName) {
+        public void loadNewSSTables(final String ksName, final String cfName) {
             throw new UnsupportedOperationException();
         }
 
@@ -588,7 +594,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames) {
+        public void rebuildSecondaryIndex(final String ksName, final String cfName, final String... idxNames) {
             throw new UnsupportedOperationException();
         }
 
@@ -598,7 +604,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void setTraceProbability(double probability) {
+        public void setTraceProbability(final double probability) {
             throw new UnsupportedOperationException();
         }
 
@@ -608,17 +614,17 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void disableAutoCompaction(String ks, String... columnFamilies) {
+        public void disableAutoCompaction(final String ks, final String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void enableAutoCompaction(String ks, String... columnFamilies) {
+        public void enableAutoCompaction(final String ks, final String... columnFamilies) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void deliverHints(String host) {
+        public void deliverHints(final String host) {
             throw new UnsupportedOperationException();
         }
 
@@ -633,7 +639,7 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void setTombstoneWarnThreshold(int tombstoneDebugThreshold) {
+        public void setTombstoneWarnThreshold(final int tombstoneDebugThreshold) {
             throw new UnsupportedOperationException();
         }
 
@@ -643,12 +649,12 @@ class TestObjectFactory implements ObjectFactory {
         }
 
         @Override
-        public void setTombstoneFailureThreshold(int tombstoneDebugThreshold) {
+        public void setTombstoneFailureThreshold(final int tombstoneDebugThreshold) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void setHintedHandoffThrottleInKB(int throttleInKB) {
+        public void setHintedHandoffThrottleInKB(final int throttleInKB) {
             throw new UnsupportedOperationException();
         }
 
@@ -660,12 +666,12 @@ class TestObjectFactory implements ObjectFactory {
 
     static final class MockEndpointSnitchInfo implements EndpointSnitchInfoMBean {
         @Override
-        public String getRack(String host) {
+        public String getRack(final String host) {
             return "rack";
         }
 
         @Override
-        public String getDatacenter(String host) {
+        public String getDatacenter(final String host) {
             return "datacenter";
         }
 

@@ -36,7 +36,7 @@ public final class ClusterCleanupController {
     @NotNull
     private final CassandraCluster cluster;
 
-    public ClusterCleanupController(@NotNull CassandraCluster cluster, final @NotNull JsonFactory factory) {
+    public ClusterCleanupController(@NotNull final CassandraCluster cluster, final @NotNull JsonFactory factory) {
         this.factory = factory;
         this.cluster = cluster;
     }

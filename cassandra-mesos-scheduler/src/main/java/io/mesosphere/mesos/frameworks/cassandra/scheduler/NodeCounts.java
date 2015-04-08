@@ -19,7 +19,7 @@ public final class NodeCounts {
     private final int nodeCount;
     private final int seedCount;
 
-    public NodeCounts(int nodeCount, int seedCount) {
+    public NodeCounts(final int nodeCount, final int seedCount) {
         this.nodeCount = nodeCount;
         this.seedCount = seedCount;
     }
@@ -33,7 +33,7 @@ public final class NodeCounts {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) {
             return true;
         }
@@ -41,7 +41,7 @@ public final class NodeCounts {
             return false;
         }
 
-        NodeCounts that = (NodeCounts) o;
+        final NodeCounts that = (NodeCounts) o;
 
         return nodeCount == that.nodeCount && seedCount == that.seedCount;
 

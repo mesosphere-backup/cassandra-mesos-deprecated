@@ -41,8 +41,8 @@ public final class Env {
     }
 
     public static String osFromSystemProperty() {
-        String osName = System.getProperty("os.name").toLowerCase();
-        String os;
+        final String osName = System.getProperty("os.name").toLowerCase();
+        final String os;
         if (osName.contains("mac") || osName.contains("darwin")) {
             os = "macosx";
         } else if (osName.contains("linux")) {

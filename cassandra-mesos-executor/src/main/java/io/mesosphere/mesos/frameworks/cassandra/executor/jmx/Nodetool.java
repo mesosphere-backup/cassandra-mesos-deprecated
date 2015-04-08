@@ -15,13 +15,16 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.net.UnknownHostException;
 import java.util.Map;
 
 public class Nodetool {
+    @NotNull
     private final JmxConnect jmxConnect;
 
-    public Nodetool(JmxConnect jmxConnect) {
+    public Nodetool(@NotNull final JmxConnect jmxConnect) {
         this.jmxConnect = jmxConnect;
     }
 
@@ -68,6 +71,7 @@ public class Nodetool {
      *     <li>DRAINED</li>
      * </ul>
      */
+    @NotNull
     public String getOperationMode() {
         return jmxConnect.getStorageServiceProxy().getOperationMode();
     }
@@ -76,6 +80,7 @@ public class Nodetool {
         return jmxConnect.getRuntimeProxy().getUptime();
     }
 
+    @NotNull
     public String getHostID() {
         return jmxConnect.getStorageServiceProxy().getLocalHostId();
     }
@@ -84,29 +89,34 @@ public class Nodetool {
         return jmxConnect.getStorageServiceProxy().getTokens().size();
     }
 
+    @NotNull
     public String getVersion() {
         return jmxConnect.getStorageServiceProxy().getReleaseVersion();
     }
 
+    @NotNull
     public String getClusterName() {
         return jmxConnect.getStorageServiceProxy().getClusterName();
     }
 
-    public String getDataCenter(String endpoint) throws UnknownHostException {
+    @NotNull
+    public String getDataCenter(@NotNull final String endpoint) throws UnknownHostException {
         return jmxConnect.getEndpointSnitchInfoProxy().getDatacenter(endpoint);
     }
 
-    public String getRack(String endpoint) throws UnknownHostException {
+    @NotNull
+    public String getRack(@NotNull final String endpoint) throws UnknownHostException {
         return jmxConnect.getEndpointSnitchInfoProxy().getRack(endpoint);
     }
 
+    @NotNull
     public String getEndpoint() {
         // Try to find the endpoint using the local token, doing so in a crazy manner
         // to maintain backwards compatibility with the MBean interface
-        String stringToken = jmxConnect.getStorageServiceProxy().getTokens().get(0);
-        Map<String, String> tokenToEndpoint = jmxConnect.getStorageServiceProxy().getTokenToEndpointMap();
+        final String stringToken = jmxConnect.getStorageServiceProxy().getTokens().get(0);
+        final Map<String, String> tokenToEndpoint = jmxConnect.getStorageServiceProxy().getTokenToEndpointMap();
 
-        for (Map.Entry<String, String> pair : tokenToEndpoint.entrySet()) {
+        for (final Map.Entry<String, String> pair : tokenToEndpoint.entrySet()) {
             if (pair.getKey().equals(stringToken)) {
                 return pair.getValue();
             }

@@ -15,12 +15,14 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.executor;
 
+import org.jetbrains.annotations.NotNull;
+
 public class LaunchNodeException extends RuntimeException {
-    public LaunchNodeException(String message) {
+    public LaunchNodeException(@NotNull final String message) {
         super(message);
     }
 
-    public LaunchNodeException(String message, Throwable cause) {
+    public LaunchNodeException(@NotNull final String message, @NotNull final Throwable cause) {
         super(message, cause);
     }
 }

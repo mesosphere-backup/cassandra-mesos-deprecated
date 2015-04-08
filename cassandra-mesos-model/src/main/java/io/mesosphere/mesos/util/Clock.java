@@ -20,6 +20,6 @@ import org.joda.time.Instant;
 
 public interface Clock {
     @NotNull
-    public Instant now();
+    Instant now();
 
 }

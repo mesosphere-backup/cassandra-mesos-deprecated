@@ -23,6 +23,7 @@ import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.util.ProtoUtils;
 import org.apache.mesos.state.State;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +50,7 @@ public final class PersistedCassandraClusterHealthCheckHistory extends StatePers
                 public CassandraFrameworkProtos.CassandraClusterHealthCheckHistory apply(final byte[] input) {
                     try {
                         return CassandraFrameworkProtos.CassandraClusterHealthCheckHistory.parseFrom(input);
-                    } catch (InvalidProtocolBufferException e) {
+                    } catch (final InvalidProtocolBufferException e) {
                         throw new ProtoUtils.RuntimeInvalidProtocolBufferException(e);
                     }
                 }
@@ -69,23 +70,24 @@ public final class PersistedCassandraClusterHealthCheckHistory extends StatePers
     }
 
     @NotNull
-    public List<CassandraFrameworkProtos.HealthCheckHistoryEntry> entriesForExecutor(String executorId) {
-        CassandraFrameworkProtos.CassandraClusterHealthCheckHistory history = get();
-        List<CassandraFrameworkProtos.HealthCheckHistoryEntry> forNode = new ArrayList<>(history.getMaxEntriesPerNode());
-        int count = history.getEntriesCount();
+    public List<CassandraFrameworkProtos.HealthCheckHistoryEntry> entriesForExecutor(@NotNull final String executorId) {
+        final CassandraFrameworkProtos.CassandraClusterHealthCheckHistory history = get();
+        final List<CassandraFrameworkProtos.HealthCheckHistoryEntry> forNode = new ArrayList<>(history.getMaxEntriesPerNode());
+        final int count = history.getEntriesCount();
         for (int i = 0; i < count; i++) {
-            CassandraFrameworkProtos.HealthCheckHistoryEntry hc = history.getEntries(i);
+            final CassandraFrameworkProtos.HealthCheckHistoryEntry hc = history.getEntries(i);
             if (executorId.equals(hc.getExecutorId()))
                 forNode.add(hc);
         }
         return forNode;
     }
 
-    public CassandraFrameworkProtos.HealthCheckHistoryEntry last(String executorId) {
-        CassandraFrameworkProtos.CassandraClusterHealthCheckHistory history = get();
-        int count = history.getEntriesCount();
+    @Nullable
+    public CassandraFrameworkProtos.HealthCheckHistoryEntry last(@NotNull final String executorId) {
+        final CassandraFrameworkProtos.CassandraClusterHealthCheckHistory history = get();
+        final int count = history.getEntriesCount();
         for (int i = count - 1; i >= 0; i--) {
-            CassandraFrameworkProtos.HealthCheckHistoryEntry hc = history.getEntries(i);
+            final CassandraFrameworkProtos.HealthCheckHistoryEntry hc = history.getEntries(i);
             if (executorId.equals(hc.getExecutorId()))
                 return hc;
         }
@@ -96,16 +98,16 @@ public final class PersistedCassandraClusterHealthCheckHistory extends StatePers
      * The implementation does not add a new entry when it is similar to the previous one.
      * Instead it updates the timespan in the previous one.
      */
-    public void record(String executorId, long timestamp, @NotNull final CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
-        CassandraFrameworkProtos.CassandraClusterHealthCheckHistory prev = get();
-        int maxEntriesPerNode = prev.getMaxEntriesPerNode();
-        CassandraFrameworkProtos.CassandraClusterHealthCheckHistory.Builder builder =
+    public void record(@NotNull final String executorId, final long timestamp, @NotNull final CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
+        final CassandraFrameworkProtos.CassandraClusterHealthCheckHistory prev = get();
+        final int maxEntriesPerNode = prev.getMaxEntriesPerNode();
+        final CassandraFrameworkProtos.CassandraClusterHealthCheckHistory.Builder builder =
             CassandraFrameworkProtos.CassandraClusterHealthCheckHistory.newBuilder()
                 .setMaxEntriesPerNode(maxEntriesPerNode);
 
         // copy entries from other nodes to new value, collect old entries from current node in temporary list
-        List<CassandraFrameworkProtos.HealthCheckHistoryEntry> forNode = new ArrayList<>(maxEntriesPerNode);
-        for (CassandraFrameworkProtos.HealthCheckHistoryEntry healthCheckHistoryEntry : prev.getEntriesList()) {
+        final List<CassandraFrameworkProtos.HealthCheckHistoryEntry> forNode = new ArrayList<>(maxEntriesPerNode);
+        for (final CassandraFrameworkProtos.HealthCheckHistoryEntry healthCheckHistoryEntry : prev.getEntriesList()) {
             if (healthCheckHistoryEntry.getExecutorId().equals(executorId)) {
                 forNode.add(healthCheckHistoryEntry);
             } else {
@@ -120,7 +122,7 @@ public final class PersistedCassandraClusterHealthCheckHistory extends StatePers
             // Check if previous entry is similar to the previous.
             // If yes, then just update HealthCheckHistoryEntry.timestampLast,
             // otherwise add the entry and remove the eldest historic entry.
-            CassandraFrameworkProtos.HealthCheckHistoryEntry last = forNode.get(forNode.size() - 1);
+            final CassandraFrameworkProtos.HealthCheckHistoryEntry last = forNode.get(forNode.size() - 1);
             if (last.getTimestampEnd() > timestamp) {
                 // we already have more recent information - discard the current details
                 return;
@@ -141,8 +143,8 @@ public final class PersistedCassandraClusterHealthCheckHistory extends StatePers
         setValue(builder.build());
     }
 
-    static boolean isSimilarEntry(CassandraFrameworkProtos.HealthCheckDetails existing, CassandraFrameworkProtos.HealthCheckDetails current) {
-        for (Descriptors.FieldDescriptor f : existing.getDescriptorForType().getFields()) {
+    static boolean isSimilarEntry(@NotNull final CassandraFrameworkProtos.HealthCheckDetails existing, @NotNull final CassandraFrameworkProtos.HealthCheckDetails current) {
+        for (final Descriptors.FieldDescriptor f : existing.getDescriptorForType().getFields()) {
             if (!"info".equals(f.getName())) {
                 if (!objEquals(existing.getField(f), current.getField(f))) {
                     return false;
@@ -156,8 +158,8 @@ public final class PersistedCassandraClusterHealthCheckHistory extends StatePers
         return true;
     }
 
-    static boolean isSimilarEntry(CassandraFrameworkProtos.NodeInfo existing, CassandraFrameworkProtos.NodeInfo current) {
-        for (Descriptors.FieldDescriptor f : existing.getDescriptorForType().getFields()) {
+    static boolean isSimilarEntry(@NotNull final CassandraFrameworkProtos.NodeInfo existing, @NotNull final CassandraFrameworkProtos.NodeInfo current) {
+        for (final Descriptors.FieldDescriptor f : existing.getDescriptorForType().getFields()) {
             // ignore 'uptime' field
             if (!"uptimeMillis".equals(f.getName())) {
                 if (!objEquals(existing.getField(f), current.getField(f))) {
@@ -168,12 +170,13 @@ public final class PersistedCassandraClusterHealthCheckHistory extends StatePers
         return true;
     }
 
-    static boolean objEquals(Object o1, Object o2) {
+    static boolean objEquals(@Nullable final Object o1, @Nullable final Object o2) {
         return o1 == null && o2 == null || !(o1 == null || o2 == null) && o1.equals(o2);
     }
 
-    private static CassandraFrameworkProtos.HealthCheckHistoryEntry.Builder buildEntry(String executorId, long timestamp,
-           CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
+    @NotNull
+    private static CassandraFrameworkProtos.HealthCheckHistoryEntry.Builder buildEntry(final String executorId, final long timestamp,
+           final CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
         return CassandraFrameworkProtos.HealthCheckHistoryEntry.newBuilder()
             .setExecutorId(executorId)
             .setTimestampStart(timestamp)

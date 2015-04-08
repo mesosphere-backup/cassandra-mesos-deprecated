@@ -27,6 +27,7 @@ import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import io.mesosphere.mesos.util.Clock;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -115,13 +116,13 @@ public final class CassandraCluster {
     @NotNull
     private final Map<ClusterJobType, ClusterJobHandler> clusterJobHandlers;
 
-    public static int getPortMapping(CassandraFrameworkConfiguration configuration, String name) {
-        for (PortMapping portMapping : configuration.getPortMappingList()) {
+    public static int getPortMapping(@NotNull final CassandraFrameworkConfiguration configuration, @NotNull final String name) {
+        for (final PortMapping portMapping : configuration.getPortMappingList()) {
             if (portMapping.getName().equals(name)) {
                 return portMapping.getPort();
             }
         }
-        Long port = defaultPortMappings.get(name);
+        final Long port = defaultPortMappings.get(name);
         if (port == null) {
             throw new IllegalArgumentException("no port mapping for " + name);
         }
@@ -161,8 +162,9 @@ public final class CassandraCluster {
         return configuration;
     }
 
-    public ExecutorMetadata metadataForExecutor(@NotNull String executorId) {
-        for (ExecutorMetadata executorMetadata : clusterState.executorMetadata()) {
+    @Nullable
+    public ExecutorMetadata metadataForExecutor(@NotNull final String executorId) {
+        for (final ExecutorMetadata executorMetadata : clusterState.executorMetadata()) {
             if (executorId.equals(executorMetadata.getExecutorId())) {
                 return executorMetadata;
             }
@@ -170,17 +172,17 @@ public final class CassandraCluster {
         return null;
     }
 
-    public void removeTask(@NotNull final String taskId, @NotNull Protos.TaskStatus status) {
-        List<CassandraNode> nodes = clusterState.nodes();
-        List<CassandraNode> newNodes = new ArrayList<>(nodes.size());
+    public void removeTask(@NotNull final String taskId, @NotNull final Protos.TaskStatus status) {
+        final List<CassandraNode> nodes = clusterState.nodes();
+        final List<CassandraNode> newNodes = new ArrayList<>(nodes.size());
         boolean changed = false;
-        for (CassandraNode cassandraNode : nodes) {
-            CassandraNodeTask nodeTask = CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, taskId);
+        for (final CassandraNode cassandraNode : nodes) {
+            final CassandraNodeTask nodeTask = CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, taskId);
             if (nodeTask == null) {
                 newNodes.add(cassandraNode);
                 continue;
             }
-            CassandraNode.Builder builder = CassandraFrameworkProtosUtils.removeTask(cassandraNode, nodeTask);
+            final CassandraNode.Builder builder = CassandraFrameworkProtosUtils.removeTask(cassandraNode, nodeTask);
             changed = true;
             switch (nodeTask.getType()) {
                 case METADATA:
@@ -216,7 +218,7 @@ public final class CassandraCluster {
             clusterState.nodes(newNodes);
         }
 
-        ClusterJobStatus clusterJob = getCurrentClusterJob();
+        final ClusterJobStatus clusterJob = getCurrentClusterJob();
         if (clusterJob != null) {
             if (clusterJob.hasCurrentNode() && clusterJob.getCurrentNode().getTaskId().equals(taskId)) {
                 clusterJobHandlers.get(clusterJob.getJobType()).onTaskRemoved(status, clusterJob);
@@ -263,8 +265,8 @@ public final class CassandraCluster {
     }
 
     public void updateNodeExecutors() {
-        List<CassandraNode> nodes = new ArrayList<>();
-        for (CassandraNode node : clusterState.nodes()) {
+        final List<CassandraNode> nodes = new ArrayList<>();
+        for (final CassandraNode node : clusterState.nodes()) {
             nodes.add(CassandraNode.newBuilder(node)
                 .setCassandraNodeExecutor(buildCassandraNodeExecutor(node.getCassandraNodeExecutor().getExecutorId()))
                 .build());
@@ -310,6 +312,7 @@ public final class CassandraCluster {
         }
     }
 
+    @Nullable
     public HealthCheckHistoryEntry lastHealthCheck(@NotNull final String executorId) {
         return healthCheckHistory.last(executorId);
     }
@@ -318,7 +321,7 @@ public final class CassandraCluster {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("> recordHealthCheck(executorId : {}, details : {})", executorId, protoToString(details));
         }
-        Optional<CassandraNode> nodeOpt = cassandraNodeForExecutorId(executorId);
+        final Optional<CassandraNode> nodeOpt = cassandraNodeForExecutorId(executorId);
         if (nodeOpt.isPresent()) {
             if (!details.getHealthy()) {
                 LOGGER.info(
@@ -328,7 +331,7 @@ public final class CassandraCluster {
                 );
             } else {
                 // upon the first healthy response clear the replacementForIp field
-                CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(nodeOpt.get(), CassandraNodeTask.NodeTaskType.SERVER);
+                final CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(nodeOpt.get(), CassandraNodeTask.NodeTaskType.SERVER);
                 if (serverTask != null && nodeOpt.get().hasReplacementForIp()) {
                     clusterState.nodeReplaced(nodeOpt.get());
                 }
@@ -347,8 +350,8 @@ public final class CassandraCluster {
 
     @NotNull
     public List<CassandraNode> getLiveSeedNodes() {
-        List<CassandraNode> nodes = new ArrayList<>();
-        for (CassandraNode n : clusterState.nodes()) {
+        final List<CassandraNode> nodes = new ArrayList<>();
+        for (final CassandraNode n : clusterState.nodes()) {
             if (n.getSeed() && isLiveNode(n)) {
                 nodes.add(n);
             }
@@ -356,6 +359,7 @@ public final class CassandraCluster {
         return nodes;
     }
 
+    @Nullable
     public TasksForOffer getTasksForOffer(@NotNull final Protos.Offer offer) {
         final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname());
         if (LOGGER.isDebugEnabled()) {
@@ -365,17 +369,17 @@ public final class CassandraCluster {
         try {
             final Optional<CassandraNode> nodeOption = cassandraNodeForHostname(offer.getHostname());
 
-            CassandraNode.Builder node;
+            final CassandraNode.Builder node;
             if (!nodeOption.isPresent()) {
                 if (clusterState.get().getNodesToAcquire() <= 0) {
                     // number of C* cluster nodes already present
                     return null;
                 }
 
-                String replacementForIp = clusterState.nextReplacementIp();
+                final String replacementForIp = clusterState.nextReplacementIp();
 
-                boolean buildSeedNode = clusterState.doAcquireNewNodeAsSeed();
-                CassandraNode newNode = buildCassandraNode(offer, buildSeedNode, replacementForIp);
+                final boolean buildSeedNode = clusterState.doAcquireNewNodeAsSeed();
+                final CassandraNode newNode = buildCassandraNode(offer, buildSeedNode, replacementForIp);
                 clusterState.nodeAcquired(newNode);
                 node = CassandraNode.newBuilder(newNode);
             } else {
@@ -392,12 +396,12 @@ public final class CassandraCluster {
                 node.setCassandraNodeExecutor(executor);
             }
 
-            TasksForOffer result = new TasksForOffer(node.getCassandraNodeExecutor());
+            final TasksForOffer result = new TasksForOffer(node.getCassandraNodeExecutor());
 
             final CassandraNodeExecutor executor = node.getCassandraNodeExecutor();
             final String executorId = executor.getExecutorId();
             CassandraNodeTask metadataTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.NodeTaskType.METADATA);
-            CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.NodeTaskType.SERVER);
+            final CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.NodeTaskType.SERVER);
             if (metadataTask == null) {
                 if (node.getTargetRunState() == CassandraNode.TargetRunState.TERMINATE) {
                     // node completely terminated
@@ -447,9 +451,9 @@ public final class CassandraCluster {
                             // (otherwise that node will fail to start)
                             boolean anySeedRunning = false;
                             boolean anyNodeInfluencingTopology = false;
-                            for (CassandraNode cassandraNode : clusterState.nodes()) {
+                            for (final CassandraNode cassandraNode : clusterState.nodes()) {
                                 if (CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraNodeTask.NodeTaskType.SERVER) != null) {
-                                    HealthCheckHistoryEntry lastHC = lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                                    final HealthCheckHistoryEntry lastHC = lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
                                     if (cassandraNode.getSeed()) {
                                         if (lastHC != null && lastHC.getDetails() != null && lastHC.getDetails().getInfo() != null
                                             && lastHC.getDetails().getHealthy()
@@ -476,8 +480,8 @@ public final class CassandraCluster {
                             }
                         }
 
-                        CassandraFrameworkConfiguration config = configuration.get();
-                        CassandraConfigRole configRole = configuration.getDefaultConfigRole();
+                        final CassandraFrameworkConfiguration config = configuration.get();
+                        final CassandraConfigRole configRole = configuration.getDefaultConfigRole();
                         final List<String> errors = hasResources(
                                 offer,
                                 configRole.getResources(),
@@ -497,7 +501,7 @@ public final class CassandraCluster {
                         }
                     } else {
                         if (node.getNeedsConfigUpdate()) {
-                            CassandraNodeTask task = getConfigUpdateTask(configUpdateTaskId(node), maybeMetadata.get());
+                            final CassandraNodeTask task = getConfigUpdateTask(configUpdateTaskId(node), maybeMetadata.get());
                             node.addTasks(task)
                                 .setNeedsConfigUpdate(false);
                             result.getLaunchTasks().add(task);
@@ -542,12 +546,12 @@ public final class CassandraCluster {
 
 
     @NotNull
-    private static String executorTaskId(@NotNull CassandraNode.Builder node) {
+    private static String executorTaskId(@NotNull final CassandraNode.Builder node) {
         return node.getCassandraNodeExecutor().getExecutorId();
     }
 
     @NotNull
-    private static String configUpdateTaskId(CassandraNode.Builder node) {
+    private static String configUpdateTaskId(@NotNull final CassandraNode.Builder node) {
         return executorTaskId(node) + ".config";
     }
 
@@ -557,7 +561,7 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private static String serverTaskId(CassandraNode.Builder node) {
+    private static String serverTaskId(@NotNull final CassandraNode.Builder node) {
         return executorTaskId(node) + ".server";
     }
 
@@ -566,13 +570,13 @@ public final class CassandraCluster {
     }
 
     public long nextPossibleServerLaunchTimestamp() {
-        long lastServerLaunchTimestamp = getClusterState().get().getLastServerLaunchTimestamp();
-        long seconds = Math.max(getConfiguration().get().getBootstrapGraceTimeSeconds(), getConfiguration().get().getHealthCheckIntervalSeconds());
+        final long lastServerLaunchTimestamp = getClusterState().get().getLastServerLaunchTimestamp();
+        final long seconds = Math.max(getConfiguration().get().getBootstrapGraceTimeSeconds(), getConfiguration().get().getHealthCheckIntervalSeconds());
         return lastServerLaunchTimestamp + seconds * 1000L;
     }
 
     @NotNull
-    public Optional<CassandraNode> cassandraNodeForHostname(String hostname) {
+    public Optional<CassandraNode> cassandraNodeForHostname(@NotNull final String hostname) {
         return headOption(
             from(clusterState.nodes())
                 .filter(cassandraNodeHostnameEq(hostname))
@@ -580,15 +584,16 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    public Optional<CassandraNode> cassandraNodeForExecutorId(String executorId) {
+    public Optional<CassandraNode> cassandraNodeForExecutorId(@NotNull final String executorId) {
         return headOption(
             from(clusterState.nodes())
                 .filter(cassandraNodeExecutorIdEq(executorId))
         );
     }
 
-    private CassandraNode buildCassandraNode(Protos.Offer offer, boolean seed, String replacementForIp) {
-        CassandraNode.Builder builder = CassandraNode.newBuilder()
+    @NotNull
+    private CassandraNode buildCassandraNode(@NotNull final Protos.Offer offer, final boolean seed, @Nullable final String replacementForIp) {
+        final CassandraNode.Builder builder = CassandraNode.newBuilder()
                 .setHostname(offer.getHostname())
                 .setTargetRunState(CassandraNode.TargetRunState.RUN)
                 .addDataVolumes(
@@ -601,13 +606,13 @@ public final class CassandraCluster {
         }
 
         try {
-            InetAddress ia = InetAddress.getByName(offer.getHostname());
+            final InetAddress ia = InetAddress.getByName(offer.getHostname());
 
             int jmxPort = getPortMapping(PORT_JMX);
             if (ia.isLoopbackAddress()) {
                 try (ServerSocket serverSocket = new ServerSocket(0)) {
                     jmxPort = serverSocket.getLocalPort();
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     throw new RuntimeException(e);
                 }
             }
@@ -619,18 +624,19 @@ public final class CassandraCluster {
                             // TODO JMX auth parameters go here
                     )
                     .build();
-        } catch (UnknownHostException e) {
+        } catch (final UnknownHostException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private int getPortMapping(String name) {
+    private int getPortMapping(@NotNull final String name) {
         return getPortMapping(configuration.get(), name);
     }
 
-    private static Map<String, Long> portMappings(CassandraFrameworkConfiguration config) {
-        Map<String, Long> r = new HashMap<>();
-        for (String name : defaultPortMappings.keySet()) {
+    @NotNull
+    private static Map<String, Long> portMappings(@NotNull final CassandraFrameworkConfiguration config) {
+        final Map<String, Long> r = new HashMap<>();
+        for (final String name : defaultPortMappings.keySet()) {
             r.put(name, (long) getPortMapping(config, name));
         }
         return r;
@@ -657,11 +663,12 @@ public final class CassandraCluster {
     @NotNull
     private CassandraNodeTask getConfigUpdateTask(
         @NotNull final String taskId,
-        @NotNull final ExecutorMetadata metadata) {
-        CassandraFrameworkConfiguration config = configuration.get();
-        CassandraConfigRole configRole = config.getDefaultConfigRole();
+        @NotNull final ExecutorMetadata metadata
+    ) {
+        final CassandraFrameworkConfiguration config = configuration.get();
+        final CassandraConfigRole configRole = config.getDefaultConfigRole();
 
-        CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, TaskEnv.getDefaultInstance());
+        final CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, TaskEnv.getDefaultInstance());
 
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setType(TaskDetails.TaskDetailsType.UPDATE_CONFIG)
@@ -683,12 +690,13 @@ public final class CassandraCluster {
         @NotNull final String taskId,
         @NotNull final String taskName,
         @NotNull final ExecutorMetadata metadata,
-        @NotNull final CassandraNode.Builder node) {
-        CassandraFrameworkConfiguration config = configuration.get();
-        CassandraConfigRole configRole = config.getDefaultConfigRole();
+        @NotNull final CassandraNode.Builder node
+    ) {
+        final CassandraFrameworkConfiguration config = configuration.get();
+        final CassandraConfigRole configRole = config.getDefaultConfigRole();
 
         final TaskEnv.Builder taskEnv = TaskEnv.newBuilder();
-        for (TaskEnv.Entry entry : configRole.getTaskEnv().getVariablesList()) {
+        for (final TaskEnv.Entry entry : configRole.getTaskEnv().getVariablesList()) {
             if (!"JMX_PORT".equals(entry.getName()) && !"MAX_HEAP_SIZE".equals(entry.getName())) {
                 taskEnv.addVariables(entry);
             }
@@ -702,12 +710,12 @@ public final class CassandraCluster {
         // 100 MB per physical CPU core.
         CassandraFrameworkProtosUtils.addTaskEnvEntry(taskEnv, false, "HEAP_NEWSIZE", (int) (configRole.getResources().getCpuCores() * 100) + "m");
 
-        ArrayList<String> command = newArrayList("apache-cassandra-" + configRole.getCassandraVersion() + "/bin/cassandra", "-f");
+        final ArrayList<String> command = newArrayList("apache-cassandra-" + configRole.getCassandraVersion() + "/bin/cassandra", "-f");
         if (node.hasReplacementForIp()) {
             command.add("-Dcassandra.replace_address=" + node.getReplacementForIp());
         }
 
-        CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, taskEnv.build());
+        final CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, taskEnv.build());
 
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setType(TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN)
@@ -734,10 +742,11 @@ public final class CassandraCluster {
 
     @NotNull
     private CassandraServerConfig buildCassandraServerConfig(
-        @NotNull ExecutorMetadata metadata,
-            @NotNull CassandraFrameworkConfiguration config,
-            @NotNull CassandraConfigRole configRole,
-            @NotNull TaskEnv taskEnv) {
+        @NotNull final ExecutorMetadata metadata,
+        @NotNull final CassandraFrameworkConfiguration config,
+        @NotNull final CassandraConfigRole configRole,
+        @NotNull final TaskEnv taskEnv
+    ) {
         final TaskConfig.Builder taskConfig = TaskConfig.newBuilder(configRole.getCassandraYamlConfig());
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("cluster_name", config.getFrameworkName()));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("broadcast_address", metadata.getIp()));
@@ -770,14 +779,14 @@ public final class CassandraCluster {
 
     @NotNull
     private CassandraNodeExecutor buildCassandraNodeExecutor(@NotNull final String executorId) {
-        String osName = Env.option("OS_NAME").or(Env.osFromSystemProperty());
-        String javaExec = "macosx".equals(osName)
+        final String osName = Env.option("OS_NAME").or(Env.osFromSystemProperty());
+        final String javaExec = "macosx".equals(osName)
             ? "$(pwd)/jre*/Contents/Home/bin/java"
             : "$(pwd)/jre*/bin/java";
 
-        CassandraConfigRole configRole = configuration.getDefaultConfigRole();
+        final CassandraConfigRole configRole = configuration.getDefaultConfigRole();
 
-        List<String> command = newArrayList(
+        final List<String> command = newArrayList(
             javaExec,
 //            "agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005",
             "-XX:+PrintCommandLineFlags",
@@ -800,6 +809,7 @@ public final class CassandraCluster {
             .build();
     }
 
+    @NotNull
     private static TaskDetails getHealthCheckTaskDetails() {
         return TaskDetails.newBuilder()
             .setType(TaskDetails.TaskDetailsType.HEALTH_CHECK)
@@ -807,7 +817,7 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private static CassandraNodeTask getMetadataTask(@NotNull final String executorId, String ip) {
+    private static CassandraNodeTask getMetadataTask(@NotNull final String executorId, @NotNull final String ip) {
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setType(TaskDetails.TaskDetailsType.EXECUTOR_METADATA)
             .setExecutorMetadataTask(
@@ -829,7 +839,7 @@ public final class CassandraCluster {
         @NotNull final Protos.Offer offer,
         @NotNull final TaskResources resources,
         @NotNull final Map<String, Long> portMapping,
-        final String mesosRole
+        @NotNull final String mesosRole
     ) {
         final List<String> errors = newArrayList();
         final ListMultimap<String, Protos.Resource> index = from(offer.getResourcesList())
@@ -862,9 +872,9 @@ public final class CassandraCluster {
         return errors;
     }
 
-    public int updateNodeCount(int nodeCount) {
-        int currentNodeCount = clusterState.nodeCounts().getNodeCount() + clusterState.get().getNodesToAcquire();
-        int newNodeCount = nodeCount - currentNodeCount;
+    public int updateNodeCount(final int nodeCount) {
+        final int currentNodeCount = clusterState.nodeCounts().getNodeCount() + clusterState.get().getNodesToAcquire();
+        final int newNodeCount = nodeCount - currentNodeCount;
         if (newNodeCount < 0) {
             LOGGER.info("Cannot shrink number of nodes from {} to {}", currentNodeCount, nodeCount);
             return currentNodeCount;
@@ -876,19 +886,19 @@ public final class CassandraCluster {
 
     // cluster tasks
 
-    private void handleClusterTask(String executorId, TasksForOffer tasksForOffer) {
-        ClusterJobStatus currentJob = getCurrentClusterJob();
+    private void handleClusterTask(@NotNull final String executorId, @NotNull final TasksForOffer tasksForOffer) {
+        final ClusterJobStatus currentJob = getCurrentClusterJob();
         if (currentJob == null) {
             return;
         }
 
-        Optional<CassandraNode> nodeForExecutorId = cassandraNodeForExecutorId(executorId);
+        final Optional<CassandraNode> nodeForExecutorId = cassandraNodeForExecutorId(executorId);
 
         clusterJobHandlers.get(currentJob.getJobType()).handleTaskOffer(currentJob, executorId, nodeForExecutorId, tasksForOffer);
     }
 
-    public void onNodeJobStatus(SlaveStatusDetails statusDetails) {
-        ClusterJobStatus currentJob = getCurrentClusterJob();
+    public void onNodeJobStatus(@NotNull final SlaveStatusDetails statusDetails) {
+        final ClusterJobStatus currentJob = getCurrentClusterJob();
         if (currentJob == null) {
             return;
         }
@@ -898,7 +908,7 @@ public final class CassandraCluster {
             return;
         }
 
-        NodeJobStatus nodeJobStatus = statusDetails.getNodeJobStatus();
+        final NodeJobStatus nodeJobStatus = statusDetails.getNodeJobStatus();
 
         if (currentJob.getJobType() != nodeJobStatus.getJobType()) {
             // oops - status message of other type...  ignore for now
@@ -909,16 +919,16 @@ public final class CassandraCluster {
         clusterJobHandlers.get(currentJob.getJobType()).onNodeJobStatus(currentJob, nodeJobStatus);
     }
 
-    public boolean startClusterTask(ClusterJobType jobType) {
+    public boolean startClusterTask(@NotNull final ClusterJobType jobType) {
         if (jobsState.get().hasCurrentClusterJob()) {
             return false;
         }
 
-        ClusterJobStatus.Builder builder = ClusterJobStatus.newBuilder()
+        final ClusterJobStatus.Builder builder = ClusterJobStatus.newBuilder()
                 .setJobType(jobType)
                 .setStartedTimestamp(clock.now().getMillis());
 
-        for (CassandraNode cassandraNode : clusterState.nodes()) {
+        for (final CassandraNode cassandraNode : clusterState.nodes()) {
             if (cassandraNode.hasCassandraNodeExecutor()) {
                 builder.addRemainingNodes(cassandraNode.getCassandraNodeExecutor().getExecutorId());
             }
@@ -929,7 +939,7 @@ public final class CassandraCluster {
         return true;
     }
 
-    public boolean abortClusterJob(ClusterJobType jobType) {
+    public boolean abortClusterJob(@NotNull final ClusterJobType jobType) {
         ClusterJobStatus current = getCurrentClusterJob(jobType);
         if (current == null || current.getAborted()) {
             return false;
@@ -941,23 +951,26 @@ public final class CassandraCluster {
         return true;
     }
 
+    @Nullable
     public ClusterJobStatus getCurrentClusterJob() {
-        CassandraClusterJobs jobState = jobsState.get();
+        final CassandraClusterJobs jobState = jobsState.get();
         return jobState.hasCurrentClusterJob() ? jobState.getCurrentClusterJob() : null;
     }
 
-    public ClusterJobStatus getCurrentClusterJob(ClusterJobType jobType) {
-        ClusterJobStatus current = getCurrentClusterJob();
+    @Nullable
+    public ClusterJobStatus getCurrentClusterJob(@NotNull final ClusterJobType jobType) {
+        final ClusterJobStatus current = getCurrentClusterJob();
         return current != null && current.getJobType() == jobType ? current : null;
     }
 
-    public ClusterJobStatus getLastClusterJob(ClusterJobType jobType) {
-        List<ClusterJobStatus> list = jobsState.get().getLastClusterJobsList();
+    @Nullable
+    public ClusterJobStatus getLastClusterJob(@NotNull final ClusterJobType jobType) {
+        final List<ClusterJobStatus> list = jobsState.get().getLastClusterJobsList();
         if (list == null) {
             return null;
         }
         for (int i = list.size() - 1; i >= 0; i--) {
-            ClusterJobStatus clusterJobStatus = list.get(i);
+            final ClusterJobStatus clusterJobStatus = list.get(i);
             if (clusterJobStatus.getJobType() == jobType) {
                 return clusterJobStatus;
             }
@@ -965,8 +978,9 @@ public final class CassandraCluster {
         return null;
     }
 
-    public CassandraNode findNode(String node) {
-        for (CassandraNode cassandraNode : clusterState.nodes()) {
+    @Nullable
+    public CassandraNode findNode(@NotNull final String node) {
+        for (final CassandraNode cassandraNode : clusterState.nodes()) {
             if (cassandraNode.getIp().equals(node)
                 || cassandraNode.getHostname().equals(node)
                 || (cassandraNode.hasCassandraNodeExecutor() && cassandraNode.getCassandraNodeExecutor().getExecutorId().equals(node))) {
@@ -976,28 +990,34 @@ public final class CassandraCluster {
         return null;
     }
 
-    public CassandraNode nodeStop(String node) {
+    @Nullable
+    public CassandraNode nodeStop(final String node) {
         return updateNodeTargetRunState(node, CassandraNode.TargetRunState.STOP);
     }
 
-    public CassandraNode nodeRun(String node) {
+    @Nullable
+    public CassandraNode nodeRun(final String node) {
         return updateNodeTargetRunState(node, CassandraNode.TargetRunState.RUN);
     }
 
-    public CassandraNode nodeRestart(String node) {
+    @Nullable
+    public CassandraNode nodeRestart(final String node) {
         return updateNodeTargetRunState(node, CassandraNode.TargetRunState.RESTART);
     }
 
-    public CassandraNode nodeTerminate(String node) {
+    @Nullable
+    public CassandraNode nodeTerminate(final String node) {
         return updateNodeTargetRunState(node, CassandraNode.TargetRunState.TERMINATE);
     }
 
-    public CassandraNode updateNodeTargetRunState(String node, CassandraNode.TargetRunState targetRunState) {
-        CassandraNode cassandraNode = findNode(node);
+    @Nullable
+    public CassandraNode updateNodeTargetRunState(final String node, final CassandraNode.TargetRunState targetRunState) {
+        final CassandraNode cassandraNode = findNode(node);
         return updateNodeTargetRunState(cassandraNode, targetRunState);
     }
 
-    public CassandraNode updateNodeTargetRunState(CassandraNode cassandraNode, CassandraNode.TargetRunState targetRunState) {
+    @Nullable
+    public CassandraNode updateNodeTargetRunState(@Nullable CassandraNode cassandraNode, @NotNull final CassandraNode.TargetRunState targetRunState) {
         if (cassandraNode == null ||
             cassandraNode.getTargetRunState() == CassandraNode.TargetRunState.TERMINATE ||
             cassandraNode.getTargetRunState() == targetRunState) {
@@ -1012,8 +1032,8 @@ public final class CassandraCluster {
         return cassandraNode;
     }
 
-    public void updateCassandraProcess(@NotNull Protos.ExecutorID executorId, @NotNull CassandraServerRunMetadata cassandraServerRunMetadata) {
-        Optional<CassandraNode> node = cassandraNodeForExecutorId(executorId.getValue());
+    public void updateCassandraProcess(@NotNull final Protos.ExecutorID executorId, @NotNull final CassandraServerRunMetadata cassandraServerRunMetadata) {
+        final Optional<CassandraNode> node = cassandraNodeForExecutorId(executorId.getValue());
         if (node.isPresent()) {
             clusterState.addOrSetNode(CassandraFrameworkProtos.CassandraNode.newBuilder(node.get())
                 .setCassandraDaemonPid(cassandraServerRunMetadata.getPid())
@@ -1021,9 +1041,10 @@ public final class CassandraCluster {
         }
     }
 
+    @NotNull
     public List<CassandraNode> liveNodes(int limit) {
-        CassandraClusterState state = clusterState.get();
-        int total = state.getNodesCount();
+        final CassandraClusterState state = clusterState.get();
+        final int total = state.getNodesCount();
         if (total == 0) {
             return Collections.emptyList();
         }
@@ -1037,12 +1058,12 @@ public final class CassandraCluster {
 
         limit = Math.min(totalLive, limit);
 
-        ThreadLocalRandom tlr = ThreadLocalRandom.current();
-        List<CassandraNode> result = new ArrayList<>(limit);
+        final ThreadLocalRandom tlr = ThreadLocalRandom.current();
+        final List<CassandraNode> result = new ArrayList<>(limit);
         int misses = 0;
         while (result.size() < limit && misses < 250) { // the check for 250 misses is a poor-man's implementation to prevent a possible race-condition
-            int i = tlr.nextInt(total);
-            CassandraNode node = state.getNodes(i);
+            final int i = tlr.nextInt(total);
+            final CassandraNode node = state.getNodes(i);
             if (isLiveNode(node) && !result.contains(node)) {
                 result.add(node);
                 misses = 0;
@@ -1054,34 +1075,35 @@ public final class CassandraCluster {
         return result;
     }
 
-    public boolean isLiveNode(CassandraNode node) {
+    public boolean isLiveNode(@NotNull final CassandraNode node) {
         if (!node.hasCassandraNodeExecutor()) {
             return false;
         }
         if (getTaskForNode(node, CassandraNodeTask.NodeTaskType.SERVER) == null) {
             return false;
         }
-        HealthCheckHistoryEntry hc = lastHealthCheck(node.getCassandraNodeExecutor().getExecutorId());
+        final HealthCheckHistoryEntry hc = lastHealthCheck(node.getCassandraNodeExecutor().getExecutorId());
         return isLiveNode(hc);
     }
 
-    public boolean isLiveNode(HealthCheckHistoryEntry hc) {
+    public boolean isLiveNode(@Nullable final HealthCheckHistoryEntry hc) {
         if (hc == null || !hc.hasDetails()) {
             return false;
         }
-        HealthCheckDetails hcd = hc.getDetails();
+        final HealthCheckDetails hcd = hc.getDetails();
         if (!hcd.getHealthy() || !hcd.hasInfo()) {
             return false;
         }
-        NodeInfo info = hcd.getInfo();
+        final NodeInfo info = hcd.getInfo();
         if (!info.hasNativeTransportRunning() || !info.hasRpcServerRunning()) {
             return false;
         }
         return info.getNativeTransportRunning() && info.getRpcServerRunning();
     }
 
-    public CassandraNode replaceNode(String node) throws ReplaceNodePreconditionFailed {
-        CassandraNode cassandraNode = findNode(node);
+    @NotNull
+    public CassandraNode replaceNode(@NotNull final String node) throws ReplaceNodePreconditionFailed {
+        final CassandraNode cassandraNode = findNode(node);
         if (cassandraNode == null) {
             throw new ReplaceNodePreconditionFailed("Non-existing node " + node);
         }
@@ -1111,25 +1133,25 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    public List<String> getNodeLogFiles(@NotNull CassandraNode cassandraNode) {
+    public List<String> getNodeLogFiles(@NotNull final CassandraNode cassandraNode) {
 
-        CassandraFrameworkProtos.ExecutorMetadata executorMetadata = metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+        final CassandraFrameworkProtos.ExecutorMetadata executorMetadata = metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
         if (executorMetadata == null) {
             return Collections.emptyList();
         }
 
-        String workdir = executorMetadata.getWorkdir();
+        final String workdir = executorMetadata.getWorkdir();
         return newArrayList(
             workdir + "/executor.log",
             workdir + "/apache-cassandra-" + getConfiguration().getDefaultConfigRole().getCassandraVersion() + "/logs/system.log");
     }
 
-    public boolean setNodeSeed(CassandraNode cassandraNode, boolean seed) throws SeedChangeException {
+    public boolean setNodeSeed(@NotNull final CassandraNode cassandraNode, final boolean seed) throws SeedChangeException {
         if (cassandraNode.getSeed() == seed) {
             return false;
         }
 
-        List<CassandraNode> liveSeedNodes = getLiveSeedNodes();
+        final List<CassandraNode> liveSeedNodes = getLiveSeedNodes();
 
         if (clusterState.get().getSeedsToAcquire() > 0) {
             throw new SeedChangeException("Must not change seed status while initial number of seed nodes has not been acquired");
@@ -1146,7 +1168,8 @@ public final class CassandraCluster {
         return true;
     }
 
-    private static TaskResources taskResources(double cpuCores, long memMb, long diskMb) {
+    @NotNull
+    private static TaskResources taskResources(final double cpuCores, final long memMb, final long diskMb) {
         return TaskResources.newBuilder()
             .setCpuCores(cpuCores)
             .setMemMb(memMb)

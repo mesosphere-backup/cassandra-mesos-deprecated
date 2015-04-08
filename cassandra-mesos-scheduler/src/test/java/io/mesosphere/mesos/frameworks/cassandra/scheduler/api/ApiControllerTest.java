@@ -35,9 +35,9 @@ public class ApiControllerTest extends AbstractApiControllerTest {
 
     @Test
     public void testRoot() throws Exception {
-        Tuple2<Integer, JsonNode> tup = fetchJson("/", false);
+        final Tuple2<Integer, JsonNode> tup = fetchJson("/", false);
         assertEquals(200, tup._1.intValue());
-        JsonNode json = tup._2;
+        final JsonNode json = tup._2;
         final String baseUri = resolve("/").toString();
 
         final ObjectMapper mapper = new ObjectMapper();
@@ -80,7 +80,7 @@ public class ApiControllerTest extends AbstractApiControllerTest {
 
     @Test
     public void testNonExistingUri() throws Exception {
-        Tuple2<Integer, JsonNode> tup = fetchJson("/does-not-exist", false);
+        final Tuple2<Integer, JsonNode> tup = fetchJson("/does-not-exist", false);
         assertEquals(404, tup._1.intValue());
     }
 

@@ -72,8 +72,8 @@ public abstract class AbstractSchedulerTest {
         clusterState = cluster.getClusterState();
     }
 
-    protected Protos.Offer createOffer(Tuple2<Protos.SlaveID, String> slave) {
-        Protos.Offer.Builder builder = Protos.Offer.newBuilder()
+    protected Protos.Offer createOffer(final Tuple2<Protos.SlaveID, String> slave) {
+        final Protos.Offer.Builder builder = Protos.Offer.newBuilder()
                 .setFrameworkId(frameworkId)
                 .setHostname(slave._2)
                 .setId(Protos.OfferID.newBuilder().setValue(randomID()))
@@ -112,7 +112,7 @@ public abstract class AbstractSchedulerTest {
                 .build();
     }
 
-    protected static CassandraFrameworkProtos.HealthCheckDetails healthCheckDetailsSuccess(String operationMode, boolean joined) {
+    protected static CassandraFrameworkProtos.HealthCheckDetails healthCheckDetailsSuccess(final String operationMode, final boolean joined) {
         return CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
                 .setHealthy(true)
                 .setInfo(CassandraFrameworkProtos.NodeInfo.newBuilder()
@@ -136,7 +136,7 @@ public abstract class AbstractSchedulerTest {
     static Condition<? super CassandraFrameworkProtos.HealthCheckDetails> operationMode(final String operationMode) {
         return new Condition<CassandraFrameworkProtos.HealthCheckDetails>() {
             @Override
-            public boolean matches(CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
+            public boolean matches(final CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
                 return healthCheckDetails != null && healthCheckDetails.getInfo().getOperationMode().equals(operationMode);
             }
         };
@@ -145,7 +145,7 @@ public abstract class AbstractSchedulerTest {
     static Condition<? super CassandraFrameworkProtos.HealthCheckDetails> healthy() {
         return new Condition<CassandraFrameworkProtos.HealthCheckDetails>() {
             @Override
-            public boolean matches(CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
+            public boolean matches(final CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
                 return healthCheckDetails.getHealthy();
             }
         };

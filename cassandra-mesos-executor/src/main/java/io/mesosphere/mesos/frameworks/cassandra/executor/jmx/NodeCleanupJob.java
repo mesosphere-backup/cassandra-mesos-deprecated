@@ -18,6 +18,7 @@ package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.mesos.Protos;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,23 +26,27 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 public class NodeCleanupJob extends AbstractNodeJob {
     private static final Logger LOGGER = LoggerFactory.getLogger(NodeCleanupJob.class);
+    @NotNull
     private final ExecutorService executorService;
     private Future<?> cleanupFuture;
 
-    public NodeCleanupJob(Protos.TaskID taskId, ExecutorService executorService) {
+    public NodeCleanupJob(@NotNull final Protos.TaskID taskId, @NotNull final ExecutorService executorService) {
         super(taskId);
 
         this.executorService = executorService;
     }
 
+    @NotNull
     @Override
     public CassandraFrameworkProtos.ClusterJobType getType() {
         return CassandraFrameworkProtos.ClusterJobType.CLEANUP;
     }
 
-    public boolean start(JmxConnect jmxConnect) {
+    public boolean start(@NotNull final JmxConnect jmxConnect) {
         if (!super.start(jmxConnect)) {
             return false;
         }
@@ -64,11 +69,11 @@ public class NodeCleanupJob extends AbstractNodeJob {
                 try {
                     LOGGER.info("Starting cleanup on keyspace {}", keyspace);
                     keyspaceStarted();
-                    List<String> cfNames = jmxConnect.getColumnFamilyNames(keyspace);
-                    for (String cfName : cfNames) {
-                        int status = jmxConnect.getStorageServiceProxy().forceKeyspaceCleanup(keyspace, cfName);
+                    final List<String> cfNames = checkNotNull(jmxConnect).getColumnFamilyNames(keyspace);
+                    for (final String cfName : cfNames) {
+                        final int status = jmxConnect.getStorageServiceProxy().forceKeyspaceCleanup(keyspace, cfName);
                         CompactionManager.AllSSTableOpStatus s = CompactionManager.AllSSTableOpStatus.SUCCESSFUL;
-                        for (CompactionManager.AllSSTableOpStatus st : CompactionManager.AllSSTableOpStatus.values()) {
+                        for (final CompactionManager.AllSSTableOpStatus st : CompactionManager.AllSSTableOpStatus.values()) {
                             if (st.statusCode == status) {
                                 s = st;
                             }
@@ -76,7 +81,7 @@ public class NodeCleanupJob extends AbstractNodeJob {
                         LOGGER.info("Cleanup of {}.{} returned with {}", keyspace, cfName, s);
                     }
                     keyspaceFinished("SUCCESS", keyspace);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     LOGGER.error("Failed to cleanup keyspace " + keyspace, e);
                     keyspaceFinished("FAILURE", keyspace);
                 } finally {

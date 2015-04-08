@@ -15,42 +15,42 @@ public final class ClusterJobUtils {
 
     private ClusterJobUtils() {}
 
-    public static Response startJob(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory, @NotNull ClusterJobType type) {
+    public static Response startJob(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory, @NotNull final ClusterJobType type) {
         final boolean started = cluster.startClusterTask(type);
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
-            public void write(JsonGenerator json) throws IOException {
+            public void write(final JsonGenerator json) throws IOException {
                 json.writeBooleanField("started", started);
             }
         });
     }
 
-    public static Response abortJob(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory, @NotNull ClusterJobType type) {
+    public static Response abortJob(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory, @NotNull final ClusterJobType type) {
         final boolean aborted = cluster.abortClusterJob(type);
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
-            public void write(JsonGenerator json) throws IOException {
+            public void write(final JsonGenerator json) throws IOException {
                 json.writeBooleanField("aborted", aborted);
             }
         });
     }
 
-    public static Response jobStatus(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory, @NotNull ClusterJobType type, @NotNull final String name) {
+    public static Response jobStatus(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory, @NotNull final ClusterJobType type, @NotNull final String name) {
         final CassandraFrameworkProtos.ClusterJobStatus repairJob = cluster.getCurrentClusterJob(type);
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
-            public void write(JsonGenerator json) throws IOException {
+            public void write(final JsonGenerator json) throws IOException {
                 json.writeBooleanField("running", repairJob != null);
                 JaxRsUtils.writeClusterJob(cluster, json, name, repairJob);
             }
         });
     }
 
-    public static Response lastJob(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory, @NotNull ClusterJobType type, @NotNull final String name) {
+    public static Response lastJob(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory, @NotNull final ClusterJobType type, @NotNull final String name) {
         final CassandraFrameworkProtos.ClusterJobStatus repairJob = cluster.getLastClusterJob(type);
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
-            public void write(JsonGenerator json) throws IOException {
+            public void write(final JsonGenerator json) throws IOException {
                 json.writeBooleanField("present", repairJob != null);
                 JaxRsUtils.writeClusterJob(cluster, json, name, repairJob);
             }

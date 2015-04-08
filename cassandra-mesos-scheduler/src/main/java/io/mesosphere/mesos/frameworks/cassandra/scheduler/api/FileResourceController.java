@@ -35,12 +35,12 @@ public final class FileResourceController {
     @NotNull
     private final File cassandraTarFile;
 
-    public FileResourceController(String cassandraVersion) {
+    public FileResourceController(final String cassandraVersion) {
         File f;
 
-        String javaVersion = Env.option("JAVA_VERSION").or("7u76");
-        String osName = Env.osFromSystemProperty();
-        String providedJreTar = Env.option("JRE_FILE_PATH").or(workingDir("/jre-" + javaVersion + '-' + osName + "-x64.tar.gz"));
+        final String javaVersion = Env.option("JAVA_VERSION").or("7u76");
+        final String osName = Env.osFromSystemProperty();
+        final String providedJreTar = Env.option("JRE_FILE_PATH").or(workingDir("/jre-" + javaVersion + '-' + osName + "-x64.tar.gz"));
         //if (providedJreTar != null)
         f = new File(providedJreTar);
         //if (f != null && !f.canRead())
@@ -48,7 +48,7 @@ public final class FileResourceController {
         verifyFileExistsAndCanRead(f);
         jreTarFile = f;
 
-        String providedCassandraTar = Env.option("CASSANDRA_FILE_PATH").or(workingDir("/apache-cassandra-" + cassandraVersion + "-bin.tar.gz"));
+        final String providedCassandraTar = Env.option("CASSANDRA_FILE_PATH").or(workingDir("/apache-cassandra-" + cassandraVersion + "-bin.tar.gz"));
         //f = null;
         //if (providedCassandraTar != null)
         f = new File(providedCassandraTar);
@@ -69,7 +69,7 @@ public final class FileResourceController {
 
     @GET
     @Path("/jre-{version}-{osname}.tar.gz")
-    public Response jreTar(@PathParam("version") String version, @PathParam("osname") String osname) {
+    public Response jreTar(@PathParam("version") final String version, @PathParam("osname") final String osname) {
         // version is currently unused
         // But we might need that parameter not too far away in the future since C* 3.x probably requires Java 8,
         // while older versions still require Java 7.
@@ -78,7 +78,7 @@ public final class FileResourceController {
 
     @GET
     @Path("/apache-cassandra-{version}-bin.tar.gz")
-    public Response cassandraTar(@PathParam("version") String version) {
+    public Response cassandraTar(@PathParam("version") final String version) {
         return handleRequest(cassandraTarFile, "application/x-gzip", "cassandra.tar.gz");
     }
 
@@ -95,7 +95,7 @@ public final class FileResourceController {
         return verifyFileExistsAndCanRead(file);
     }
 
-    private static File verifyFileExistsAndCanRead(File file) {
+    private static File verifyFileExistsAndCanRead(final File file) {
         if (!file.isFile() || !file.canRead()) {
             throw new IllegalArgumentException("Unable to read specified resource: " + file);
         }

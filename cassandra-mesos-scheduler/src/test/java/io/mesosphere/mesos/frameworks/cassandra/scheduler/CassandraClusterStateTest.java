@@ -19,12 +19,13 @@ import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.Collections;
 
-
-import static org.assertj.core.api.Assertions.*;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
 
 public class CassandraClusterStateTest extends AbstractSchedulerTest {
@@ -36,7 +37,7 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
 
         // rollout slave #1
 
-        CassandraFrameworkProtos.ExecutorMetadata executorMetadata1 = launchExecutor(cluster, slaves[0], 1);
+        final CassandraFrameworkProtos.ExecutorMetadata executorMetadata1 = launchExecutor(cluster, slaves[0], 1);
 
         // next offer must return nothing for the same slave !
 
@@ -54,11 +55,11 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
 
         // rollout slave #2
 
-        CassandraFrameworkProtos.ExecutorMetadata executorMetadata2 = launchExecutor(cluster, slaves[1], 2);
+        final CassandraFrameworkProtos.ExecutorMetadata executorMetadata2 = launchExecutor(cluster, slaves[1], 2);
 
         // rollout slave #3
 
-        CassandraFrameworkProtos.ExecutorMetadata executorMetadata3 = launchExecutor(cluster, slaves[2], 3);
+        final CassandraFrameworkProtos.ExecutorMetadata executorMetadata3 = launchExecutor(cluster, slaves[2], 3);
 
         // next offer must return nothing for the same slave !
 
@@ -143,9 +144,9 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         cleanState();
 
         // rollout slaves
-        CassandraFrameworkProtos.ExecutorMetadata executorMetadata1 = launchExecutor(cluster, slaves[0], 1);
-        CassandraFrameworkProtos.ExecutorMetadata executorMetadata2 = launchExecutor(cluster, slaves[1], 2);
-        CassandraFrameworkProtos.ExecutorMetadata executorMetadata3 = launchExecutor(cluster, slaves[2], 3);
+        final CassandraFrameworkProtos.ExecutorMetadata executorMetadata1 = launchExecutor(cluster, slaves[0], 1);
+        final CassandraFrameworkProtos.ExecutorMetadata executorMetadata2 = launchExecutor(cluster, slaves[1], 2);
+        final CassandraFrameworkProtos.ExecutorMetadata executorMetadata3 = launchExecutor(cluster, slaves[2], 3);
 
         cluster.addExecutorMetadata(executorMetadata1);
         cluster.addExecutorMetadata(executorMetadata2);
@@ -166,7 +167,7 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         // cluster now up with 3 running nodes
 
         // server-task no longer running
-        CassandraFrameworkProtos.CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(cluster.cassandraNodeForHostname(slaves[0]._2).get(), CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
+        final CassandraFrameworkProtos.CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(cluster.cassandraNodeForHostname(slaves[0]._2).get(), CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
         assertNotNull(serverTask);
         cluster.removeTask(serverTask.getTaskId(), Protos.TaskStatus.getDefaultInstance());
 
@@ -174,39 +175,42 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         launchServer(cluster, slaves[0]);
     }
 
-    private CassandraFrameworkProtos.ExecutorMetadata launchServer(CassandraCluster cluster, Tuple2<Protos.SlaveID, String> slave) {
+    @NotNull
+    private CassandraFrameworkProtos.ExecutorMetadata launchServer(@NotNull final CassandraCluster cluster, @NotNull final Tuple2<Protos.SlaveID, String> slave) {
         return launchTask(cluster, slave, -1, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
     }
 
-    private CassandraFrameworkProtos.ExecutorMetadata launchExecutor(CassandraCluster cluster, Tuple2<Protos.SlaveID, String> slave, int nodeCount) {
+    @NotNull
+    private CassandraFrameworkProtos.ExecutorMetadata launchExecutor(@NotNull final CassandraCluster cluster, @NotNull final Tuple2<Protos.SlaveID, String> slave, final int nodeCount) {
         return launchTask(cluster, slave, nodeCount, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.EXECUTOR_METADATA);
     }
 
-    private CassandraFrameworkProtos.ExecutorMetadata launchTask(CassandraCluster cluster, Tuple2<Protos.SlaveID, String> slave, int nodeCount, CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) {
-        Protos.Offer offer = createOffer(slave);
-        TasksForOffer tasksForOffer = cluster.getTasksForOffer(offer);
+    @NotNull
+    private CassandraFrameworkProtos.ExecutorMetadata launchTask(@NotNull final CassandraCluster cluster, @NotNull final Tuple2<Protos.SlaveID, String> slave, final int nodeCount, @NotNull final CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) {
+        final Protos.Offer offer = createOffer(slave);
+        final TasksForOffer tasksForOffer = cluster.getTasksForOffer(offer);
 
         if (nodeCount >= 0)
             assertEquals(nodeCount, cluster.getClusterState().get().getNodesCount());
         assertNotNull(tasksForOffer);
-        assertTrue(tasksForOffer.hasExecutor());
         assertEquals(1, tasksForOffer.getLaunchTasks().size());
         assertEquals(0, tasksForOffer.getSubmitTasks().size());
 
-        CassandraFrameworkProtos.CassandraNodeTask launchTask = tasksForOffer.getLaunchTasks().get(0);
+        final CassandraFrameworkProtos.CassandraNodeTask launchTask = tasksForOffer.getLaunchTasks().get(0);
         assertEquals(taskType, launchTask.getTaskDetails().getType());
         return executorMetadataFor(slave, tasksForOffer.getExecutor().getExecutorId());
     }
 
-    private void noopOnOffer(CassandraCluster cluster, Tuple2<Protos.SlaveID, String> slave, int nodeCount) {
-        Protos.Offer offer = createOffer(slave);
-        TasksForOffer tasksForOffer = cluster.getTasksForOffer(offer);
+    private void noopOnOffer(@NotNull final CassandraCluster cluster, @NotNull final Tuple2<Protos.SlaveID, String> slave, final int nodeCount) {
+        final Protos.Offer offer = createOffer(slave);
+        final TasksForOffer tasksForOffer = cluster.getTasksForOffer(offer);
 
         assertNull(tasksForOffer);
         assertEquals(nodeCount, cluster.getClusterState().get().getNodesCount());
     }
 
-    private static CassandraFrameworkProtos.ExecutorMetadata executorMetadataFor(Tuple2<Protos.SlaveID, String> slave, String executorID) {
+    @NotNull
+    private static CassandraFrameworkProtos.ExecutorMetadata executorMetadataFor(@NotNull final Tuple2<Protos.SlaveID, String> slave, @NotNull final String executorID) {
         return CassandraFrameworkProtos.ExecutorMetadata.newBuilder()
                 .setExecutorId(executorID)
                 .setIp(slave._2)
@@ -214,7 +218,8 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
                 .build();
     }
 
-    private CassandraFrameworkProtos.HealthCheckDetails lastHealthCheckDetails(CassandraFrameworkProtos.ExecutorMetadata executorMetadata) {
-        return cluster.lastHealthCheck(executorMetadata.getExecutorId()).getDetails();
+    @NotNull
+    private CassandraFrameworkProtos.HealthCheckDetails lastHealthCheckDetails(@NotNull final CassandraFrameworkProtos.ExecutorMetadata executorMetadata) {
+        return checkNotNull(cluster.lastHealthCheck(executorMetadata.getExecutorId())).getDetails();
     }
 }

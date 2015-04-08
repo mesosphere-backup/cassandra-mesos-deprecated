@@ -27,21 +27,29 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.After;
 import org.junit.Before;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.*;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.URI;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 
 public abstract class AbstractApiControllerTest extends AbstractCassandraSchedulerTest {
+    @NotNull
     private final JsonFactory factory = new JsonFactory();
+    @Nullable
     protected URI httpServerBaseUri;
+    @Nullable
     protected HttpServer httpServer;
 
-    protected void addNode(String executorId, String ip) {
+    protected void addNode(@NotNull final String executorId, @NotNull final String ip) {
         cluster.getClusterState().addOrSetNode(CassandraFrameworkProtos.CassandraNode.newBuilder()
             .setCassandraNodeExecutor(
                 CassandraFrameworkProtos.CassandraNodeExecutor.newBuilder(CassandraFrameworkProtos.CassandraNodeExecutor.getDefaultInstance())
@@ -65,28 +73,31 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
         cluster.recordHealthCheck(executorId, healthCheckDetailsSuccess("NORMAL", true));
     }
 
-    protected Tuple2<Integer, JsonNode> getJson(@NotNull String rel) throws Exception {
+    @NotNull
+    protected Tuple2<Integer, JsonNode> getJson(@NotNull final String rel) throws Exception {
         return fetchJson(rel, false);
     }
 
-    protected Tuple2<Integer, JsonNode> postJson(@NotNull String rel) throws Exception {
+    @NotNull
+    protected Tuple2<Integer, JsonNode> postJson(@NotNull final String rel) throws Exception {
         return fetchJson(rel, true);
     }
 
-    protected Tuple2<Integer, JsonNode> fetchJson(String rel, boolean post) throws Exception {
-        JsonFactory factory = new JsonFactory();
-        HttpURLConnection conn = (HttpURLConnection) resolve(rel).toURL().openConnection();
+    @NotNull
+    protected Tuple2<Integer, JsonNode> fetchJson(final String rel, final boolean post) throws Exception {
+        final JsonFactory factory = new JsonFactory();
+        final HttpURLConnection conn = (HttpURLConnection) resolve(rel).toURL().openConnection();
         try {
             conn.setRequestMethod(post ? "POST" : "GET");
             conn.setRequestProperty("Accept", "application/json");
             conn.connect();
 
-            int responseCode = conn.getResponseCode();
+            final int responseCode = conn.getResponseCode();
 
             InputStream in;
             try {
                 in = conn.getInputStream();
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 in = conn.getErrorStream();
             }
             if (in == null) {
@@ -96,7 +107,7 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
             assertEquals("application/json", conn.getHeaderField("Content-Type"));
 
             try {
-                ObjectMapper om = new ObjectMapper();
+                final ObjectMapper om = new ObjectMapper();
                 return Tuple2.tuple2(responseCode, om.reader()
                     .with(factory)
                     .readTree(in));
@@ -108,18 +119,19 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
         }
     }
 
-    protected Tuple2<Integer, String> fetchText(String rel, String expectedContentType) throws Exception {
-        HttpURLConnection conn = (HttpURLConnection) resolve(rel).toURL().openConnection();
+    @NotNull
+    protected Tuple2<Integer, String> fetchText(final String rel, final String expectedContentType) throws Exception {
+        final HttpURLConnection conn = (HttpURLConnection) resolve(rel).toURL().openConnection();
         try {
             conn.setRequestProperty("Accept", expectedContentType);
             conn.connect();
 
-            int responseCode = conn.getResponseCode();
+            final int responseCode = conn.getResponseCode();
 
             InputStream in;
             try {
                 in = conn.getInputStream();
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 in = conn.getErrorStream();
             }
             if (in == null) {
@@ -129,7 +141,7 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
             assertEquals(expectedContentType, conn.getHeaderField("Content-Type"));
 
             try {
-                StringBuilder sb = new StringBuilder();
+                final StringBuilder sb = new StringBuilder();
                 int rd;
                 while ((rd = in.read()) != -1) {
                     sb.append((char) rd);
@@ -144,8 +156,8 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
     }
 
     @NotNull
-    protected URI resolve(String rel) {
-        return httpServerBaseUri.resolve(rel);
+    protected URI resolve(final String rel) {
+        return checkNotNull(httpServerBaseUri).resolve(rel);
     }
 
     @Before
@@ -162,7 +174,7 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
             httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
             httpServer.start();
 
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new RuntimeException(e);
         }
     }

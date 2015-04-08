@@ -38,7 +38,7 @@ public final class ConfigController {
     @NotNull
     private final CassandraCluster cluster;
 
-    public ConfigController(@NotNull final CassandraCluster cluster, @NotNull JsonFactory factory) {
+    public ConfigController(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory) {
         this.cluster = cluster;
         this.factory = factory;
     }
@@ -77,9 +77,9 @@ public final class ConfigController {
     public Response config() {
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
-            public void write(JsonGenerator json) throws IOException {
+            public void write(final JsonGenerator json) throws IOException {
 
-                CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
+                final CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
 
                 json.writeStringField("frameworkName", configuration.getFrameworkName());
                 json.writeStringField("frameworkId", configuration.getFrameworkId());
@@ -87,13 +87,13 @@ public final class ConfigController {
                 json.writeNumberField("initialNumberOfNodes", configuration.getInitialNumberOfNodes());
                 json.writeNumberField("initialNumberOfSeeds", configuration.getInitialNumberOfSeeds());
 
-                NodeCounts nodeCounts = cluster.getClusterState().nodeCounts();
+                final NodeCounts nodeCounts = cluster.getClusterState().nodeCounts();
                 json.writeNumberField("currentNumberOfNodes", nodeCounts.getNodeCount());
                 json.writeNumberField("currentNumberOfSeeds", nodeCounts.getSeedCount());
                 json.writeNumberField("nodesToAcquire", cluster.getClusterState().get().getNodesToAcquire());
                 json.writeNumberField("seedsToAcquire", cluster.getClusterState().get().getSeedsToAcquire());
 
-                CassandraFrameworkProtos.CassandraConfigRole configRole = configuration.getDefaultConfigRole();
+                final CassandraFrameworkProtos.CassandraConfigRole configRole = configuration.getDefaultConfigRole();
                 json.writeObjectFieldStart("defaultConfigRole");
                 JaxRsUtils.writeConfigRole(json, configRole);
                 json.writeEndObject();
@@ -108,13 +108,13 @@ public final class ConfigController {
                 json.writeNumberField("healthCheckIntervalSeconds", configuration.getHealthCheckIntervalSeconds());
                 json.writeNumberField("bootstrapGraceTimeSeconds", configuration.getBootstrapGraceTimeSeconds());
 
-                CassandraFrameworkProtos.ClusterJobStatus currentTask = cluster.getCurrentClusterJob();
+                final CassandraFrameworkProtos.ClusterJobStatus currentTask = cluster.getCurrentClusterJob();
                 JaxRsUtils.writeClusterJob(cluster, json, "currentClusterTask", currentTask);
 
-                CassandraFrameworkProtos.ClusterJobStatus lastRepair = cluster.getLastClusterJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
+                final CassandraFrameworkProtos.ClusterJobStatus lastRepair = cluster.getLastClusterJob(CassandraFrameworkProtos.ClusterJobType.REPAIR);
                 JaxRsUtils.writeClusterJob(cluster, json, "lastRepair", lastRepair);
 
-                CassandraFrameworkProtos.ClusterJobStatus lastCleanup = cluster.getLastClusterJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
+                final CassandraFrameworkProtos.ClusterJobStatus lastCleanup = cluster.getLastClusterJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
                 JaxRsUtils.writeClusterJob(cluster, json, "lastCleanup", lastCleanup);
 
                 json.writeNumberField("nextPossibleServerLaunchTimestamp", cluster.nextPossibleServerLaunchTimestamp());

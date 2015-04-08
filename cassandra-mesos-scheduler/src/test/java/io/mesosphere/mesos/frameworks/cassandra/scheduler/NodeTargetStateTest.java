@@ -160,7 +160,7 @@ public class NodeTargetStateTest extends AbstractCassandraSchedulerTest {
         assertNotNull(node1);
         assertEquals(CassandraFrameworkProtos.CassandraNode.TargetRunState.RESTART, node1.getTargetRunState());
 
-        CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
+        final CassandraFrameworkProtos.CassandraNodeTask taskForNode = CassandraFrameworkProtosUtils.getTaskForNode(node1, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER);
         assertNotNull(taskForNode);
 
         // verify that kill-task is launched
@@ -206,7 +206,7 @@ public class NodeTargetStateTest extends AbstractCassandraSchedulerTest {
     @Test
     public void testServerTaskRemove() throws InvalidProtocolBufferException {
 
-        Protos.TaskInfo[] executorMetadata = threeNodeCluster();
+        final Protos.TaskInfo[] executorMetadata = threeNodeCluster();
 
         // cluster now up with 3 running nodes
 

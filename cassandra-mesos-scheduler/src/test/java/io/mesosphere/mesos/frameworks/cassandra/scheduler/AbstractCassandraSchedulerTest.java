@@ -33,10 +33,10 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
     protected Protos.TaskInfo[] executorMetadata;
     protected Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails>[] executorServer;
 
-    protected void partiallyFailingClusterJob(CassandraFrameworkProtos.ClusterJobType clusterJobType) throws InvalidProtocolBufferException {
+    protected void partiallyFailingClusterJob(final CassandraFrameworkProtos.ClusterJobType clusterJobType) throws InvalidProtocolBufferException {
         CassandraFrameworkProtos.ClusterJobStatus currentClusterJob = cluster.getCurrentClusterJob();
         assertNull(currentClusterJob);
-        for (CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
+        for (final CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
             assertNull(cluster.getCurrentClusterJob(jobType));
         }
 
@@ -45,7 +45,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         currentClusterJob = cluster.getCurrentClusterJob();
         assertNotNull(currentClusterJob);
-        for (CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
+        for (final CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
             if (jobType == clusterJobType) {
                 assertNotNull(cluster.getCurrentClusterJob(jobType));
             } else {
@@ -64,13 +64,13 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         // launch job on a node
         Protos.TaskInfo taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
-        Protos.TaskInfo taskInfo1 = taskInfo;
+        final Protos.TaskInfo taskInfo1 = taskInfo;
         assertNotNull(taskInfo);
         assertEquals(executorIdValue(taskInfo) + '.' + clusterJobType.name(), taskIdValue(taskInfo));
 
         // no other slave must produce a task
         Tuple2<Protos.SlaveID, String> currentSlave = null;
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             if (!slave._1.equals(taskInfo.getSlaveId()))
                 noopOnOffer(slave, 3);
             else
@@ -147,7 +147,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         assertNotNull(currentClusterJob);
         assertEquals(2, currentClusterJob.getRemainingNodesCount());
         assertEquals(1, currentClusterJob.getCompletedNodesCount());
-        for (CassandraFrameworkProtos.NodeJobStatus jobStatus : currentClusterJob.getCompletedNodesList()) {
+        for (final CassandraFrameworkProtos.NodeJobStatus jobStatus : currentClusterJob.getCompletedNodesList()) {
             if (jobStatus.getExecutorId().equals(executorIdValue(taskInfo))) {
                 assertFalse(jobStatus.hasFailed());
                 assertFalse(jobStatus.hasFailureMessage());
@@ -159,14 +159,14 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
         assertNotNull(taskInfo);
-        Protos.TaskInfo taskInfo2 = taskInfo;
+        final Protos.TaskInfo taskInfo2 = taskInfo;
         assertNotEquals(executorId(taskInfo), executorId(taskInfo1));
         assertNotEquals(taskInfo.getSlaveId(), taskInfo1.getSlaveId());
         assertEquals(executorIdValue(taskInfo) + '.' + clusterJobType.name(), taskIdValue(taskInfo));
 
         assertNotNull(taskInfo);
         currentSlave = null;
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             if (!slave._1.equals(taskInfo.getSlaveId()))
                 noopOnOffer(slave, 3);
             else
@@ -183,7 +183,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         assertNotNull(currentClusterJob);
         assertEquals(1, currentClusterJob.getRemainingNodesCount());
         assertEquals(2, currentClusterJob.getCompletedNodesCount());
-        for (CassandraFrameworkProtos.NodeJobStatus jobStatus : currentClusterJob.getCompletedNodesList()) {
+        for (final CassandraFrameworkProtos.NodeJobStatus jobStatus : currentClusterJob.getCompletedNodesList()) {
             if (jobStatus.getExecutorId().equals(executorIdValue(taskInfo))) {
                 assertTrue(jobStatus.getFailed());
                 assertFalse(jobStatus.getFailureMessage().isEmpty());
@@ -203,7 +203,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         assertNotNull(taskInfo);
         currentSlave = null;
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             if (!slave._1.equals(taskInfo.getSlaveId()))
                 noopOnOffer(slave, 3);
             else
@@ -220,7 +220,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         // job finished
 
         assertNull(currentClusterJob);
-        for (CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
+        for (final CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
             assertNull(cluster.getCurrentClusterJob(jobType));
         }
 
@@ -237,15 +237,15 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         // no tasks
 
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             noopOnOffer(slave, activeNodes);
         }
     }
 
-    protected void clusterJob(CassandraFrameworkProtos.ClusterJobType clusterJobType) throws InvalidProtocolBufferException {
+    protected void clusterJob(final CassandraFrameworkProtos.ClusterJobType clusterJobType) throws InvalidProtocolBufferException {
         CassandraFrameworkProtos.ClusterJobStatus currentClusterJob = cluster.getCurrentClusterJob();
         assertNull(currentClusterJob);
-        for (CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
+        for (final CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
             assertNull(cluster.getCurrentClusterJob(jobType));
         }
 
@@ -254,7 +254,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         currentClusterJob = cluster.getCurrentClusterJob();
         assertNotNull(currentClusterJob);
-        for (CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
+        for (final CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
             if (jobType == clusterJobType) {
                 assertNotNull(cluster.getCurrentClusterJob(jobType));
             } else {
@@ -273,13 +273,13 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         // launch job on a node
         Protos.TaskInfo taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
-        Protos.TaskInfo taskInfo1 = taskInfo;
+        final Protos.TaskInfo taskInfo1 = taskInfo;
         assertNotNull(taskInfo);
         assertEquals(executorIdValue(taskInfo) + '.' + clusterJobType.name(), taskIdValue(taskInfo));
 
         // no other slave must produce a task
         Tuple2<Protos.SlaveID, String> currentSlave = null;
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             if (!slave._1.equals(taskInfo.getSlaveId()))
                 noopOnOffer(slave, 3);
             else
@@ -362,14 +362,14 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
         assertNotNull(taskInfo);
-        Protos.TaskInfo taskInfo2 = taskInfo;
+        final Protos.TaskInfo taskInfo2 = taskInfo;
         assertNotEquals(executorId(taskInfo), executorId(taskInfo1));
         assertNotEquals(taskInfo.getSlaveId(), taskInfo1.getSlaveId());
         assertEquals(executorIdValue(taskInfo) + '.' + clusterJobType.name(), taskIdValue(taskInfo));
 
         assertNotNull(taskInfo);
         currentSlave = null;
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             if (!slave._1.equals(taskInfo.getSlaveId()))
                 noopOnOffer(slave, 3);
             else
@@ -400,7 +400,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         assertNotNull(taskInfo);
         currentSlave = null;
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             if (!slave._1.equals(taskInfo.getSlaveId()))
                 noopOnOffer(slave, 3);
             else
@@ -428,7 +428,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         assertFalse(currentClusterJob.getAborted());
         assertTrue(currentClusterJob.hasStartedTimestamp());
         assertTrue(currentClusterJob.hasFinishedTimestamp());
-        for (CassandraFrameworkProtos.NodeJobStatus jobStatus : currentClusterJob.getCompletedNodesList()) {
+        for (final CassandraFrameworkProtos.NodeJobStatus jobStatus : currentClusterJob.getCompletedNodesList()) {
             assertEquals(clusterJobType, jobStatus.getJobType());
             assertEquals(3, jobStatus.getProcessedKeyspacesCount());
             assertEquals(0, jobStatus.getRemainingKeyspacesCount());
@@ -437,15 +437,15 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         // no tasks
 
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             noopOnOffer(slave, activeNodes);
         }
     }
 
-    protected void clusterJobFailingNode(CassandraFrameworkProtos.ClusterJobType clusterJobType) throws InvalidProtocolBufferException {
+    protected void clusterJobFailingNode(final CassandraFrameworkProtos.ClusterJobType clusterJobType) throws InvalidProtocolBufferException {
         CassandraFrameworkProtos.ClusterJobStatus currentClusterJob = cluster.getCurrentClusterJob();
         assertNull(currentClusterJob);
-        for (CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
+        for (final CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
             assertNull(cluster.getCurrentClusterJob(jobType));
         }
 
@@ -454,7 +454,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         currentClusterJob = cluster.getCurrentClusterJob();
         assertNotNull(currentClusterJob);
-        for (CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
+        for (final CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
             if (jobType == clusterJobType) {
                 assertNotNull(cluster.getCurrentClusterJob(jobType));
             } else {
@@ -473,13 +473,13 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         // launch job on a node
         Protos.TaskInfo taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
-        Protos.TaskInfo taskInfo1 = taskInfo;
+        final Protos.TaskInfo taskInfo1 = taskInfo;
         assertNotNull(taskInfo);
         assertEquals(executorIdValue(taskInfo) + '.' + clusterJobType.name(), taskIdValue(taskInfo));
 
         // no other slave must produce a task
         Tuple2<Protos.SlaveID, String> currentSlave = null;
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             if (!slave._1.equals(taskInfo.getSlaveId()))
                 noopOnOffer(slave, 3);
             else
@@ -505,7 +505,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         // check job status submit
 
-        CassandraFrameworkProtos.TaskDetails taskDetails = submitTask(currentSlave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS);
+        final CassandraFrameworkProtos.TaskDetails taskDetails = submitTask(currentSlave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS);
         assertNotNull(taskDetails);
 
         // simulate job status response
@@ -569,14 +569,14 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
         assertNotNull(taskInfo);
-        Protos.TaskInfo taskInfo2 = taskInfo;
+        final Protos.TaskInfo taskInfo2 = taskInfo;
         assertNotEquals(executorId(taskInfo), executorId(taskInfo1));
         assertNotEquals(taskInfo.getSlaveId(), taskInfo1.getSlaveId());
         assertEquals(executorIdValue(taskInfo) + '.' + clusterJobType.name(), taskIdValue(taskInfo));
 
         assertNotNull(taskInfo);
         currentSlave = null;
-        for (Tuple2<Protos.SlaveID, String> s : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> s : slaves) {
             if (!s._1.equals(taskInfo.getSlaveId()))
                 noopOnOffer(s, 3);
             else
@@ -625,7 +625,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         assertNotNull(taskInfo);
         currentSlave = null;
-        for (Tuple2<Protos.SlaveID, String> s : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> s : slaves) {
             if (!s._1.equals(taskInfo.getSlaveId()))
                 noopOnOffer(s, 3);
             else
@@ -656,12 +656,12 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         // no tasks
 
-        for (Tuple2<Protos.SlaveID, String> s : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> s : slaves) {
             noopOnOffer(s, activeNodes);
         }
     }
 
-    protected Tuple2<Protos.SlaveID, String> slaveForNode(CassandraFrameworkProtos.NodeJobStatus node) {
+    protected Tuple2<Protos.SlaveID, String> slaveForNode(final CassandraFrameworkProtos.NodeJobStatus node) {
         for (int i = 0; i < executorMetadata.length; i++) {
             if (node.getExecutorId().equals(executorMetadata[i].getExecutorOrBuilder().getExecutorId().getValue())) {
                 return slaves[i];
@@ -670,10 +670,10 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         return null;
     }
 
-    protected void clusterJobAbort(CassandraFrameworkProtos.ClusterJobType clusterJobType) throws InvalidProtocolBufferException {
+    protected void clusterJobAbort(final CassandraFrameworkProtos.ClusterJobType clusterJobType) throws InvalidProtocolBufferException {
         CassandraFrameworkProtos.ClusterJobStatus currentClusterJob = cluster.getCurrentClusterJob();
         assertNull(currentClusterJob);
-        for (CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
+        for (final CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
             assertNull(cluster.getCurrentClusterJob(jobType));
         }
 
@@ -682,7 +682,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         currentClusterJob = cluster.getCurrentClusterJob();
         assertNotNull(currentClusterJob);
-        for (CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
+        for (final CassandraFrameworkProtos.ClusterJobType jobType : CassandraFrameworkProtos.ClusterJobType.values()) {
             if (jobType == clusterJobType) {
                 assertNotNull(cluster.getCurrentClusterJob(jobType));
             } else {
@@ -701,13 +701,13 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         // launch job on a node
         Protos.TaskInfo taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
-        Protos.TaskInfo taskInfo1 = taskInfo;
+        final Protos.TaskInfo taskInfo1 = taskInfo;
         assertNotNull(taskInfo);
         assertEquals(executorIdValue(taskInfo) + '.' + clusterJobType.name(), taskIdValue(taskInfo));
 
         // no other slave must produce a task
         Tuple2<Protos.SlaveID, String> currentSlave = null;
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             if (!slave._1.equals(taskInfo.getSlaveId()))
                 noopOnOffer(slave, 3);
             else
@@ -796,7 +796,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         assertNotNull(taskInfo);
         currentSlave = null;
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             if (!slave._1.equals(taskInfo.getSlaveId()))
                 noopOnOffer(slave, 3);
             else
@@ -824,7 +824,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         taskInfo = launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB);
         assertNull(taskInfo);
 
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             noopOnOffer(slave, 3);
         }
 
@@ -843,7 +843,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         assertFalse(currentClusterJob.getAborted());
         assertTrue(currentClusterJob.hasStartedTimestamp());
         assertTrue(currentClusterJob.hasFinishedTimestamp());
-        for (CassandraFrameworkProtos.NodeJobStatus jobStatus : currentClusterJob.getCompletedNodesList()) {
+        for (final CassandraFrameworkProtos.NodeJobStatus jobStatus : currentClusterJob.getCompletedNodesList()) {
             assertEquals(clusterJobType, jobStatus.getJobType());
             assertEquals(3, jobStatus.getProcessedKeyspacesCount());
             assertEquals(0, jobStatus.getRemainingKeyspacesCount());
@@ -852,12 +852,12 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
 
         // no tasks
 
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             noopOnOffer(slave, activeNodes);
         }
     }
 
-    protected static CassandraFrameworkProtos.NodeJobStatus initialNodeJobStatus(Protos.TaskInfo taskInfo, CassandraFrameworkProtos.ClusterJobType clusterJobType) {
+    protected static CassandraFrameworkProtos.NodeJobStatus initialNodeJobStatus(final Protos.TaskInfo taskInfo, final CassandraFrameworkProtos.ClusterJobType clusterJobType) {
         return CassandraFrameworkProtos.NodeJobStatus.newBuilder()
                 .setJobType(clusterJobType)
                 .setExecutorId(executorIdValue(taskInfo))
@@ -868,7 +868,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
                 .build();
     }
 
-    protected void finishJob(CassandraFrameworkProtos.ClusterJobStatus currentClusterJob, Protos.TaskInfo taskInfo, Tuple2<Protos.SlaveID, String> currentSlave, CassandraFrameworkProtos.NodeJobStatus nodeJobStatus, CassandraFrameworkProtos.ClusterJobType clusterJobType) {
+    protected void finishJob(final CassandraFrameworkProtos.ClusterJobStatus currentClusterJob, final Protos.TaskInfo taskInfo, final Tuple2<Protos.SlaveID, String> currentSlave, CassandraFrameworkProtos.NodeJobStatus nodeJobStatus, final CassandraFrameworkProtos.ClusterJobType clusterJobType) {
         nodeJobStatus = CassandraFrameworkProtos.NodeJobStatus.newBuilder()
                 .setJobType(clusterJobType)
                 .setExecutorId(executorIdValue(taskInfo))
@@ -968,7 +968,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         return executorMetadata;
     }
 
-    protected void executorTaskError(Protos.TaskInfo taskInfo) {
+    protected void executorTaskError(final Protos.TaskInfo taskInfo) {
         scheduler.statusUpdate(driver, Protos.TaskStatus.newBuilder()
             .setExecutorId(executorId(taskInfo))
             .setHealthy(true)
@@ -980,7 +980,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
                 .build());
     }
 
-    protected void executorTaskRunning(Protos.TaskInfo taskInfo) {
+    protected void executorTaskRunning(final Protos.TaskInfo taskInfo) {
         scheduler.statusUpdate(driver, Protos.TaskStatus.newBuilder()
             .setExecutorId(executorId(taskInfo))
             .setHealthy(true)
@@ -999,7 +999,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
             .build());
     }
 
-    protected void executorTaskFinished(Protos.TaskInfo taskInfo, CassandraFrameworkProtos.SlaveStatusDetails slaveStatusDetails) {
+    protected void executorTaskFinished(final Protos.TaskInfo taskInfo, final CassandraFrameworkProtos.SlaveStatusDetails slaveStatusDetails) {
         scheduler.statusUpdate(driver, Protos.TaskStatus.newBuilder()
             .setExecutorId(executorId(taskInfo))
             .setHealthy(true)
@@ -1012,19 +1012,19 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
             .build());
     }
 
-    protected void sendHealthCheckResult(Protos.TaskInfo taskInfo, CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
+    protected void sendHealthCheckResult(final Protos.TaskInfo taskInfo, final CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails) {
         scheduler.frameworkMessage(driver, executorId(taskInfo), taskInfo.getSlaveId(),
             CassandraFrameworkProtos.SlaveStatusDetails.newBuilder()
                 .setStatusDetailsType(CassandraFrameworkProtos.SlaveStatusDetails.StatusDetailsType.HEALTH_CHECK_DETAILS)
                 .setHealthCheckDetails(healthCheckDetails).build().toByteArray());
     }
 
-    protected Protos.TaskInfo launchExecutor(Tuple2<Protos.SlaveID, String> slave, int nodeCount) throws InvalidProtocolBufferException {
-        Protos.Offer offer = createOffer(slave);
+    protected Protos.TaskInfo launchExecutor(final Tuple2<Protos.SlaveID, String> slave, final int nodeCount) throws InvalidProtocolBufferException {
+        final Protos.Offer offer = createOffer(slave);
 
         scheduler.resourceOffers(driver, Collections.singletonList(offer));
 
-        Tuple2<Collection<Protos.OfferID>, Collection<Protos.TaskInfo>> launchTasks = driver.launchTasks();
+        final Tuple2<Collection<Protos.OfferID>, Collection<Protos.TaskInfo>> launchTasks = driver.launchTasks();
         assertTrue(driver.declinedOffers().isEmpty());
         assertTrue(driver.submitTasks().isEmpty());
         assertTrue(driver.killTasks().isEmpty());
@@ -1032,20 +1032,20 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         assertEquals(nodeCount, cluster.getClusterState().get().getNodesCount());
         assertEquals(1, launchTasks._2.size());
 
-        Protos.TaskInfo taskInfo = launchTasks._2.iterator().next();
+        final Protos.TaskInfo taskInfo = launchTasks._2.iterator().next();
 
-        CassandraFrameworkProtos.TaskDetails taskDetails = taskDetails(taskInfo);
+        final CassandraFrameworkProtos.TaskDetails taskDetails = taskDetails(taskInfo);
         assertEquals(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.EXECUTOR_METADATA, taskDetails.getType());
         return taskInfo;
     }
 
-    protected Protos.TaskInfo launchTaskOnAny(CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) throws InvalidProtocolBufferException {
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
-            Protos.Offer offer = createOffer(slave);
+    protected Protos.TaskInfo launchTaskOnAny(final CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) throws InvalidProtocolBufferException {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
+            final Protos.Offer offer = createOffer(slave);
 
             scheduler.resourceOffers(driver, Collections.singletonList(offer));
 
-            Tuple2<Collection<Protos.OfferID>, Collection<Protos.TaskInfo>> launchTasks = driver.launchTasks();
+            final Tuple2<Collection<Protos.OfferID>, Collection<Protos.TaskInfo>> launchTasks = driver.launchTasks();
             if (!driver.declinedOffers().isEmpty())
                 continue;
 
@@ -1053,35 +1053,35 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
             assertTrue(driver.submitTasks().isEmpty());
             assertTrue(driver.killTasks().isEmpty());
 
-            Protos.TaskInfo taskInfo = launchTasks._2.iterator().next();
+            final Protos.TaskInfo taskInfo = launchTasks._2.iterator().next();
 
-            CassandraFrameworkProtos.TaskDetails taskDetails = taskDetails(taskInfo);
+            final CassandraFrameworkProtos.TaskDetails taskDetails = taskDetails(taskInfo);
             assertEquals(taskType, taskDetails.getType());
             return taskInfo;
         }
         return null;
     }
 
-    protected CassandraFrameworkProtos.TaskDetails submitTask(Tuple2<Protos.SlaveID, String> slave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) {
-        Protos.Offer offer = createOffer(slave);
+    protected CassandraFrameworkProtos.TaskDetails submitTask(final Tuple2<Protos.SlaveID, String> slave, final CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) {
+        final Protos.Offer offer = createOffer(slave);
 
         scheduler.resourceOffers(driver, Collections.singletonList(offer));
 
         assertFalse(driver.declinedOffers().isEmpty());
-        Tuple2<Collection<Protos.OfferID>, Collection<Protos.TaskInfo>> launchTasks = driver.launchTasks();
+        final Tuple2<Collection<Protos.OfferID>, Collection<Protos.TaskInfo>> launchTasks = driver.launchTasks();
         assertTrue(launchTasks._2.isEmpty());
-        Collection<Tuple2<Protos.ExecutorID, CassandraFrameworkProtos.TaskDetails>> submitTasks = driver.submitTasks();
+        final Collection<Tuple2<Protos.ExecutorID, CassandraFrameworkProtos.TaskDetails>> submitTasks = driver.submitTasks();
         assertTrue(driver.killTasks().isEmpty());
 
         assertEquals(1, submitTasks.size());
 
-        CassandraFrameworkProtos.TaskDetails taskDetails = submitTasks.iterator().next()._2;
+        final CassandraFrameworkProtos.TaskDetails taskDetails = submitTasks.iterator().next()._2;
         assertEquals(taskType, taskDetails.getType());
         return taskDetails;
     }
 
-    protected void killTask(Tuple2<Protos.SlaveID, String> slave, String taskID) {
-        Protos.Offer offer = createOffer(slave);
+    protected void killTask(final Tuple2<Protos.SlaveID, String> slave, final String taskID) {
+        final Protos.Offer offer = createOffer(slave);
 
         scheduler.resourceOffers(driver, Collections.singletonList(offer));
 
@@ -1094,45 +1094,45 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
             .contains(Protos.TaskID.newBuilder().setValue(taskID).build());
     }
 
-    protected Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> launchTask(Tuple2<Protos.SlaveID, String> slave, CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) throws InvalidProtocolBufferException {
-        Protos.Offer offer = createOffer(slave);
+    protected Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> launchTask(final Tuple2<Protos.SlaveID, String> slave, final CassandraFrameworkProtos.TaskDetails.TaskDetailsType taskType) throws InvalidProtocolBufferException {
+        final Protos.Offer offer = createOffer(slave);
 
         scheduler.resourceOffers(driver, Collections.singletonList(offer));
 
         assertTrue(driver.declinedOffers().isEmpty());
-        Tuple2<Collection<Protos.OfferID>, Collection<Protos.TaskInfo>> launchTasks = driver.launchTasks();
+        final Tuple2<Collection<Protos.OfferID>, Collection<Protos.TaskInfo>> launchTasks = driver.launchTasks();
         assertTrue(driver.submitTasks().isEmpty());
         assertTrue(driver.killTasks().isEmpty());
 
         assertEquals(1, launchTasks._2.size());
 
-        Protos.TaskInfo taskInfo = launchTasks._2.iterator().next();
+        final Protos.TaskInfo taskInfo = launchTasks._2.iterator().next();
 
-        CassandraFrameworkProtos.TaskDetails taskDetails = taskDetails(taskInfo);
+        final CassandraFrameworkProtos.TaskDetails taskDetails = taskDetails(taskInfo);
         assertEquals(taskType, taskDetails.getType());
         return Tuple2.tuple2(taskInfo, taskDetails);
     }
 
-    protected static CassandraFrameworkProtos.TaskDetails taskDetails(Protos.TaskInfo data) throws InvalidProtocolBufferException {
+    protected static CassandraFrameworkProtos.TaskDetails taskDetails(final Protos.TaskInfo data) throws InvalidProtocolBufferException {
         return CassandraFrameworkProtos.TaskDetails.parseFrom(data.getData());
     }
 
-    protected void noopOnOffer(Tuple2<Protos.SlaveID, String> slave, int nodeCount) {
+    protected void noopOnOffer(final Tuple2<Protos.SlaveID, String> slave, final int nodeCount) {
         noopOnOffer(slave, nodeCount, false);
     }
 
-    protected void noopOnOffer(Tuple2<Protos.SlaveID, String> slave, int nodeCount, boolean ignoreKills) {
-        Protos.Offer offer = createOffer(slave);
+    protected void noopOnOffer(final Tuple2<Protos.SlaveID, String> slave, final int nodeCount, final boolean ignoreKills) {
+        final Protos.Offer offer = createOffer(slave);
 
         scheduler.resourceOffers(driver, Collections.singletonList(offer));
 
-        Tuple2<Collection<Protos.OfferID>, Collection<Protos.TaskInfo>> launchTasks = driver.launchTasks();
+        final Tuple2<Collection<Protos.OfferID>, Collection<Protos.TaskInfo>> launchTasks = driver.launchTasks();
         assertTrue(ProtoUtils.protoToString(driver.submitTasks()), driver.submitTasks().isEmpty());
-        boolean noKills = driver.killTasks().isEmpty();
+        final boolean noKills = driver.killTasks().isEmpty();
         if (!ignoreKills) {
             assertTrue(noKills);
         }
-        List<Protos.OfferID> decl = driver.declinedOffers();
+        final List<Protos.OfferID> decl = driver.declinedOffers();
         assertThat(decl)
             .hasSize(1)
             .contains(offer.getId());
@@ -1142,7 +1142,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
     }
 
     protected void noopOnOfferAll() {
-        for (Tuple2<Protos.SlaveID, String> slave : slaves) {
+        for (final Tuple2<Protos.SlaveID, String> slave : slaves) {
             noopOnOffer(slave, activeNodes);
         }
     }
@@ -1156,23 +1156,23 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         driver.callRegistered(Protos.FrameworkID.newBuilder().setValue(UUID.randomUUID().toString()).build());
     }
 
-    protected static String executorIdValue(Protos.TaskInfo executorMetadata) {
+    protected static String executorIdValue(final Protos.TaskInfo executorMetadata) {
         return executorId(executorMetadata).getValue();
     }
 
-    protected static String taskIdValue(Protos.TaskInfo taskInfo) {
+    protected static String taskIdValue(final Protos.TaskInfo taskInfo) {
         return taskInfo.getTaskId().getValue();
     }
 
-    protected static Protos.ExecutorID executorId(Protos.TaskInfo taskInfo) {
+    protected static Protos.ExecutorID executorId(final Protos.TaskInfo taskInfo) {
         return taskInfo.getExecutor().getExecutorId();
     }
 
-    protected CassandraFrameworkProtos.HealthCheckDetails lastHealthCheckDetails(Protos.TaskInfo executorMetadata) {
+    protected CassandraFrameworkProtos.HealthCheckDetails lastHealthCheckDetails(final Protos.TaskInfo executorMetadata) {
         return cluster.lastHealthCheck(executorIdValue(executorMetadata)).getDetails();
     }
 
-    protected Tuple2<Protos.SlaveID, String> slaveForExecutor(String executorId) {
+    protected Tuple2<Protos.SlaveID, String> slaveForExecutor(final String executorId) {
         for (int i = 0; i < executorMetadata.length; i++) {
             if (executorMetadata[i] != null && executorMetadata[i].getExecutor().getExecutorId().getValue().equals(executorId)) {
                 return slaves[i];
@@ -1181,8 +1181,8 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         return null;
     }
 
-    protected Protos.TaskInfo execForExecutor(String executorId) {
-        for (Protos.TaskInfo execMetadata : executorMetadata) {
+    protected Protos.TaskInfo execForExecutor(final String executorId) {
+        for (final Protos.TaskInfo execMetadata : executorMetadata) {
             if (execMetadata != null && execMetadata.getExecutor().getExecutorId().getValue().equals(executorId)) {
                 return execMetadata;
             }
@@ -1190,8 +1190,8 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         return null;
     }
 
-    protected Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> serverTaskForExecutor(String executorId) {
-        for (Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> serverInfo : executorServer) {
+    protected Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> serverTaskForExecutor(final String executorId) {
+        for (final Tuple2<Protos.TaskInfo, CassandraFrameworkProtos.TaskDetails> serverInfo : executorServer) {
             if (serverInfo != null && serverInfo._1.getExecutor().getExecutorId().getValue().equals(executorId)) {
                 return serverInfo;
             }
@@ -1207,7 +1207,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
             .build();
     }
 
-    protected static CassandraFrameworkProtos.TaskResources resources(double cores, long mem, long disk) {
+    protected static CassandraFrameworkProtos.TaskResources resources(final double cores, final long mem, final long disk) {
         return CassandraFrameworkProtos.TaskResources.newBuilder()
             .setCpuCores(cores)
             .setMemMb(mem)

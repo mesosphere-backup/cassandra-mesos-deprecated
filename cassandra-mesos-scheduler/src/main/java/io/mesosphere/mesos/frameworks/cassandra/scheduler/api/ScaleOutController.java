@@ -36,7 +36,7 @@ public final class ScaleOutController {
     @NotNull
     private final JsonFactory factory;
 
-    public ScaleOutController(@NotNull CassandraCluster cluster, @NotNull final JsonFactory factory) {
+    public ScaleOutController(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory) {
         this.cluster = cluster;
         this.factory = factory;
     }
@@ -53,7 +53,7 @@ public final class ScaleOutController {
         final int newCount = cluster.updateNodeCount(nodeCount);
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
-            public void write(JsonGenerator json) throws IOException {
+            public void write(final JsonGenerator json) throws IOException {
                 json.writeNumberField("oldNodeCount", oldNodeCount.getNodeCount());
                 json.writeNumberField("seedNodeCount", oldNodeCount.getSeedCount());
                 json.writeBooleanField("applied", newCount == nodeCount);

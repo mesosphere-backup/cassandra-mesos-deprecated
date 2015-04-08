@@ -156,20 +156,20 @@ public class NodeControllerTest extends AbstractApiControllerTest {
     public void testNodes() throws Exception {
         threeNodeCluster();
 
-        Tuple2<Integer, JsonNode> tup = getJson("/node/all");
+        final Tuple2<Integer, JsonNode> tup = getJson("/node/all");
         assertThat(tup._1.intValue()).isEqualTo(200);
-        JsonNode json = tup._2;
+        final JsonNode json = tup._2;
 
         assertThat(json.has("nodes")).isTrue();
-        JsonNode nodes = json.get("nodes");
+        final JsonNode nodes = json.get("nodes");
         assertThat(nodes.size()).isEqualTo(3);
 
         for (int i = 0; i < 3; i++) {
-            JsonNode node = nodes.get(i);
+            final JsonNode node = nodes.get(i);
             assertThat(node.get("ip").asText()).isEqualTo(slaves[i]._2);
         }
 
-        JsonNode node = nodes.get(0);
+        final JsonNode node = nodes.get(0);
         assertThat(node.get("executorId").asText()).isEqualTo(executorMetadata[0].getExecutor().getExecutorId().getValue());
         assertThat(node.get("workdir").asText()).isEqualTo("/foo/bar/baz");
         assertThat(node.has("hostname")).isTrue();
@@ -178,9 +178,9 @@ public class NodeControllerTest extends AbstractApiControllerTest {
         assertThat(node.get("seedNode").asBoolean()).isTrue();
         assertThat(node.get("cassandraDaemonPid").isNull()).isTrue();
 
-        JsonNode tasks = node.get("tasks");
+        final JsonNode tasks = node.get("tasks");
         assertNotNull(tasks);
-        JsonNode task = tasks.get("SERVER");
+        final JsonNode task = tasks.get("SERVER");
         assertNotNull(task);
         assertThat(task.isNull()).isFalse();
         assertThat(task.has("cpuCores")).isTrue();
@@ -189,7 +189,7 @@ public class NodeControllerTest extends AbstractApiControllerTest {
         assertThat(task.has("taskId")).isTrue();
 
         assertThat(node.get("lastHealthCheck").isNumber()).isTrue();
-        JsonNode hcd = node.get("healthCheckDetails");
+        final JsonNode hcd = node.get("healthCheckDetails");
         assertThat(hcd.isNull()).isFalse();
         assertThat(hcd.has("healthy")).isTrue();
         assertThat(hcd.has("msg")).isTrue();

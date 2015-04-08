@@ -33,13 +33,13 @@ public class QaReportControllerTest extends AbstractApiControllerTest {
     public void testQaReportResources() throws Exception {
         threeNodeCluster();
 
-        Tuple2<Integer, JsonNode> tup = fetchJson("/qa/report/resources", false);
+        final Tuple2<Integer, JsonNode> tup = fetchJson("/qa/report/resources", false);
         assertEquals(200, tup._1.intValue());
-        JsonNode json = tup._2;
+        final JsonNode json = tup._2;
 
         for (int i = 0; i < activeNodes; i++) {
-            Tuple2<Protos.SlaveID, String> slave = slaves[i];
-            JsonNode node = json.get("nodes").get(executorMetadata[i].getExecutor().getExecutorId().getValue());
+            final Tuple2<Protos.SlaveID, String> slave = slaves[i];
+            final JsonNode node = json.get("nodes").get(executorMetadata[i].getExecutor().getExecutorId().getValue());
             assertEquals(slave._2, node.get("ip").asText());
             assertTrue(node.has("workdir"));
             assertTrue(node.has("hostname"));
@@ -56,13 +56,13 @@ public class QaReportControllerTest extends AbstractApiControllerTest {
     public void testQaReportResources_text() throws Exception {
         threeNodeCluster();
 
-        Tuple2<Integer, String> tup = fetchText("/qa/report/resources", "text/plain");
+        final Tuple2<Integer, String> tup = fetchText("/qa/report/resources", "text/plain");
         assertEquals(200, tup._1.intValue());
 
         try (BufferedReader br = new BufferedReader(new StringReader(tup._2))) {
 
             for (int i = 0; i < activeNodes; i++) {
-                Tuple2<Protos.SlaveID, String> slave = slaves[i];
+                final Tuple2<Protos.SlaveID, String> slave = slaves[i];
                 assertThat(br.readLine()).startsWith("JMX_PORT: ");
                 assertEquals("JMX_IP: 127.0.0.1", br.readLine());
                 assertEquals("NODE_IP: " + slave._2, br.readLine());

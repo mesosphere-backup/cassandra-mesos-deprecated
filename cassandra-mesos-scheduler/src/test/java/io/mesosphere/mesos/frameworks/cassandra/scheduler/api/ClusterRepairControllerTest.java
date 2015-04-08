@@ -24,7 +24,7 @@ import static org.junit.Assert.*;
 public class ClusterRepairControllerTest extends AbstractApiControllerTest {
 
     @Test
-    public void testrepair() throws Exception {
+    public void testRepair() throws Exception {
         threeNodeCluster();
 
         Tuple2<Integer, JsonNode> tup = fetchJson("/cluster/repair/start", true);

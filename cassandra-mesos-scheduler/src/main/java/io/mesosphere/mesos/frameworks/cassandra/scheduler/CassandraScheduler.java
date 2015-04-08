@@ -25,6 +25,7 @@ import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
@@ -194,7 +195,7 @@ public final class CassandraScheduler implements Scheduler {
                     }
                     break;
             }
-        } catch (InvalidProtocolBufferException e) {
+        } catch (final InvalidProtocolBufferException e) {
             final String msg = "Error deserializing task status data to type: " + SlaveStatusDetails.class.getName();
             LOGGER.error(msg, e);
         }
@@ -210,7 +211,7 @@ public final class CassandraScheduler implements Scheduler {
         }
 
         try {
-            SlaveStatusDetails statusDetails = SlaveStatusDetails.parseFrom(data);
+            final SlaveStatusDetails statusDetails = SlaveStatusDetails.parseFrom(data);
             switch (statusDetails.getStatusDetailsType()) {
                 case HEALTH_CHECK_DETAILS:
                     cassandraCluster.recordHealthCheck(executorId.getValue(), statusDetails.getHealthCheckDetails());
@@ -219,7 +220,7 @@ public final class CassandraScheduler implements Scheduler {
                     cassandraCluster.onNodeJobStatus(statusDetails);
                     break;
             }
-        } catch (InvalidProtocolBufferException e) {
+        } catch (final InvalidProtocolBufferException e) {
             final String msg = "Error deserializing task status data to type: " + SlaveStatusDetails.class.getName();
             LOGGER.error(msg, e);
         }
@@ -262,12 +263,12 @@ public final class CassandraScheduler implements Scheduler {
     /**
      * @return boolean representing if the the offer was used
      */
-    private boolean evaluateOffer(SchedulerDriver driver, @NotNull final Marker marker, @NotNull final Offer offer) {
+    private boolean evaluateOffer(@NotNull final SchedulerDriver driver, @NotNull final Marker marker, @NotNull final Offer offer) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(marker, "> evaluateOffer(driver : {}, offer : {})", protoToString(offer));
         }
 
-        TasksForOffer tasksForOffer = cassandraCluster.getTasksForOffer(offer);
+        final TasksForOffer tasksForOffer = cassandraCluster.getTasksForOffer(offer);
         if (tasksForOffer == null || !tasksForOffer.hasAnyTask()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug(marker, "< evaluateOffer(driver : {}, offer : {}) = nothing to do", protoToString(offer));
@@ -278,7 +279,7 @@ public final class CassandraScheduler implements Scheduler {
         final ExecutorID executorId = executorId(tasksForOffer.getExecutor().getExecutorId());
 
         // process tasks to kill
-        for (TaskID taskID : tasksForOffer.getKillTasks()) {
+        for (final TaskID taskID : tasksForOffer.getKillTasks()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug(marker, "killing task {} on executor {}, slave {}", protoToString(taskID), protoToString(executorId), protoToString(offer.getSlaveId()));
             }
@@ -286,7 +287,7 @@ public final class CassandraScheduler implements Scheduler {
         }
 
         // process tasks to submit as framework message
-        for (TaskDetails taskDetails : tasksForOffer.getSubmitTasks()) {
+        for (final TaskDetails taskDetails : tasksForOffer.getSubmitTasks()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug(marker, "submitting framework message to executor {}, slave {} : {}", protoToString(executorId), protoToString(offer.getSlaveId()), protoToString(taskDetails));
             }
@@ -350,7 +351,7 @@ public final class CassandraScheduler implements Scheduler {
     }
 
     @NotNull
-    public static String getTaskName(final String taskName, final String taskIdValue) {
+    public static String getTaskName(@Nullable final String taskName, @NotNull final String taskIdValue) {
         if (taskName == null || taskName.trim().isEmpty()) {
             return taskIdValue;
         } else {
@@ -358,7 +359,8 @@ public final class CassandraScheduler implements Scheduler {
         }
     }
 
-    private List<Resource> resourceList(TaskResources resources) {
+    @NotNull
+    private List<Resource> resourceList(final TaskResources resources) {
         return newArrayList(
             cpu(resources.getCpuCores(), configuration.mesosRole()),
             mem(resources.getMemMb(), configuration.mesosRole()),

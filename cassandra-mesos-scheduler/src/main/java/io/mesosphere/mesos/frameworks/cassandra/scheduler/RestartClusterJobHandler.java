@@ -18,6 +18,7 @@ package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 import com.google.common.base.Optional;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,24 +31,25 @@ public class RestartClusterJobHandler extends ClusterJobHandler {
 
     private static final long RESTART_NODE_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(10);
 
-    public RestartClusterJobHandler(CassandraCluster cluster, PersistedCassandraClusterJobs jobsState) {
+    public RestartClusterJobHandler(@NotNull final CassandraCluster cluster, @NotNull final PersistedCassandraClusterJobs jobsState) {
         super(cluster, jobsState);
     }
 
     @Override
-    public void handleTaskOffer(CassandraFrameworkProtos.ClusterJobStatus currentJob, String executorId, Optional<CassandraFrameworkProtos.CassandraNode> nodeForExecutorId, TasksForOffer tasksForOffer) {
+    public void handleTaskOffer(@NotNull CassandraFrameworkProtos.ClusterJobStatus currentJob, @NotNull final String executorId, @NotNull final Optional<CassandraFrameworkProtos.CassandraNode> nodeForExecutorId, @NotNull final TasksForOffer tasksForOffer) {
         if (currentJob.hasCurrentNode()) {
-            CassandraFrameworkProtos.CassandraNode node = nodeForExecutorId.get();
+            final CassandraFrameworkProtos.CassandraNode node = nodeForExecutorId.get();
 
-            CassandraFrameworkProtos.NodeJobStatus nodeJobStatus = currentJob.getCurrentNode();
+            final CassandraFrameworkProtos.NodeJobStatus nodeJobStatus = currentJob.getCurrentNode();
             if (executorId.equals(nodeJobStatus.getExecutorId())) {
                 switch (nodeForExecutorId.get().getTargetRunState()) {
                     case RUN:
                         // node went into RUN state
 
-                        CassandraFrameworkProtos.HealthCheckHistoryEntry lastHC = cluster.lastHealthCheck(executorId);
+                        final CassandraFrameworkProtos.HealthCheckHistoryEntry lastHC = cluster.lastHealthCheck(executorId);
 
                         if (CassandraFrameworkProtosUtils.getTaskForNode(node, CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.SERVER) != null &&
+                            lastHC != null &&
                             lastHC.hasTimestampEnd() &&
                             lastHC.getTimestampEnd() > nodeJobStatus.getStartedTimestamp() &&
                             cluster.isLiveNode(lastHC)) {
@@ -89,7 +91,7 @@ public class RestartClusterJobHandler extends ClusterJobHandler {
         }
 
         if (!currentJob.hasCurrentNode()) {
-            List<String> remainingNodes = new ArrayList<>(currentJob.getRemainingNodesList());
+            final List<String> remainingNodes = new ArrayList<>(currentJob.getRemainingNodesList());
             if (remainingNodes.isEmpty()) {
                 jobsState.finishJob(currentJob);
                 return;
@@ -108,9 +110,9 @@ public class RestartClusterJobHandler extends ClusterJobHandler {
                 return;
             }
 
-            CassandraFrameworkProtos.CassandraNode node = nodeForExecutorId.get();
+            final CassandraFrameworkProtos.CassandraNode node = nodeForExecutorId.get();
 
-            CassandraFrameworkProtos.NodeJobStatus currentNode = CassandraFrameworkProtos.NodeJobStatus.newBuilder()
+            final CassandraFrameworkProtos.NodeJobStatus currentNode = CassandraFrameworkProtos.NodeJobStatus.newBuilder()
                 .setExecutorId(node.getCassandraNodeExecutor().getExecutorId())
                 .setTaskId(executorId + '.' + currentJob.getJobType().name())
                 .setJobType(currentJob.getJobType())
@@ -144,7 +146,7 @@ public class RestartClusterJobHandler extends ClusterJobHandler {
     }
 
     @Override
-    public void onNodeJobStatus(CassandraFrameworkProtos.ClusterJobStatus currentJob, CassandraFrameworkProtos.NodeJobStatus nodeJobStatus) {
+    public void onNodeJobStatus(@NotNull final CassandraFrameworkProtos.ClusterJobStatus currentJob, @NotNull final CassandraFrameworkProtos.NodeJobStatus nodeJobStatus) {
 
     }
 }

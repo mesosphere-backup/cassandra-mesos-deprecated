@@ -17,6 +17,7 @@ package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
 import org.apache.cassandra.service.*;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.Closeable;
 import java.lang.management.RuntimeMXBean;
@@ -30,11 +31,15 @@ import java.util.*;
  */
 public interface JmxConnect extends Closeable {
 
+    @NotNull
     RuntimeMXBean getRuntimeProxy();
 
+    @NotNull
     StorageServiceMBean getStorageServiceProxy();
 
+    @NotNull
     EndpointSnitchInfoMBean getEndpointSnitchInfoProxy();
 
-    List<String> getColumnFamilyNames(String keyspace);
+    @NotNull
+    List<String> getColumnFamilyNames(@NotNull String keyspace);
 }

@@ -23,7 +23,7 @@ public final class QaReportController {
     @NotNull
     private final JsonFactory factory;
 
-    public QaReportController(@NotNull CassandraCluster cluster, @NotNull final JsonFactory factory) {
+    public QaReportController(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory) {
         this.cluster = cluster;
         this.factory = factory;
     }
@@ -34,9 +34,9 @@ public final class QaReportController {
     public Response qaReportResourcesText() {
         return JaxRsUtils.buildStreamingResponse(Response.Status.OK, "text/plain", new StreamingTextResponse() {
             @Override
-            public void write(PrintWriter pw) {
-                CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
-                for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
+            public void write(final PrintWriter pw) {
+                final CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
+                for (final CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
 
                     if (!cassandraNode.hasCassandraNodeExecutor()) {
                         continue;
@@ -47,7 +47,7 @@ public final class QaReportController {
                     pw.println("NODE_IP: " + cassandraNode.getIp());
                     pw.println("BASE: http://" + cassandraNode.getIp() + ":5051/");
 
-                    for (String logFile : cluster.getNodeLogFiles(cassandraNode)) {
+                    for (final String logFile : cluster.getNodeLogFiles(cassandraNode)) {
                         pw.println("LOG: " + logFile);
                     }
 
@@ -61,23 +61,23 @@ public final class QaReportController {
     public Response qaReportResources() {
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
-            public void write(JsonGenerator json) throws IOException {
+            public void write(final JsonGenerator json) throws IOException {
 
-                CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
+                final CassandraFrameworkProtos.CassandraClusterState clusterState = cluster.getClusterState().get();
                 json.writeObjectFieldStart("nodes");
-                for (CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
+                for (final CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {
 
                     if (!cassandraNode.hasCassandraNodeExecutor()) {
                         continue;
                     }
 
-                    CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                    final CassandraFrameworkProtos.ExecutorMetadata executorMetadata = cluster.metadataForExecutor(cassandraNode.getCassandraNodeExecutor().getExecutorId());
                     if (executorMetadata == null) {
                         continue;
                     }
 
                     json.writeObjectFieldStart(cassandraNode.getCassandraNodeExecutor().getExecutorId());
-                    String workdir = executorMetadata.getWorkdir();
+                    final String workdir = executorMetadata.getWorkdir();
                     json.writeStringField("workdir", workdir);
 
                     json.writeStringField("slaveBaseUri", "http://" + cassandraNode.getIp() + ":5051/");
@@ -91,7 +91,7 @@ public final class QaReportController {
                     json.writeBooleanField("live", cluster.isLiveNode(cassandraNode));
 
                     json.writeArrayFieldStart("logfiles");
-                    for (String logFile : cluster.getNodeLogFiles(cassandraNode)) {
+                    for (final String logFile : cluster.getNodeLogFiles(cassandraNode)) {
                         json.writeString(logFile);
                     }
                     json.writeEndArray();

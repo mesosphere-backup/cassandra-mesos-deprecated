@@ -33,15 +33,15 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         @NotNull final String frameworkName,
         final long healthCheckIntervalSeconds,
         final long bootstrapGraceTimeSec,
-        final String cassandraVersion,
+        @NotNull final String cassandraVersion,
         final double cpuCores,
         final long diskMb,
         final long memMb,
         final long javeHeapMb,
         final int executorCount,
         final int seedCount,
-        final String mesosRole,
-        final String dataDirectory,
+        @NotNull final String mesosRole,
+        @NotNull final String dataDirectory,
         final boolean jmxLocal,
         final boolean jmxNoAuthentication
     ) {
@@ -51,7 +51,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
             new Supplier<CassandraFrameworkConfiguration>() {
                 @Override
                 public CassandraFrameworkConfiguration get() {
-                    CassandraFrameworkProtos.CassandraConfigRole.Builder configRole = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
+                    final CassandraFrameworkProtos.CassandraConfigRole.Builder configRole = CassandraFrameworkProtos.CassandraConfigRole.newBuilder()
                         .setCassandraVersion(cassandraVersion)
                         .setResources(CassandraFrameworkProtos.TaskResources.newBuilder()
                             .setCpuCores(cpuCores)
@@ -84,7 +84,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                 public CassandraFrameworkConfiguration apply(final byte[] input) {
                     try {
                         return CassandraFrameworkConfiguration.parseFrom(input);
-                    } catch (InvalidProtocolBufferException e) {
+                    } catch (final InvalidProtocolBufferException e) {
                         throw new ProtoUtils.RuntimeInvalidProtocolBufferException(e);
                     }
                 }
@@ -98,8 +98,9 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         );
     }
 
-    public static CassandraFrameworkProtos.CassandraConfigRole.Builder fillConfigRoleGaps(CassandraFrameworkProtos.CassandraConfigRole.Builder configRole) {
-        long memMb = configRole.getResources().getMemMb();
+    @NotNull
+    public static CassandraFrameworkProtos.CassandraConfigRole.Builder fillConfigRoleGaps(@NotNull final CassandraFrameworkProtos.CassandraConfigRole.Builder configRole) {
+        final long memMb = configRole.getResources().getMemMb();
         if (memMb > 0L) {
             if (!configRole.hasMemJavaHeapMb()) {
                 configRole.setMemJavaHeapMb(Math.min(memMb / 2, 16384));
@@ -138,6 +139,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         );
     }
 
+    @NotNull
     public CassandraFrameworkProtos.CassandraConfigRole getDefaultConfigRole() {
         return get().getDefaultConfigRole();
     }
@@ -147,7 +149,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         return Duration.standardSeconds(get().getHealthCheckIntervalSeconds());
     }
 
-    public void healthCheckInterval(Duration interval) {
+    public void healthCheckInterval(final Duration interval) {
         setValue(
                 CassandraFrameworkConfiguration.newBuilder(get())
                         .setHealthCheckIntervalSeconds(interval.getStandardSeconds())
@@ -160,7 +162,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         return Duration.standardSeconds(get().getBootstrapGraceTimeSeconds());
     }
 
-    public void bootstrapGraceTimeSeconds(Duration interval) {
+    public void bootstrapGraceTimeSeconds(@NotNull final Duration interval) {
         setValue(
                 CassandraFrameworkConfiguration.newBuilder(get())
                     .setBootstrapGraceTimeSeconds(interval.getStandardSeconds())

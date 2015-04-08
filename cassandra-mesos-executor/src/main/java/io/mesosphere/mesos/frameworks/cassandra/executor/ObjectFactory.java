@@ -22,8 +22,10 @@ import org.slf4j.Marker;
 
 public interface ObjectFactory {
 
-    JmxConnect newJmxConnect(CassandraFrameworkProtos.JmxConnect jmx);
+    @NotNull
+    JmxConnect newJmxConnect(@NotNull CassandraFrameworkProtos.JmxConnect jmx);
 
+    @NotNull
     WrappedProcess launchCassandraNodeTask(@NotNull Marker taskIdMarker,
                                            @NotNull CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask) throws LaunchNodeException;
 

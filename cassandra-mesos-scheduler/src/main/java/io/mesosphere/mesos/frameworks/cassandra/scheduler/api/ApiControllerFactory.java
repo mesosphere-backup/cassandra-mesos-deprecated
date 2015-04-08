@@ -25,14 +25,14 @@ public final class ApiControllerFactory {
 
     private ApiControllerFactory() {}
 
-    public static Set<Object> buildInstances(CassandraCluster cassandraCluster, String cassandraVersion, final JsonFactory factory) {
-        Set<Object> set = Sets.<Object>newHashSet(
+    public static Set<Object> buildInstances(final CassandraCluster cassandraCluster, final String cassandraVersion, final JsonFactory factory) {
+        final Set<Object> set = Sets.<Object>newHashSet(
             new FileResourceController(cassandraVersion));
         set.addAll(buildInstancesWithoutFiles(cassandraCluster, factory));
         return set;
     }
 
-    public static Set<Object> buildInstancesWithoutFiles(CassandraCluster cassandraCluster, final JsonFactory factory) {
+    public static Set<Object> buildInstancesWithoutFiles(final CassandraCluster cassandraCluster, final JsonFactory factory) {
         return Sets.newHashSet(
                 new ApiController(factory),
                 new ClusterCleanupController(cassandraCluster, factory),

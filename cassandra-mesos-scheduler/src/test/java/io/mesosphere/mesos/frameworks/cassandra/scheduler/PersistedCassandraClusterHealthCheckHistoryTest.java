@@ -16,35 +16,35 @@
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.PersistedCassandraClusterHealthCheckHistory;
 import org.apache.mesos.state.InMemoryState;
 import org.apache.mesos.state.State;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
 
 public class PersistedCassandraClusterHealthCheckHistoryTest {
 
     @Test
     public void testRecord() throws Exception {
-        State state = new InMemoryState();
-        PersistedCassandraClusterHealthCheckHistory hcHistory = new PersistedCassandraClusterHealthCheckHistory(state);
+        final State state = new InMemoryState();
+        final PersistedCassandraClusterHealthCheckHistory hcHistory = new PersistedCassandraClusterHealthCheckHistory(state);
 
-        String exec1 = "exec1";
+        final String exec1 = "exec1";
 
-        CassandraFrameworkProtos.NodeInfo.Builder ni = CassandraFrameworkProtos.NodeInfo.newBuilder()
+        final CassandraFrameworkProtos.NodeInfo.Builder ni = CassandraFrameworkProtos.NodeInfo.newBuilder()
             .setClusterName("cluster")
             .setDataCenter("dc1")
             .setUptimeMillis(1);
-        CassandraFrameworkProtos.HealthCheckDetails.Builder hc = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
+        final CassandraFrameworkProtos.HealthCheckDetails.Builder hc = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
             .setHealthy(true)
             .setInfo(ni.build());
         hcHistory.record(exec1, 1L, hc.build());
 
-        CassandraFrameworkProtos.HealthCheckHistoryEntry hce1 = hcHistory.last(exec1);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry hce1 = hcHistory.last(exec1);
         assertNotNull(hce1);
         assertThat(hcHistory.entries())
             .hasSize(1)
@@ -61,7 +61,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
             .build());
         hcHistory.record(exec1, 2L, hc.build());
 
-        CassandraFrameworkProtos.HealthCheckHistoryEntry hce2 = hcHistory.last(exec1);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry hce2 = hcHistory.last(exec1);
         assertNotNull(hce2);
         assertThat(hcHistory.entries())
             .hasSize(1)
@@ -78,7 +78,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
             .build());
         hcHistory.record(exec1, 3L, hc.build());
 
-        CassandraFrameworkProtos.HealthCheckHistoryEntry hce3 = hcHistory.last(exec1);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry hce3 = hcHistory.last(exec1);
         assertNotNull(hce3);
         assertThat(hcHistory.entries())
             .hasSize(2)
@@ -97,7 +97,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
             .setRpcServerRunning(true)
             .build());
         hcHistory.record(exec1, 4L, hc.build());
-        CassandraFrameworkProtos.HealthCheckHistoryEntry hce4 = hcHistory.last(exec1);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry hce4 = hcHistory.last(exec1);
         assertThat(hcHistory.entries()).hasSize(3);
 
         hc.setInfo(ni
@@ -105,7 +105,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
             .setRpcServerRunning(true)
             .build());
         hcHistory.record(exec1, 5L, hc.build());
-        CassandraFrameworkProtos.HealthCheckHistoryEntry hce5 = hcHistory.last(exec1);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry hce5 = hcHistory.last(exec1);
         assertThat(hcHistory.entries()).hasSize(4);
         assertThat(hcHistory.entriesForExecutor(exec1))
             .hasSize(4)
@@ -117,7 +117,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         hc.setHealthy(true)
             .setMsg("msg");
         hcHistory.record(exec1, 6L, hc.build());
-        CassandraFrameworkProtos.HealthCheckHistoryEntry hce6 = hcHistory.last(exec1);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry hce6 = hcHistory.last(exec1);
         assertThat(hcHistory.entries()).hasSize(5);
         assertThat(hcHistory.entriesForExecutor(exec1))
             .hasSize(5)
@@ -130,7 +130,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         hc.setHealthy(false)
             .setMsg("foo");
         hcHistory.record(exec1, 7L, hc.build());
-        CassandraFrameworkProtos.HealthCheckHistoryEntry hce7 = hcHistory.last(exec1);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry hce7 = hcHistory.last(exec1);
         assertThat(hcHistory.entries()).hasSize(5);
         assertThat(hcHistory.entriesForExecutor(exec1))
             .hasSize(5)
@@ -144,7 +144,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         hc.setHealthy(true)
             .clearMsg();
         hcHistory.record(exec1, 8L, hc.build());
-        CassandraFrameworkProtos.HealthCheckHistoryEntry hce8 = hcHistory.last(exec1);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry hce8 = hcHistory.last(exec1);
         assertThat(hcHistory.entries()).hasSize(5);
         assertThat(hcHistory.entriesForExecutor(exec1))
             .hasSize(5)
@@ -160,18 +160,18 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         // similar for another executor
         //
 
-        String exec2 = "exec2";
+        final String exec2 = "exec2";
 
-        CassandraFrameworkProtos.NodeInfo.Builder otherNi = CassandraFrameworkProtos.NodeInfo.newBuilder()
+        final CassandraFrameworkProtos.NodeInfo.Builder otherNi = CassandraFrameworkProtos.NodeInfo.newBuilder()
             .setClusterName("cluster")
             .setDataCenter("dc1")
             .setUptimeMillis(1);
-        CassandraFrameworkProtos.HealthCheckDetails.Builder otherHc = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
+        final CassandraFrameworkProtos.HealthCheckDetails.Builder otherHc = CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
             .setHealthy(true)
             .setInfo(otherNi.build());
         hcHistory.record(exec2, 1L, otherHc.build());
 
-        CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce1 = hcHistory.last(exec2);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce1 = hcHistory.last(exec2);
         assertNotNull(otherHce1);
         assertThat(hcHistory.entries())
             .hasSize(6)
@@ -196,7 +196,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
             .build());
         hcHistory.record(exec2, 2L, otherHc.build());
 
-        CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce2 = hcHistory.last(exec2);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce2 = hcHistory.last(exec2);
         assertNotNull(otherHce2);
         assertThat(hcHistory.entries())
             .hasSize(6)
@@ -213,7 +213,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
             .build());
         hcHistory.record(exec2, 3L, otherHc.build());
 
-        CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce3 = hcHistory.last(exec2);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce3 = hcHistory.last(exec2);
         assertNotNull(otherHce3);
         assertThat(hcHistory.entries())
             .hasSize(7)
@@ -232,7 +232,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
             .setRpcServerRunning(true)
             .build());
         hcHistory.record(exec2, 4L, otherHc.build());
-        CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce4 = hcHistory.last(exec2);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce4 = hcHistory.last(exec2);
         assertThat(hcHistory.entries()).hasSize(8);
 
         otherHc.setInfo(otherNi
@@ -240,7 +240,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
             .setRpcServerRunning(true)
             .build());
         hcHistory.record(exec2, 5L, otherHc.build());
-        CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce5 = hcHistory.last(exec2);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce5 = hcHistory.last(exec2);
         assertThat(hcHistory.entries()).hasSize(9);
         assertThat(hcHistory.entriesForExecutor(exec2))
             .hasSize(4)
@@ -252,7 +252,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         otherHc.setHealthy(true)
             .setMsg("msg");
         hcHistory.record(exec2, 6L, otherHc.build());
-        CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce6 = hcHistory.last(exec2);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce6 = hcHistory.last(exec2);
         assertThat(hcHistory.entries()).hasSize(10);
         assertThat(hcHistory.entriesForExecutor(exec2))
             .hasSize(5)
@@ -265,7 +265,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         otherHc.setHealthy(false)
             .setMsg("foo");
         hcHistory.record(exec2, 7L, otherHc.build());
-        CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce7 = hcHistory.last(exec2);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce7 = hcHistory.last(exec2);
         assertThat(hcHistory.entries()).hasSize(10);
         assertThat(hcHistory.entriesForExecutor(exec2))
             .hasSize(5)
@@ -279,7 +279,7 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         otherHc.setHealthy(true)
             .clearMsg();
         hcHistory.record(exec2, 8L, otherHc.build());
-        CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce8 = hcHistory.last(exec2);
+        final CassandraFrameworkProtos.HealthCheckHistoryEntry otherHce8 = hcHistory.last(exec2);
         assertThat(hcHistory.entries())
             .hasSize(10)
             //
@@ -312,11 +312,11 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
 
     @Test
     public void testIsSimilarEntryHealthCheckDetails() throws Exception {
-        CassandraFrameworkProtos.HealthCheckDetails.Builder hc1 = CassandraFrameworkProtos.HealthCheckDetails.newBuilder();
-        CassandraFrameworkProtos.HealthCheckDetails.Builder hc2 = CassandraFrameworkProtos.HealthCheckDetails.newBuilder();
+        final CassandraFrameworkProtos.HealthCheckDetails.Builder hc1 = CassandraFrameworkProtos.HealthCheckDetails.newBuilder();
+        final CassandraFrameworkProtos.HealthCheckDetails.Builder hc2 = CassandraFrameworkProtos.HealthCheckDetails.newBuilder();
 
-        CassandraFrameworkProtos.NodeInfo.Builder ni1 = CassandraFrameworkProtos.NodeInfo.newBuilder();
-        CassandraFrameworkProtos.NodeInfo.Builder ni2 = CassandraFrameworkProtos.NodeInfo.newBuilder();
+        final CassandraFrameworkProtos.NodeInfo.Builder ni1 = CassandraFrameworkProtos.NodeInfo.newBuilder();
+        final CassandraFrameworkProtos.NodeInfo.Builder ni2 = CassandraFrameworkProtos.NodeInfo.newBuilder();
 
         hc1.setHealthy(true);
         hc2.setHealthy(true);
@@ -370,8 +370,8 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
 
     @Test
     public void testIsSimilarEntryNodeInfo() throws Exception {
-        CassandraFrameworkProtos.NodeInfo.Builder ni1 = CassandraFrameworkProtos.NodeInfo.newBuilder();
-        CassandraFrameworkProtos.NodeInfo.Builder ni2 = CassandraFrameworkProtos.NodeInfo.newBuilder();
+        final CassandraFrameworkProtos.NodeInfo.Builder ni1 = CassandraFrameworkProtos.NodeInfo.newBuilder();
+        final CassandraFrameworkProtos.NodeInfo.Builder ni2 = CassandraFrameworkProtos.NodeInfo.newBuilder();
 
         assertTrue(PersistedCassandraClusterHealthCheckHistory.isSimilarEntry(ni1.build(), ni2.build()));
         ni1.setUptimeMillis(1234);
@@ -418,8 +418,8 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
 
     @Test
     public void testAllOscillatingOutOfOrder() throws Exception {
-        State state = new InMemoryState();
-        PersistedCassandraClusterHealthCheckHistory hcHistory = new PersistedCassandraClusterHealthCheckHistory(state);
+        final State state = new InMemoryState();
+        final PersistedCassandraClusterHealthCheckHistory hcHistory = new PersistedCassandraClusterHealthCheckHistory(state);
 
         hcHistory.record("abc", 10, unhealthy());
         hcHistory.record("abc", 11,   healthy());
@@ -451,13 +451,17 @@ public class PersistedCassandraClusterHealthCheckHistoryTest {
         }
     }
 
+    @NotNull
     static CassandraFrameworkProtos.HealthCheckDetails healthy() {
         return healthCheckDetails(true);
     }
+
+    @NotNull
     static CassandraFrameworkProtos.HealthCheckDetails unhealthy() {
         return healthCheckDetails(false);
     }
 
+    @NotNull
     static CassandraFrameworkProtos.HealthCheckDetails healthCheckDetails(final boolean healthy) {
         return CassandraFrameworkProtos.HealthCheckDetails.newBuilder()
             .setHealthy(healthy)

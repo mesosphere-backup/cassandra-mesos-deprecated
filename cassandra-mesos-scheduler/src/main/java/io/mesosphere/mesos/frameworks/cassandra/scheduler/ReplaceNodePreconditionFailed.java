@@ -16,7 +16,7 @@
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 public class ReplaceNodePreconditionFailed extends Exception {
-    public ReplaceNodePreconditionFailed(String msg) {
+    public ReplaceNodePreconditionFailed(final String msg) {
         super(msg);
     }
 }

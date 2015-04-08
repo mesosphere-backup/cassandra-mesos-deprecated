@@ -15,12 +15,14 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
+import org.jetbrains.annotations.NotNull;
+
 public class InconsistentNodeException extends RuntimeException {
-    public InconsistentNodeException(String message) {
+    public InconsistentNodeException(@NotNull final String message) {
         super(message);
     }
 
-    public InconsistentNodeException(String message, Throwable cause) {
+    public InconsistentNodeException(@NotNull final String message, @NotNull final Throwable cause) {
         super(message, cause);
     }
 }

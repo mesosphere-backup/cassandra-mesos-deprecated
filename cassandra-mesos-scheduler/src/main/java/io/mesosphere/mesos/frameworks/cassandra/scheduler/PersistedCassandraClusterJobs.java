@@ -23,6 +23,7 @@ import io.mesosphere.mesos.util.ProtoUtils;
 import org.apache.mesos.Protos;
 import org.apache.mesos.state.State;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public final class PersistedCassandraClusterJobs extends StatePersistedObject<CassandraFrameworkProtos.CassandraClusterJobs> {
     public PersistedCassandraClusterJobs(@NotNull final State state) {
@@ -40,7 +41,7 @@ public final class PersistedCassandraClusterJobs extends StatePersistedObject<Ca
                 public CassandraFrameworkProtos.CassandraClusterJobs apply(final byte[] input) {
                     try {
                         return CassandraFrameworkProtos.CassandraClusterJobs.parseFrom(input);
-                    } catch (InvalidProtocolBufferException e) {
+                    } catch (final InvalidProtocolBufferException e) {
                         throw new ProtoUtils.RuntimeInvalidProtocolBufferException(e);
                     }
                 }
@@ -54,8 +55,8 @@ public final class PersistedCassandraClusterJobs extends StatePersistedObject<Ca
         );
     }
 
-    public void setCurrentJob(CassandraFrameworkProtos.ClusterJobStatus current) {
-        CassandraFrameworkProtos.CassandraClusterJobs.Builder builder = CassandraFrameworkProtos.CassandraClusterJobs.newBuilder(get());
+    public void setCurrentJob(@Nullable final CassandraFrameworkProtos.ClusterJobStatus current) {
+        final CassandraFrameworkProtos.CassandraClusterJobs.Builder builder = CassandraFrameworkProtos.CassandraClusterJobs.newBuilder(get());
         if (current == null) {
             builder.clearCurrentClusterJob();
         } else {
@@ -64,10 +65,10 @@ public final class PersistedCassandraClusterJobs extends StatePersistedObject<Ca
         setValue(builder.build());
     }
 
-    public void removeTaskForCurrentNode(Protos.TaskStatus status, CassandraFrameworkProtos.ClusterJobStatus currentJob) {
-        CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob);
+    public void removeTaskForCurrentNode(@NotNull final Protos.TaskStatus status, @NotNull final CassandraFrameworkProtos.ClusterJobStatus currentJob) {
+        final CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob);
 
-        CassandraFrameworkProtos.NodeJobStatus.Builder currentNode = CassandraFrameworkProtos.NodeJobStatus.newBuilder(builder.getCurrentNode())
+        final CassandraFrameworkProtos.NodeJobStatus.Builder currentNode = CassandraFrameworkProtos.NodeJobStatus.newBuilder(builder.getCurrentNode())
             .setFailed(true)
             .setFailureMessage(
                     "TaskStatus:" + status.getState()
@@ -82,12 +83,12 @@ public final class PersistedCassandraClusterJobs extends StatePersistedObject<Ca
             .build());
     }
 
-    public void updateJobCurrentNode(CassandraFrameworkProtos.ClusterJobStatus currentJob, CassandraFrameworkProtos.NodeJobStatus currentNode) {
-        CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob)
+    public void updateJobCurrentNode(@NotNull final CassandraFrameworkProtos.ClusterJobStatus currentJob, @NotNull final CassandraFrameworkProtos.NodeJobStatus currentNode) {
+        final CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob)
             .clearRemainingNodes()
             .setCurrentNode(currentNode);
 
-        for (String nodeExecutorId : currentJob.getRemainingNodesList()) {
+        for (final String nodeExecutorId : currentJob.getRemainingNodesList()) {
             if (!nodeExecutorId.equals(currentNode.getExecutorId())) {
                 builder.addRemainingNodes(nodeExecutorId);
             }
@@ -96,11 +97,11 @@ public final class PersistedCassandraClusterJobs extends StatePersistedObject<Ca
         setCurrentJob(builder.build());
     }
 
-    public void finishJob(CassandraFrameworkProtos.ClusterJobStatus currentJob) {
-        CassandraFrameworkProtos.CassandraClusterJobs.Builder clusterJobsBuilder = CassandraFrameworkProtos.CassandraClusterJobs.newBuilder()
+    public void finishJob(@NotNull final CassandraFrameworkProtos.ClusterJobStatus currentJob) {
+        final CassandraFrameworkProtos.CassandraClusterJobs.Builder clusterJobsBuilder = CassandraFrameworkProtos.CassandraClusterJobs.newBuilder()
             .addLastClusterJobs(currentJob);
 
-        for (CassandraFrameworkProtos.ClusterJobStatus clusterJobStatus : get().getLastClusterJobsList()) {
+        for (final CassandraFrameworkProtos.ClusterJobStatus clusterJobStatus : get().getLastClusterJobsList()) {
             if (clusterJobStatus.getJobType() != currentJob.getJobType()) {
                 clusterJobsBuilder.addLastClusterJobs(clusterJobStatus);
             }
@@ -109,16 +110,16 @@ public final class PersistedCassandraClusterJobs extends StatePersistedObject<Ca
         setValue(clusterJobsBuilder.build());
     }
 
-    public void clearClusterJobCurrentNode(@NotNull String executorId) {
-        CassandraFrameworkProtos.CassandraClusterJobs clusterJobs = get();
+    public void clearClusterJobCurrentNode(@NotNull final String executorId) {
+        final CassandraFrameworkProtos.CassandraClusterJobs clusterJobs = get();
         if (!clusterJobs.hasCurrentClusterJob()) {
             return;
         }
-        CassandraFrameworkProtos.ClusterJobStatus current = clusterJobs.getCurrentClusterJob();
+        final CassandraFrameworkProtos.ClusterJobStatus current = clusterJobs.getCurrentClusterJob();
         if (!current.hasCurrentNode()) {
             return;
         }
-        CassandraFrameworkProtos.NodeJobStatus currentNode = current.getCurrentNode();
+        final CassandraFrameworkProtos.NodeJobStatus currentNode = current.getCurrentNode();
         if (currentNode.getExecutorId().equals(executorId)) {
             setCurrentJob(CassandraFrameworkProtos.ClusterJobStatus.newBuilder(current)
                 .clearCurrentNode()

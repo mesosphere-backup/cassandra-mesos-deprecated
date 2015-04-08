@@ -15,12 +15,14 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
+import org.jetbrains.annotations.NotNull;
+
 public class SeedChangeException extends Exception {
-    public SeedChangeException(String message) {
+    public SeedChangeException(@NotNull final String message) {
         super(message);
     }
 
-    public SeedChangeException(String message, Throwable cause) {
+    public SeedChangeException(@NotNull final String message, @NotNull final Throwable cause) {
         super(message, cause);
     }
 }

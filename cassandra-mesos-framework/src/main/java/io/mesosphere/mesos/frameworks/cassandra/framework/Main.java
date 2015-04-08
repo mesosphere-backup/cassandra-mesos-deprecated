@@ -86,13 +86,13 @@ public final class Main {
             org.slf4j.LoggerFactory.getLogger("slf4j-logging").debug("Installing SLF4JLogging");
             SLF4JBridgeHandler.install();
             status = _main();
-        } catch (SystemExitException e) {
+        } catch (final SystemExitException e) {
             LOGGER.error(e.getMessage());
             status = e.status;
-        } catch (UnknownHostException e) {
+        } catch (final UnknownHostException e) {
             LOGGER.error("Unable to resolve local interface for http server");
             status = 6;
-        } catch (Throwable e) {
+        } catch (final Throwable e) {
             LOGGER.error("Unhandled fatal exception", e);
             status = 10;
         }

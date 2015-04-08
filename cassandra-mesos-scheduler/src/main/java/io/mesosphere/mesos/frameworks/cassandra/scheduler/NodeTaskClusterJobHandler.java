@@ -17,6 +17,7 @@ package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 import com.google.common.base.Optional;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,14 +27,14 @@ import java.util.List;
 public class NodeTaskClusterJobHandler extends ClusterJobHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(NodeTaskClusterJobHandler.class);
 
-    public NodeTaskClusterJobHandler(CassandraCluster cluster, PersistedCassandraClusterJobs jobsState) {
+    public NodeTaskClusterJobHandler(@NotNull final CassandraCluster cluster, @NotNull final PersistedCassandraClusterJobs jobsState) {
         super(cluster, jobsState);
     }
 
     @Override
-    public void handleTaskOffer(CassandraFrameworkProtos.ClusterJobStatus currentJob, String executorId, Optional<CassandraFrameworkProtos.CassandraNode> nodeForExecutorId, TasksForOffer tasksForOffer) {
+    public void handleTaskOffer(@NotNull final CassandraFrameworkProtos.ClusterJobStatus currentJob, @NotNull final String executorId, @NotNull final Optional<CassandraFrameworkProtos.CassandraNode> nodeForExecutorId, @NotNull final TasksForOffer tasksForOffer) {
         if (currentJob.hasCurrentNode()) {
-            CassandraFrameworkProtos.NodeJobStatus nodJobStatus = currentJob.getCurrentNode();
+            final CassandraFrameworkProtos.NodeJobStatus nodJobStatus = currentJob.getCurrentNode();
             if (executorId.equals(nodJobStatus.getExecutorId())) {
                 // submit status request
                 tasksForOffer.getSubmitTasks().add(CassandraFrameworkProtos.TaskDetails.newBuilder()
@@ -55,7 +56,7 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
         }
 
         if (!currentJob.hasCurrentNode()) {
-            List<String> remainingNodes = new ArrayList<>(currentJob.getRemainingNodesList());
+            final List<String> remainingNodes = new ArrayList<>(currentJob.getRemainingNodesList());
             if (remainingNodes.isEmpty()) {
                 jobsState.finishJob(currentJob);
                 return;
@@ -70,7 +71,7 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
                 return;
             }
 
-            CassandraFrameworkProtos.CassandraNode node = nodeForExecutorId.get();
+            final CassandraFrameworkProtos.CassandraNode node = nodeForExecutorId.get();
 
             if (node.getTargetRunState() != CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN
                 || !cluster.isLiveNode(node)) {
@@ -82,7 +83,7 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
                 .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB)
                 .setNodeJobTask(CassandraFrameworkProtos.NodeJobTask.newBuilder().setJobType(currentJob.getJobType()))
                 .build();
-            CassandraFrameworkProtos.CassandraNodeTask cassandraNodeTask = CassandraFrameworkProtos.CassandraNodeTask.newBuilder()
+            final CassandraFrameworkProtos.CassandraNodeTask cassandraNodeTask = CassandraFrameworkProtos.CassandraNodeTask.newBuilder()
                 .setType(CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.CLUSTER_JOB)
                 .setTaskId(executorId + '.' + currentJob.getJobType().name())
                 .setResources(CassandraFrameworkProtos.TaskResources.newBuilder()
@@ -93,7 +94,7 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
                 .build();
             tasksForOffer.getLaunchTasks().add(cassandraNodeTask);
 
-            CassandraFrameworkProtos.NodeJobStatus currentNode = CassandraFrameworkProtos.NodeJobStatus.newBuilder()
+            final CassandraFrameworkProtos.NodeJobStatus currentNode = CassandraFrameworkProtos.NodeJobStatus.newBuilder()
                 .setExecutorId(node.getCassandraNodeExecutor().getExecutorId())
                 .setTaskId(cassandraNodeTask.getTaskId())
                 .setJobType(currentJob.getJobType())
@@ -106,8 +107,8 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
         }
     }
 
-    private void rejectNode(List<String> remainingNodes) {
-        CassandraFrameworkProtos.ClusterJobStatus currentJob;
+    private void rejectNode(@NotNull final List<String> remainingNodes) {
+        final CassandraFrameworkProtos.ClusterJobStatus currentJob;
         currentJob = CassandraFrameworkProtos.ClusterJobStatus.newBuilder()
             .clearRemainingNodes()
             .addAllRemainingNodes(remainingNodes)
@@ -116,7 +117,7 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
     }
 
     @Override
-    public void onNodeJobStatus(CassandraFrameworkProtos.ClusterJobStatus currentJob, CassandraFrameworkProtos.NodeJobStatus nodeJobStatus) {
+    public void onNodeJobStatus(@NotNull final CassandraFrameworkProtos.ClusterJobStatus currentJob, @NotNull final CassandraFrameworkProtos.NodeJobStatus nodeJobStatus) {
         LOGGER.info("Got node job status from {}, running={}", nodeJobStatus.getExecutorId(), nodeJobStatus.getRunning());
 
         if (currentJob.getCurrentNode() != null && currentJob.getCurrentNode().getExecutorId().equals(nodeJobStatus.getExecutorId())) {

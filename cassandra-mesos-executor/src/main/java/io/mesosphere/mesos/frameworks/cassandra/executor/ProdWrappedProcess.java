@@ -15,6 +15,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.executor;
 
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,27 +24,28 @@ import java.lang.reflect.Field;
 class ProdWrappedProcess implements WrappedProcess {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProdWrappedProcess.class);
 
+    private static final Field pidField;
+
+    @NotNull
     private final Process p;
     private final int pid;
 
-    private static final Field pidField;
-
     static {
         try {
-            Class cls = Class.forName("java.lang.UNIXProcess");
+            final Class cls = Class.forName("java.lang.UNIXProcess");
             pidField = cls.getDeclaredField("pid");
             pidField.setAccessible(true);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    ProdWrappedProcess(Process p) {
+    ProdWrappedProcess(final Process p) {
         this.p = p;
 
         try {
             pid = pidField.getInt(p);
-        } catch (IllegalAccessException e) {
+        } catch (final IllegalAccessException e) {
             throw new RuntimeException("not on Unix??", e);
         }
     }
@@ -65,16 +67,15 @@ class ProdWrappedProcess implements WrappedProcess {
 
         LOGGER.info("Killing process with PID {}", pid);
         try {
-            Process killProc = new ProcessBuilder("kill", "-9", Integer.toString(pid)).start();
+            final Process killProc = new ProcessBuilder("kill", "-9", Integer.toString(pid)).start();
             killProc.waitFor();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             LOGGER.error("Failed to forcibly terminate process with PID " + pid, e);
         }
     }
 
     @Override
     public int exitValue() {
-        int exitCode = p.exitValue();
-        return exitCode;
+        return p.exitValue();
     }
 }

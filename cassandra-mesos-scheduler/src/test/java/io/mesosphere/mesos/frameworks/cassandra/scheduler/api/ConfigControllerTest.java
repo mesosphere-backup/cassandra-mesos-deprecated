@@ -26,9 +26,9 @@ public class ConfigControllerTest extends AbstractApiControllerTest {
 
     @Test
     public void testConfig() throws Exception {
-        Tuple2<Integer, JsonNode> tup = fetchJson("/config", false);
+        final Tuple2<Integer, JsonNode> tup = fetchJson("/config", false);
         assertEquals(200, tup._1.intValue());
-        JsonNode json = tup._2;
+        final JsonNode json = tup._2;
 
         assertEquals("test-cluster", json.get("frameworkName").asText());
         assertThat(json.get("frameworkId").asText()).isNotEmpty();

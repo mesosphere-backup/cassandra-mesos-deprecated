@@ -140,6 +140,11 @@ public class MockSchedulerDriver implements SchedulerDriver {
         return Protos.Status.DRIVER_RUNNING;
     }
 
+    @Override
+    public Protos.Status acknowledgeStatusUpdate(final Protos.TaskStatus status) {
+        return Protos.Status.DRIVER_RUNNING;
+    }
+
     public void callRegistered(Protos.FrameworkID frameworkId) {
         scheduler.registered(this, frameworkId, masterInfo);
     }

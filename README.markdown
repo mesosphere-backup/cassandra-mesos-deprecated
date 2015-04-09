@@ -1,6 +1,8 @@
 Cassandra Mesos Framework
 =========================
-
+<a href="https://teamcity.mesosphere.io/viewType.html?buildTypeId=Oss_Mesos_Cassandra_CassandraFramework&guest=1">
+<img src="https://teamcity.mesosphere.io/guestAuth/app/rest/builds/buildType:(id:Oss_Mesos_Cassandra_CassandraFramework)/statusIcon"/>
+</a>
 ------------
 
 **DISCLAIMER**

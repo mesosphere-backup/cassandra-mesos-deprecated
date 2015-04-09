@@ -414,44 +414,53 @@
                     </dependency>
                 </dependencies>
             </plugin>
-
-            <!-- required for release to Maven Central -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar-no-fork</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <configuration>
-                    <windowtitle>Cassandra-Mesos ${project.artifactId}</windowtitle>
-                    <bottom>&amp;copy; 2015 ${project.organization.name} - licensed under &lt;a
-                        href="http://www.apache.org/licenses/LICENSE-2.0" target="_new"&gt;Apache License, Version 2&lt;/a&gt;
-                        - &lt;a href="http://mesos.apache.org/" target="_new"&gt;Homepage&lt;/a&gt;</bottom>
-                    <show>protected</show>
-                    <failOnError>false</failOnError>
-                    <aggregate>false</aggregate>
-                    <includeDependencySources>false</includeDependencySources>
-                    <includeTransitiveDependencySources>false</includeTransitiveDependencySources>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>javadoc</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>sources-and-javadoc-jars</id>
+            <build>
+                <plugins>
+                    <!-- required for release to Maven Central -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <windowtitle>Cassandra-Mesos ${project.artifactId}</windowtitle>
+                            <bottom>&amp;copy; 2015 ${project.organization.name} - licensed under &lt;a
+                                href="http://www.apache.org/licenses/LICENSE-2.0" target="_new"&gt;Apache License, Version 2&lt;/a&gt;
+                                - &lt;a href="http://mesos.apache.org/" target="_new"&gt;Homepage&lt;/a&gt;</bottom>
+                            <show>protected</show>
+                            <failOnError>false</failOnError>
+                            <aggregate>false</aggregate>
+                            <includeDependencySources>false</includeDependencySources>
+                            <includeTransitiveDependencySources>false</includeTransitiveDependencySources>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>javadoc</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

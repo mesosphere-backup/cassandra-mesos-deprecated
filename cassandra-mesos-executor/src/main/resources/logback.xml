@@ -13,7 +13,7 @@
         </rollingPolicy>
 
         <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
-            <maxFileSize>10MB</maxFileSize>
+            <maxFileSize>100MB</maxFileSize>
         </triggeringPolicy>
         <encoder>
             <pattern>%date %-5level [%thread] {%marker} %logger{36} - %msg%n</pattern>

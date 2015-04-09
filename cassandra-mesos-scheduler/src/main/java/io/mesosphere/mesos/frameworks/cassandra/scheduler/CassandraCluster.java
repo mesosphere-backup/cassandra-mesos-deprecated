@@ -15,6 +15,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
@@ -96,6 +97,9 @@ public final class CassandraCluster {
     private static final Map<String, String> executorEnv = unmodifiableHashMap(
         tuple2("JAVA_OPTS", "-Xms256m -Xmx256m")
     );
+
+    private static final TaskResources EXECUTOR_RESOURCES = taskResources(0.1, 384, 256);
+    private static final TaskResources METADATA_TASK_RESOURCES = taskResources(0.1, 32, 0);
 
     @NotNull
     private final Clock clock;
@@ -367,183 +371,13 @@ public final class CassandraCluster {
         }
 
         try {
-            final Optional<CassandraNode> nodeOption = cassandraNodeForHostname(offer.getHostname());
-
-            final CassandraNode.Builder node;
-            if (!nodeOption.isPresent()) {
-                if (clusterState.get().getNodesToAcquire() <= 0) {
-                    // number of C* cluster nodes already present
-                    return null;
-                }
-
-                final String replacementForIp = clusterState.nextReplacementIp();
-
-                final boolean buildSeedNode = clusterState.doAcquireNewNodeAsSeed();
-                final CassandraNode newNode = buildCassandraNode(offer, buildSeedNode, replacementForIp);
-                clusterState.nodeAcquired(newNode);
-                node = CassandraNode.newBuilder(newNode);
-            } else {
-                node = CassandraNode.newBuilder(nodeOption.get());
-            }
-
-            if (!node.hasCassandraNodeExecutor()) {
-                if (node.getTargetRunState() == CassandraNode.TargetRunState.TERMINATE) {
-                    // node completely terminated
-                    return null;
-                }
-                final String executorId = getExecutorIdForOffer(offer);
-                final CassandraNodeExecutor executor = buildCassandraNodeExecutor(executorId);
-                node.setCassandraNodeExecutor(executor);
-            }
-
-            final TasksForOffer result = new TasksForOffer(node.getCassandraNodeExecutor());
-
-            final CassandraNodeExecutor executor = node.getCassandraNodeExecutor();
-            final String executorId = executor.getExecutorId();
-            CassandraNodeTask metadataTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.NodeTaskType.METADATA);
-            final CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.NodeTaskType.SERVER);
-            if (metadataTask == null) {
-                if (node.getTargetRunState() == CassandraNode.TargetRunState.TERMINATE) {
-                    // node completely terminated
-                    return null;
-                }
-                metadataTask = getMetadataTask(executorId, node.getIp());
-                node.addTasks(metadataTask);
-                result.getLaunchTasks().add(metadataTask);
-            } else {
-                final Optional<ExecutorMetadata> maybeMetadata = getExecutorMetadata(executorId);
-                if (maybeMetadata.isPresent()) {
-
-                    handleClusterTask(executorId, result);
-
-                    if (serverTask == null) {
-                        switch (node.getTargetRunState()) {
-                            case RUN:
-                                break;
-                            case TERMINATE:
-
-                                LOGGER.info(marker, "Killing executor {}", executorTaskId(node));
-                                result.getKillTasks().add(Protos.TaskID.newBuilder().setValue(executorTaskId(node)).build());
-
-                                return result;
-                            case STOP:
-                                LOGGER.debug(marker, "Cannot launch server (targetRunState==STOP)");
-                                return null;
-                            case RESTART:
-                                // change state to run (RESTART complete)
-                                node.setTargetRunState(CassandraNode.TargetRunState.RUN);
-                                break;
-                        }
-
-                        if (clusterState.get().getSeedsToAcquire() > 0) {
-                            // we do not have enough executor metadata records to fulfil seed node requirement
-                            LOGGER.debug(marker, "Cannot launch non-seed node (seed node requirement not fulfilled)");
-                            return null;
-                        }
-
-                        if (!canLaunchServerTask()) {
-                            LOGGER.debug(marker, "Cannot launch server (timed)");
-                            return null;
-                        }
-
-                        if (!node.getSeed()) {
-                            // when starting a non-seed node also check if at least one seed node is running
-                            // (otherwise that node will fail to start)
-                            boolean anySeedRunning = false;
-                            boolean anyNodeInfluencingTopology = false;
-                            for (final CassandraNode cassandraNode : clusterState.nodes()) {
-                                if (CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraNodeTask.NodeTaskType.SERVER) != null) {
-                                    final HealthCheckHistoryEntry lastHC = lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
-                                    if (cassandraNode.getSeed()) {
-                                        if (lastHC != null && lastHC.getDetails() != null && lastHC.getDetails().getInfo() != null
-                                            && lastHC.getDetails().getHealthy()
-                                            && lastHC.getDetails().getInfo().getJoined() && "NORMAL".equals(lastHC.getDetails().getInfo().getOperationMode())) {
-                                            anySeedRunning = true;
-                                        }
-                                    }
-                                    if (lastHC != null && lastHC.getDetails() != null && lastHC.getDetails().getInfo() != null
-                                        && lastHC.getDetails().getHealthy()
-                                        && (!lastHC.getDetails().getInfo().getJoined() || !"NORMAL".equals(lastHC.getDetails().getInfo().getOperationMode()))) {
-                                        if (LOGGER.isDebugEnabled()) {
-                                            LOGGER.debug("Cannot start server task because of operation mode '{}' on node '{}'", lastHC.getDetails().getInfo().getOperationMode(), cassandraNode.getHostname());
-                                        }
-                                        anyNodeInfluencingTopology = true;
-                                    }
-                                }
-                            }
-                            if (!anySeedRunning) {
-                                LOGGER.debug("Cannot start server task because no seed node is running");
-                                return null;
-                            }
-                            if (anyNodeInfluencingTopology) {
-                                return null;
-                            }
-                        }
-
-                        final CassandraFrameworkConfiguration config = configuration.get();
-                        final CassandraConfigRole configRole = configuration.getDefaultConfigRole();
-                        final List<String> errors = hasResources(
-                                offer,
-                                configRole.getResources(),
-                                portMappings(config),
-                                configRole.getMesosRole()
-                        );
-                        if (!errors.isEmpty()) {
-                            LOGGER.info(marker, "Insufficient resources in offer: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
-                        } else {
-                            final ExecutorMetadata metadata = maybeMetadata.get();
-                            final CassandraNodeTask task = getServerTask(serverTaskId(node), serverTaskName(), metadata, node);
-                            node.addTasks(task)
-                                .setNeedsConfigUpdate(false);
-                            result.getLaunchTasks().add(task);
-
-                            clusterState.updateLastServerLaunchTimestamp(clock.now().getMillis());
-                        }
-                    } else {
-                        if (node.getNeedsConfigUpdate()) {
-                            final CassandraNodeTask task = getConfigUpdateTask(configUpdateTaskId(node), maybeMetadata.get());
-                            node.addTasks(task)
-                                .setNeedsConfigUpdate(false);
-                            result.getLaunchTasks().add(task);
-                        }
-
-                        switch (node.getTargetRunState()) {
-                            case RUN:
-                                if (shouldRunHealthCheck(executorId)) {
-                                    result.getSubmitTasks().add(getHealthCheckTaskDetails());
-                                }
-
-                                break;
-                            case STOP:
-                            case RESTART:
-                            case TERMINATE:
-                                // stop node for STOP and RESTART
-
-                                LOGGER.info(marker, "Killing server task {}", serverTaskId(node));
-                                result.getKillTasks().add(Protos.TaskID.newBuilder().setValue(serverTaskId(node)).build());
-
-                                break;
-                        }
-                    }
-                }
-            }
-
-            if (!result.hasAnyTask()) {
-                // nothing to do
-                return null;
-            }
-
-            final CassandraNode built = node.build();
-            clusterState.addOrSetNode(built);
-
-            return result;
+            return _getTasksForOffer(marker, offer);
         } finally {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug(marker, "< getTasksForOffer(offer : {}) = {}, {}", protoToString(offer));
             }
         }
     }
-
 
     @NotNull
     private static String executorTaskId(@NotNull final CassandraNode.Builder node) {
@@ -800,7 +634,7 @@ public final class CassandraCluster {
             .setSource(configuration.frameworkName())
             .addAllCommand(command)
             .setTaskEnv(taskEnvFromMap(executorEnv))
-            .setResources(taskResources(0.1, 384, 256))
+            .setResources(EXECUTOR_RESOURCES)
             .addAllDownload(newArrayList(
                 resourceFileDownload(getUrlForResource("/jre-7-" + osName + ".tar.gz"), true),
                 resourceFileDownload(getUrlForResource("/apache-cassandra-" + configRole.getCassandraVersion() + "-bin.tar.gz"), true),
@@ -829,7 +663,7 @@ public final class CassandraCluster {
         return CassandraNodeTask.newBuilder()
             .setType(CassandraNodeTask.NodeTaskType.METADATA)
             .setTaskId(executorId)
-            .setResources(taskResources(0.1, 32, 0))
+            .setResources(METADATA_TASK_RESOURCES)
             .setTaskDetails(taskDetails)
             .build();
     }
@@ -1168,12 +1002,308 @@ public final class CassandraCluster {
         return true;
     }
 
+    /**
+     * Basic algorithm used when evaluating offers
+     * <ol>
+     *     <li>
+     *         Do we think there is a node for the host?<br/>
+     *         If not:
+     *         <ol>
+     *             <li>
+     *                 Do we need to acquire another node?<br/>
+     *                 If not, return {@code null}.<br/>
+     *                 If we do, collect the following info before constructing the node:
+     *                 <ol>
+     *                     <li>Ip address of node to be replaced, if any</li>
+     *                     <li>Is the node to act as a seed?</li>
+     *                 </ol>
+     *             </li>
+     *         </ol>
+     *     </li>
+     *
+     *     <li>
+     *         Do we think there is already an executor for the node?<br/>
+     *         If not:
+     *         <ol>
+     *             <li>Is the nodes target run state {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode.TargetRunState#TERMINATE TERMINATE}, if so return {@code null}</li>
+     *             <li>Generate an executorId and construct the new executor.</li>
+     *             <li>Set the new executor to the node</li>
+     *         </ol>
+     *     </li>
+     *
+     *     <li>
+     *         Do we think there is already a {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType#METADATA METADATA}
+     *         running on the node?<br/>
+     *         If not:
+     *         <ol>
+     *             <li>Is the nodes target run state {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode.TargetRunState#TERMINATE TERMINATE}, if so return {@code null}</li>
+     *             <li>Construct a metadata task, add it to the nodes tasks add it to the list of tasks to launch</li>
+     *         </ol>
+     *
+     *         If it does:
+     *         <ol>
+     *             <li>Lookup the metadata that has been collected for the node</li>
+     *             If present:
+     *             <ol>
+     *                 <li>If a "Cluster Job is running" call it's {@link ClusterJobHandler#handleTaskOffer handleTaskOffer} method</li>
+     *                 <li>
+     *                     Do we think there is already a {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType#SERVER}
+     *                     task running?
+     *
+     *                     If not:
+     *                     <ol>
+     *                         <li>If target run state is {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode.TargetRunState#RUN RUN}, proceed.</li>
+     *                         <li>If target run state is {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode.TargetRunState#TERMINATE TERMINATE} send a task kill message and return from the method</li>
+     *                         <li>If target run state is {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode.TargetRunState#STOP STOP} return {@code null}</li>
+     *                         <li>If target run state is {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode.TargetRunState#RESTART RESTART} set the node target run state to {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode.TargetRunState#RUN RUN}</li>
+     *                         <li>If we are still trying to acquire seed nodes return {@code null}</li>
+     *                         <li>If the time between server node launches hasn't elapsed return {@code null}</li>
+     *                         <li>
+     *                             If node is not intended to be a seed:
+     *                             <ol>
+     *                                 <li>Check to make sure that a seed node is up and "healthy"</li>
+     *                             </ol>
+     *                         </li>
+     *                         <li>
+     *                             Evaluate if the resource offer has enough resources to be able to run the server
+     *                             <ol>
+     *                                 <li>If there aren't enough resources log a message to indicate the insufficient resources</li>
+     *                                 <li>
+     *                                     If there are enough resources
+     *                                     <ol>
+     *                                         <li>Get host metadata</li>
+     *                                         <li>Construct new server task and add it to the nodes tasks add it to the list of tasks to launch</li>
+     *                                         <li>Update last server launch time</li>
+     *                                     </ol>
+     *                                 </li>
+     *                             </ol>
+     *                         </li>
+     *                     </ol>
+     *
+     *                     If we do:
+     *                     <ol>
+     *                         <li>If config update required, create config update task and add it to the nodes tasks add it to the list of tasks to launch</li>
+     *                         <li>If target run state is {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode.TargetRunState#RUN RUN} and we need to run a health check, queue a framework message to trigger a health check.</li>
+     *                         <li>If target run state is {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode.TargetRunState#STOP STOP}, {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode.TargetRunState#RESTART RESTART} or {@link io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode.TargetRunState#TERMINATE TERMINATE} send a task kill message and return from the method</li>
+     *                     </ol>
+     *                 </li>
+     *             </ol>
+     *
+     *             Otherwise wait until the next offer to try and proceed
+     *         </ol>
+     *     </li>
+     *
+     * </ol>
+     *
+     */
+    @Nullable
+    @VisibleForTesting
+    TasksForOffer _getTasksForOffer(@NotNull final Marker marker, final @NotNull Protos.Offer offer) {
+        final Optional<CassandraNode> nodeOption = cassandraNodeForHostname(offer.getHostname());
+        final CassandraConfigRole configRole = configuration.getDefaultConfigRole();
+        final CassandraFrameworkConfiguration config = configuration.get();
+
+        final CassandraNode.Builder node;
+        if (!nodeOption.isPresent()) {
+            if (clusterState.get().getNodesToAcquire() <= 0) {
+                // number of C* cluster nodes already present
+                return null;
+            }
+
+            final TaskResources allResources = add(
+                add(EXECUTOR_RESOURCES, METADATA_TASK_RESOURCES),
+                configRole.getResources()
+            );
+            final List<String> executorSizeErrors = hasResources(
+                offer,
+                allResources,
+                portMappings(config),
+                configRole.getMesosRole()
+            );
+            if (!executorSizeErrors.isEmpty()) {
+                // there aren't enough resources to even attempt to run the server, skip this host for now.
+                LOGGER.info(
+                    marker,
+                    "Insufficient resources in offer for executor, not attempting to launch new node. Details: ['{}']",
+                    offer.getId().getValue(), JOINER.join(executorSizeErrors)
+                );
+                return null;
+            }
+
+            final String replacementForIp = clusterState.nextReplacementIp();
+
+            final boolean buildSeedNode = clusterState.doAcquireNewNodeAsSeed();
+            final CassandraNode newNode = buildCassandraNode(offer, buildSeedNode, replacementForIp);
+            clusterState.nodeAcquired(newNode);
+            node = CassandraNode.newBuilder(newNode);
+        } else {
+            node = CassandraNode.newBuilder(nodeOption.get());
+        }
+
+        if (!node.hasCassandraNodeExecutor()) {
+            if (node.getTargetRunState() == CassandraNode.TargetRunState.TERMINATE) {
+                // node completely terminated
+                return null;
+            }
+            final String executorId = getExecutorIdForOffer(offer);
+            final CassandraNodeExecutor executor = buildCassandraNodeExecutor(executorId);
+            node.setCassandraNodeExecutor(executor);
+        }
+
+        final TasksForOffer result = new TasksForOffer(node.getCassandraNodeExecutor());
+
+        final CassandraNodeExecutor executor = node.getCassandraNodeExecutor();
+        final String executorId = executor.getExecutorId();
+        CassandraNodeTask metadataTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.NodeTaskType.METADATA);
+        if (metadataTask == null) {
+            if (node.getTargetRunState() == CassandraNode.TargetRunState.TERMINATE) {
+                // node completely terminated
+                return null;
+            }
+            metadataTask = getMetadataTask(executorId, node.getIp());
+            node.addTasks(metadataTask);
+            result.getLaunchTasks().add(metadataTask);
+        } else {
+            final Optional<ExecutorMetadata> maybeMetadata = getExecutorMetadata(executorId);
+            if (maybeMetadata.isPresent()) {
+
+                handleClusterTask(executorId, result);
+
+                final CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.NodeTaskType.SERVER);
+                if (serverTask == null) {
+                    switch (node.getTargetRunState()) {
+                        case RUN:
+                            break;
+                        case TERMINATE:
+
+                            LOGGER.info(marker, "Killing executor {}", executorTaskId(node));
+                            result.getKillTasks().add(Protos.TaskID.newBuilder().setValue(executorTaskId(node)).build());
+
+                            return result;
+                        case STOP:
+                            LOGGER.debug(marker, "Cannot launch server (targetRunState==STOP)");
+                            return null;
+                        case RESTART:
+                            // change state to run (RESTART complete)
+                            node.setTargetRunState(CassandraNode.TargetRunState.RUN);
+                            break;
+                    }
+
+                    if (clusterState.get().getSeedsToAcquire() > 0) {
+                        // we do not have enough executor metadata records to fulfil seed node requirement
+                        LOGGER.debug(marker, "Cannot launch non-seed node (seed node requirement not fulfilled)");
+                        return null;
+                    }
+
+                    if (!canLaunchServerTask()) {
+                        LOGGER.debug(marker, "Cannot launch server (timed)");
+                        return null;
+                    }
+
+                    if (!node.getSeed()) {
+                        // when starting a non-seed node also check if at least one seed node is running
+                        // (otherwise that node will fail to start)
+                        boolean anySeedRunning = anySeedRunningAndHealthy();
+                        if (!anySeedRunning) {
+                            LOGGER.debug("Cannot start server task because no seed node is running");
+                            return null;
+                        }
+                    }
+
+                    final List<String> errors = hasResources(
+                        offer,
+                        configRole.getResources(),
+                        portMappings(config),
+                        configRole.getMesosRole()
+                    );
+                    if (!errors.isEmpty()) {
+                        LOGGER.info(marker, "Insufficient resources in offer for server: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
+                    } else {
+                        final ExecutorMetadata metadata = maybeMetadata.get();
+                        final CassandraNodeTask task = getServerTask(serverTaskId(node), serverTaskName(), metadata, node);
+                        node.addTasks(task)
+                            .setNeedsConfigUpdate(false);
+                        result.getLaunchTasks().add(task);
+
+                        clusterState.updateLastServerLaunchTimestamp(clock.now().getMillis());
+                    }
+                } else {
+                    if (node.getNeedsConfigUpdate()) {
+                        final CassandraNodeTask task = getConfigUpdateTask(configUpdateTaskId(node), maybeMetadata.get());
+                        node.addTasks(task)
+                            .setNeedsConfigUpdate(false);
+                        result.getLaunchTasks().add(task);
+                    }
+
+                    switch (node.getTargetRunState()) {
+                        case RUN:
+                            if (shouldRunHealthCheck(executorId)) {
+                                result.getSubmitTasks().add(getHealthCheckTaskDetails());
+                            }
+
+                            break;
+                        case STOP:
+                        case RESTART:
+                        case TERMINATE:
+                            // stop node for STOP and RESTART
+
+                            LOGGER.info(marker, "Killing server task {}", serverTaskId(node));
+                            result.getKillTasks().add(Protos.TaskID.newBuilder().setValue(serverTaskId(node)).build());
+
+                            break;
+                    }
+                }
+            }
+        }
+
+        if (!result.hasAnyTask()) {
+            // nothing to do
+            return null;
+        }
+
+        final CassandraNode built = node.build();
+        clusterState.addOrSetNode(built);
+
+        return result;
+    }
+
+    private boolean anySeedRunningAndHealthy() {
+        boolean anySeedRunning = false;
+        for (final CassandraNode cassandraNode : clusterState.nodes()) {
+            if (CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraNodeTask.NodeTaskType.SERVER) != null) {
+                final HealthCheckHistoryEntry lastHC = lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
+                if (cassandraNode.getSeed()) {
+                    if (lastHC != null && isNodeHealthJoinedAndOperatingNormally(lastHC)) {
+                        anySeedRunning = true;
+                    }
+                }
+            }
+        }
+        return anySeedRunning;
+    }
+
     @NotNull
     private static TaskResources taskResources(final double cpuCores, final long memMb, final long diskMb) {
         return TaskResources.newBuilder()
             .setCpuCores(cpuCores)
             .setMemMb(memMb)
             .setDiskMb(diskMb)
+            .build();
+    }
+
+    private static boolean isNodeHealthJoinedAndOperatingNormally(@NotNull final HealthCheckHistoryEntry lastHC) {
+        return lastHC.getDetails() != null
+            && lastHC.getDetails().getInfo() != null
+            && lastHC.getDetails().getHealthy()
+            && lastHC.getDetails().getInfo().getJoined()
+            && "NORMAL".equals(lastHC.getDetails().getInfo().getOperationMode());
+    }
+
+    private static TaskResources add(@NotNull final TaskResources r1, @NotNull final TaskResources r2) {
+        return TaskResources.newBuilder()
+            .setCpuCores(r1.getCpuCores() + r2.getCpuCores())
+            .setMemMb(r1.getMemMb() + r2.getMemMb())
+            .setDiskMb(r1.getDiskMb() + r2.getDiskMb())
             .build();
     }
 }

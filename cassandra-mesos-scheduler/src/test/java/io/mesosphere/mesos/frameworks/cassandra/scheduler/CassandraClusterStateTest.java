@@ -19,12 +19,16 @@ import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
+import org.assertj.core.util.Lists;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 import java.util.Collections;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static io.mesosphere.mesos.util.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
 
@@ -173,6 +177,25 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
 
         // server-task cannot start again
         launchServer(cluster, slaves[0]);
+    }
+
+    @Test
+    public void allResourcesAvailableBeforeLaunchingExecutor() throws Exception {
+        cleanState();
+
+        final String role = "*";
+        final Protos.Offer offer = Protos.Offer.newBuilder()
+            .setFrameworkId(frameworkId)
+            .setHostname("localhost")
+            .setId(Protos.OfferID.newBuilder().setValue(randomID()))
+            .setSlaveId(Protos.SlaveID.newBuilder().setValue("slave_1"))
+            .addResources(cpu(0.1, role))
+            .addResources(mem(0.1, role))
+            .addResources(disk(0.1, role))
+            .addResources(ports(Lists.<Long>emptyList(), role))
+            .build();
+        final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname());
+        assertThat(cluster._getTasksForOffer(marker, offer)).isNull();
     }
 
     @NotNull

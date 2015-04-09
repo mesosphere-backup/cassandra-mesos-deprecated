@@ -276,7 +276,8 @@ public final class CassandraScheduler implements Scheduler {
             return false;
         }
 
-        final ExecutorID executorId = executorId(tasksForOffer.getExecutor().getExecutorId());
+        final CassandraNodeExecutor executor = tasksForOffer.getExecutor();
+        final ExecutorID executorId = executorId(executor.getExecutorId());
 
         // process tasks to kill
         for (final TaskID taskID : tasksForOffer.getKillTasks()) {
@@ -311,13 +312,13 @@ public final class CassandraScheduler implements Scheduler {
             final ExecutorInfo info = executorInfo(
                 executorId,
                 executorId.getValue(),
-                tasksForOffer.getExecutor().getSource(),
+                executor.getSource(),
                 commandInfo(
-                    JOIN_WITH_SPACE.join(tasksForOffer.getExecutor().getCommandList()),
-                    environmentFromTaskEnv(tasksForOffer.getExecutor().getTaskEnv()),
-                    newArrayList(FluentIterable.from(tasksForOffer.getExecutor().getDownloadList()).transform(uriToCommandInfoUri))
+                    JOIN_WITH_SPACE.join(executor.getCommandList()),
+                    environmentFromTaskEnv(executor.getTaskEnv()),
+                    newArrayList(FluentIterable.from(executor.getDownloadList()).transform(uriToCommandInfoUri))
                 ),
-                resourceList(tasksForOffer.getExecutor().getResources())
+                resourceList(executor.getResources())
             );
 
             final TaskID taskId = taskId(cassandraNodeTask.getTaskId());

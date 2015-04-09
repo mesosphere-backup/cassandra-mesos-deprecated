@@ -5,7 +5,6 @@
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <!--<pattern>%date %-5.5level [%-20.20thread] %-20.20logger{20} - %message%n%xException{5}</pattern>-->
             <pattern>%date %-5.5level [%-20.20thread] %-36.36logger{36} - {%marker} %message%n</pattern>
         </encoder>
     </appender>

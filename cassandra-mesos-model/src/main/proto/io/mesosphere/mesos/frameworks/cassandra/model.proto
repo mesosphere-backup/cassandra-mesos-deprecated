@@ -39,11 +39,11 @@ message CassandraFrameworkConfiguration {
      * Minimum interval in seconds to ask each executor for a health check response of the Cassandra
      * server task (= Cassandra process).
      */
-    required int64 healthCheckIntervalSeconds = 3;
+    optional int64 healthCheckIntervalSeconds = 3;
     /**
      * Minimum interval in seconds between two starts of a Cassandra server task (= Cassandra process).
      */
-    required int64 bootstrapGraceTimeSeconds = 4;
+    optional int64 bootstrapGraceTimeSeconds = 4;
     /**
      * Globally shared mapping of ports required by Cassandra.
      * Currently there are port mappings for these kinds of ports and respective default values:
@@ -58,7 +58,7 @@ message CassandraFrameworkConfiguration {
     /**
      * Default configuration role.
      */
-    required CassandraConfigRole defaultConfigRole = 7;
+    optional CassandraConfigRole defaultConfigRole = 7;
     /**
      * Initial target number of Cassandra nodes.
      */
@@ -90,7 +90,7 @@ message CassandraConfigRole {
      * Total memory must be greater or equal to memJavaHeapMb + memAssumeOffHeapMb.
      * The field ports is not used in this context.
      */
-    required TaskResources resources = 3;
+    optional TaskResources resources = 3;
 
     /**
      * Cassandra memory usage can be categorized into
@@ -189,11 +189,11 @@ message CassandraClusterState {
      * If replaceNodeIps is not empty, new nodes will start with the -Dcassandra.replace_address=<IP>
      * option passed to the Cassandra process.
      */
-    required int32 nodesToAcquire = 5;
+    optional int32 nodesToAcquire = 5;
     /**
      * The number of seeds that need to be acquired.
      */
-    required int32 seedsToAcquire = 6;
+    optional int32 seedsToAcquire = 6;
 }
 
 /**
@@ -232,7 +232,7 @@ message HealthCheckHistoryEntry {
     /**
      * Health check details for this entry.
      */
-    required HealthCheckDetails details = 4;
+    optional HealthCheckDetails details = 4;
 }
 
 /**
@@ -366,11 +366,11 @@ message CassandraNode {
     /**
      * IP resolved by the scheduler from hostname as provided in the Mesos Offer message.
      */
-    required string ip = 2;
+    optional string ip = 2;
     /**
      * Information how to access JMX on that node.
      */
-    required JmxConnect jmxConnect = 3;
+    optional JmxConnect jmxConnect = 3;
 
     /**
      * List of data volumes for the node.
@@ -390,7 +390,7 @@ message CassandraNode {
     /**
      * Flag whether the node is a seed node.
      */
-    required bool seed = 8;
+    optional bool seed = 8;
     /**
      * Timestamp when the last repair ran on this node.
      */
@@ -403,7 +403,7 @@ message CassandraNode {
     /**
      * Indicates whether a node should run or not.
      */
-    required TargetRunState targetRunState = 11;
+    optional TargetRunState targetRunState = 11 [default = RUN];
 
     /**
      * The process ID of the Cassandra process.
@@ -916,7 +916,7 @@ message HealthCheckDetails {
     /**
      * Flag whether the Cassandra process can be considered healthy.
      */
-    required bool healthy = 1;
+    optional bool healthy = 1;
     /**
      * May contain reason why the Cassandra process is not considered healthy
      */

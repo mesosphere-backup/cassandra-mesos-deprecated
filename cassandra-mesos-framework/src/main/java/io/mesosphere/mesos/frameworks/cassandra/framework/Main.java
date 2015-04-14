@@ -16,10 +16,14 @@
 package io.mesosphere.mesos.frameworks.cassandra.framework;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.guava.GuavaModule;
+import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.*;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.api.ApiControllerFactory;
+import io.mesosphere.mesos.frameworks.cassandra.scheduler.api.*;
+import io.mesosphere.mesos.frameworks.cassandra.scheduler.health.HealthReportService;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.Env;
 import io.mesosphere.mesos.util.Clock;
 import io.mesosphere.mesos.util.ProtoUtils;
@@ -174,14 +178,22 @@ public final class Main {
         final URI httpServerBaseUri = URI.create(String.format("http://%s:%d/", formatInetAddress(InetAddress.getLocalHost()), port0));
 
         final Clock clock = new SystemClock();
+        final PersistedCassandraClusterHealthCheckHistory healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);
+        final PersistedCassandraClusterState clusterState = new PersistedCassandraClusterState(state, executorCount, seedCount);
         final CassandraCluster cassandraCluster = new CassandraCluster(
             clock,
             httpServerBaseUri.toString(),
             new ExecutorCounter(state, 0L),
-            new PersistedCassandraClusterState(state, executorCount, seedCount),
-            new PersistedCassandraClusterHealthCheckHistory(state),
+            clusterState,
+            healthCheckHistory,
             new PersistedCassandraClusterJobs(state),
             configuration
+        );
+        final HealthReportService healthReportService = new HealthReportService(
+            clusterState,
+            configuration,
+            healthCheckHistory,
+            clock
         );
         final Scheduler scheduler = new CassandraScheduler(
             configuration,
@@ -189,9 +201,28 @@ public final class Main {
         );
 
         final JsonFactory factory = new JsonFactory();
+        final ObjectMapper objectMapper = new ObjectMapper(factory);
+        objectMapper.registerModule(new GuavaModule());
+
+        // create JsonProvider to provide custom ObjectMapper
+        JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
+        provider.setMapper(objectMapper);
 
         final ResourceConfig rc = new ResourceConfig()
-            .registerInstances(ApiControllerFactory.buildInstances(cassandraCluster, cassandraVersion, factory));
+            .registerInstances(
+                new FileResourceController(cassandraVersion),
+                new ApiController(factory),
+                new ClusterCleanupController(cassandraCluster, factory),
+                new ClusterRepairController(cassandraCluster, factory),
+                new ClusterRollingRestartController(cassandraCluster, factory),
+                new ConfigController(cassandraCluster, factory),
+                new LiveEndpointsController(cassandraCluster, factory),
+                new NodeController(cassandraCluster, factory),
+                new HealthCheckController(healthReportService),
+                new QaReportController(cassandraCluster, factory),
+                // new ScaleOutController(cassandraCluster, factory)
+                provider
+            );
         final HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
 
         final MesosSchedulerDriver driver;

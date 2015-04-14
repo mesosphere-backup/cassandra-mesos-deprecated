@@ -17,12 +17,14 @@ package io.mesosphere.mesos.util;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static io.mesosphere.mesos.util.Tuple2.tuple2;
 
 public final class Functions {
 
@@ -61,6 +63,36 @@ public final class Functions {
         as.addAll(list);
         as.add(item);
         return as;
+    }
+
+    /**
+     * {@code zip}s two lists together and creates a resulting list of tuples representing the value
+     * at the corresponding index from each list.
+     *
+     * @param a A list of NonNull {@code A}s
+     * @param b A list of NonNull {@code B}s
+     * @return A list of {@link Tuple2} that represent the values at the corresponding index from each list.
+     * The size of the returned list will be equal to {@code Math.min(a.size(), b.size())} since we don't
+     * allow null values.
+     */
+    @NotNull
+    public static <A, B> List<Tuple2<A, B>> zip(@NotNull final List<A> a, @NotNull final List<B> b) {
+        final int length = Math.min(a.size(), b.size());
+        final List<Tuple2<A, B>> list = newArrayList();
+        for (int i = 0; i < length; i++) {
+            list.add(tuple2(a.get(i), b.get(i)));
+        }
+        return list;
+    }
+
+    @NotNull
+    public static <A> List<A> listFullOf(final int capacity, @NotNull final Supplier<A> sup) {
+        final A value = sup.get();
+        final List<A> list = new ArrayList<>(capacity);
+        for (int i = 0; i < capacity; i++) {
+            list.add(value);
+        }
+        return list;
     }
 
     public static abstract class ContinuingTransform<A> implements Function<A, A> {

@@ -43,6 +43,7 @@ public abstract class AbstractSchedulerTest {
             Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.3.3.3"),
             Tuple2.tuple2(Protos.SlaveID.newBuilder().setValue(randomID()).build(), "127.4.4.4")
     };
+    protected PersistedCassandraClusterHealthCheckHistory healthCheckHistory;
 
     protected void cleanState() {
         // start with clean state
@@ -61,11 +62,12 @@ public abstract class AbstractSchedulerTest {
             true,
             false);
 
+        healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);
         cluster = new CassandraCluster(new SystemClock(),
                 "http://127.0.0.1:65535",
                 new ExecutorCounter(state, 0L),
                 new PersistedCassandraClusterState(state, 3, 2),
-                new PersistedCassandraClusterHealthCheckHistory(state),
+                healthCheckHistory,
                 new PersistedCassandraClusterJobs(state),
                 configuration);
 

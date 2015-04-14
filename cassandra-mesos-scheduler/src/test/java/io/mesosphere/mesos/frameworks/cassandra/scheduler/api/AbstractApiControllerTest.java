@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
+import com.google.common.collect.Sets;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.AbstractCassandraSchedulerTest;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.InetAddressUtils;
@@ -42,6 +43,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 
 public abstract class AbstractApiControllerTest extends AbstractCassandraSchedulerTest {
+    @NotNull
+    private final ObjectMapper mapper = new ObjectMapper();
     @NotNull
     private final JsonFactory factory = new JsonFactory();
     @Nullable
@@ -170,7 +173,16 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
             }
 
             final ResourceConfig rc = new ResourceConfig()
-                .registerInstances(ApiControllerFactory.buildInstancesWithoutFiles(cluster, factory));
+                .registerInstances(Sets.newHashSet(
+                    new ApiController(factory),
+                    new ClusterCleanupController(cluster,factory),
+                    new ClusterRepairController(cluster,factory),
+                    new ClusterRollingRestartController(cluster,factory),
+                    new ConfigController(cluster,factory),
+                    new LiveEndpointsController(cluster,factory),
+                    new NodeController(cluster,factory),
+                    new QaReportController(cluster, factory)
+                ));
             httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);
             httpServer.start();
 

@@ -1124,7 +1124,7 @@ public final class CassandraCluster {
                 // there aren't enough resources to even attempt to run the server, skip this host for now.
                 LOGGER.info(
                     marker,
-                    "Insufficient resources in offer for executor, not attempting to launch new node. Details: ['{}']",
+                    "Insufficient resources in offer for executor, not attempting to launch new node. Details for offer {}: ['{}']",
                     offer.getId().getValue(), JOINER.join(executorSizeErrors)
                 );
                 return null;

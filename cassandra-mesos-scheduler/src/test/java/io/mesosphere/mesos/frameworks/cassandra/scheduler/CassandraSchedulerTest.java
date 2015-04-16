@@ -16,6 +16,7 @@
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
+import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.TaskResources;
 import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
 import io.mesosphere.mesos.util.ProtoUtils;
 import io.mesosphere.mesos.util.SystemClock;
@@ -24,7 +25,7 @@ import org.junit.Test;
 
 import java.util.*;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
 
 public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
@@ -575,14 +576,14 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .addResources(ProtoUtils.mem(1024, "*"))
                 .addResources(ProtoUtils.disk(1024, "*"))
                 .build();
-        final CassandraFrameworkProtos.TaskResources resources = resources(
+        final TaskResources resources = resources(
                 0.1,
                 500,
                 500
         );
 
         assertThat(CassandraCluster.hasResources(offer, resources, Collections.<String, Long>emptyMap(), "*")).contains(
-                "Not enough cpu resources for role *. Required 0.1 only 0.09999999999999981 available"
+            "Not enough cpu resources for role *. Required 0.1 only 0.09999999999999981 available"
         );
     }
 
@@ -605,4 +606,56 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
     public void testGetTaskName_nameEmptyAfterTrim() throws Exception {
         assertThat(CassandraScheduler.getTaskName("   \t", "task")).isEqualTo("task");
     }
+
+    @Test
+    public void testResourceList_includesDiskAbove0() throws Exception {
+        final List<Protos.Resource> resources = CassandraScheduler.resourceList(
+            TaskResources.newBuilder()
+                .setCpuCores(0.5)
+                .setMemMb(512)
+                .setDiskMb(1)
+                .build(),
+            "*"
+        );
+
+        assertThat(resources).hasSize(3);
+        assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
+        assertThat(resources).contains(ProtoUtils.mem(512, "*"));
+        assertThat(resources).contains(ProtoUtils.disk(1, "*"));
+    }
+
+    @Test
+    public void testResourceList_doesNotIncludesDiskWhen0() throws Exception {
+        final List<Protos.Resource> resources = CassandraScheduler.resourceList(
+            TaskResources.newBuilder()
+                .setCpuCores(0.5)
+                .setMemMb(512)
+                .setDiskMb(0)
+                .build(),
+            "*"
+        );
+
+        assertThat(resources).hasSize(2);
+        assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
+        assertThat(resources).contains(ProtoUtils.mem(512, "*"));
+        assertThat(resources).doesNotContain(ProtoUtils.disk(0, "*"));
+    }
+
+    @Test
+    public void testResourceList_doesNotIncludesDiskWhenBelow0() throws Exception {
+        final List<Protos.Resource> resources = CassandraScheduler.resourceList(
+            TaskResources.newBuilder()
+                .setCpuCores(0.5)
+                .setMemMb(512)
+                .setDiskMb(-1)
+                .build(),
+            "*"
+        );
+
+        assertThat(resources).hasSize(2);
+        assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
+        assertThat(resources).contains(ProtoUtils.mem(512, "*"));
+        assertThat(resources).doesNotContain(ProtoUtils.disk(-1, "*"));
+    }
+
 }

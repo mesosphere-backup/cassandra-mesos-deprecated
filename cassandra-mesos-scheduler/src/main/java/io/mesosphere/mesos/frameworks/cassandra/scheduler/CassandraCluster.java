@@ -29,8 +29,6 @@ import io.mesosphere.mesos.util.Clock;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
@@ -296,26 +294,6 @@ public final class CassandraCluster {
         clusterState.executorMetadata(newArrayList(update));
     }
 
-    private boolean shouldRunHealthCheck(@NotNull final String executorID) {
-        final Optional<Long> previousHealthCheckTime = headOption(
-            from(healthCheckHistory.entries())
-                .filter(healthCheckHistoryEntryExecutorIdEq(executorID))
-                .transform(healthCheckHistoryEntryToTimestamp())
-                .toSortedList(Collections.reverseOrder(naturalLongComparator))
-        );
-
-        if (configuration.healthCheckInterval().toDuration().getStandardSeconds() <= 0) {
-            return false;
-        }
-
-        if (previousHealthCheckTime.isPresent()) {
-            final Duration duration = new Duration(new Instant(previousHealthCheckTime.get()), clock.now());
-            return duration.isLongerThan(configuration.healthCheckInterval());
-        } else {
-            return true;
-        }
-    }
-
     @Nullable
     public HealthCheckHistoryEntry lastHealthCheck(@NotNull final String executorId) {
         return healthCheckHistory.last(executorId);
@@ -561,6 +539,7 @@ public final class CassandraCluster {
                     .setCassandraServerConfig(cassandraServerConfig)
                     .setVersion(configRole.getCassandraVersion())
                     .setJmx(node.getJmxConnect())
+                    .setHealthCheckIntervalSeconds(configuration.healthCheckInterval().toDuration().getStandardSeconds())
             )
             .build();
 
@@ -622,7 +601,7 @@ public final class CassandraCluster {
 
         final List<String> command = newArrayList(
             javaExec,
-//            "agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005",
+//            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005",
             "-XX:+PrintCommandLineFlags",
             "$JAVA_OPTS",
             "-classpath",
@@ -640,13 +619,6 @@ public final class CassandraCluster {
                 resourceFileDownload(getUrlForResource("/apache-cassandra-" + configRole.getCassandraVersion() + "-bin.tar.gz"), true),
                 resourceFileDownload(getUrlForResource("/cassandra-executor.jar"), false)
             ))
-            .build();
-    }
-
-    @NotNull
-    private static TaskDetails getHealthCheckTaskDetails() {
-        return TaskDetails.newBuilder()
-            .setType(TaskDetails.TaskDetailsType.HEALTH_CHECK)
             .build();
     }
 
@@ -1237,10 +1209,6 @@ public final class CassandraCluster {
 
                     switch (node.getTargetRunState()) {
                         case RUN:
-                            if (shouldRunHealthCheck(executorId)) {
-                                result.getSubmitTasks().add(getHealthCheckTaskDetails());
-                            }
-
                             break;
                         case STOP:
                         case RESTART:

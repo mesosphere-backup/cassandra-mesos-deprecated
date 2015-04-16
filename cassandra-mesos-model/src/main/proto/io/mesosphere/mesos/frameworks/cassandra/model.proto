@@ -617,24 +617,19 @@ message TaskDetails {
          */
         CASSANDRA_SERVER_RUN = 2;
         /**
-         * Ask executor to perform a health check and return the result to its scheduler.
-         * Via framework message from scheduler to executor.
-         */
-        HEALTH_CHECK = 3;
-        /**
          * Start a node's part of a cluster-wide job.
          * Via launchTask.
          */
-        NODE_JOB = 4;
+        NODE_JOB = 3;
         /**
          * Ask executor to return the status of its current node-job to its scheduler.
          * Via framework message from scheduler to executor.
          */
-        NODE_JOB_STATUS = 5;
+        NODE_JOB_STATUS = 4;
         /**
          * Update the Cassandra configuration files.
          */
-        UPDATE_CONFIG = 6;
+        UPDATE_CONFIG = 5;
     }
 }
 
@@ -672,6 +667,10 @@ message CassandraServerRunTask {
      * Information how to connect to Cassandra's JMX server.
      */
     required JmxConnect jmx = 4;
+    /**
+     * The interval in seconds that the executor should perform a health check of the server process.
+     */
+    optional int64 healthCheckIntervalSeconds = 6;
 }
 
 /**

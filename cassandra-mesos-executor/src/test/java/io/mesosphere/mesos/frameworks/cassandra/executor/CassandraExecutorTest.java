@@ -19,6 +19,7 @@ import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
+import org.joda.time.Duration;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -237,7 +238,7 @@ public class CassandraExecutorTest {
         assertTrue(objectFactory.storageServiceProxy.listeners.isEmpty());
     }
 
-    private void startServer() throws com.google.protobuf.InvalidProtocolBufferException {
+    private void startServer() throws com.google.protobuf.InvalidProtocolBufferException, InterruptedException {
         driver.normalRegister();
 
         driver.launchTask(
@@ -271,6 +272,7 @@ public class CassandraExecutorTest {
                     .setJmx(CassandraFrameworkProtos.JmxConnect.newBuilder()
                         .setIp("1.2.3.4")
                         .setJmxPort(42))
+                    .setHealthCheckIntervalSeconds(Duration.standardMinutes(5).getStandardSeconds())
                     .build())
                 .build(),
             "server task",
@@ -283,13 +285,11 @@ public class CassandraExecutorTest {
         assertEquals(taskIdServer, taskStatus.get(1).getTaskId());
         assertEquals(Protos.TaskState.TASK_RUNNING, taskStatus.get(1).getState());
 
-        driver.frameworkMessage(CassandraFrameworkProtos.TaskDetails.newBuilder()
-            .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.HEALTH_CHECK)
-            .build());
-
         taskStatus = driver.taskStatusList();
         assertEquals(0, taskStatus.size());
 
+        //TODO: Figure out a better way of testing for this
+        Thread.sleep(100); // health checks are performed in a background thread so we need to try and give it time
         final List<CassandraFrameworkProtos.SlaveStatusDetails> slaveStatusDetailsList = driver.frameworkMessages();
         assertEquals(1, slaveStatusDetailsList.size());
         assertTrue(slaveStatusDetailsList.get(0).hasHealthCheckDetails());
@@ -318,11 +318,6 @@ public class CassandraExecutorTest {
         // server task finished...
         assertEquals(taskIdServer, taskStatus.get(0).getTaskId());
         assertEquals(Protos.TaskState.TASK_FINISHED, taskStatus.get(0).getState());
-
-        final List<CassandraFrameworkProtos.SlaveStatusDetails> slaveStatusDetailsList = driver.frameworkMessages();
-        assertEquals(1, slaveStatusDetailsList.size());
-        assertTrue(slaveStatusDetailsList.get(0).hasHealthCheckDetails());
-        assertFalse(slaveStatusDetailsList.get(0).getHealthCheckDetails().getHealthy());
     }
 
     private void terminateExecutor() {

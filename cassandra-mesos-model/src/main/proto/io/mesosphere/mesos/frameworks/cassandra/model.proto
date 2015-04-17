@@ -474,7 +474,7 @@ message TaskResources {
     /**
      * Amount of memory to provision.
      */
-    required int64 memMb = 3;
+    optional int64 memMb = 3;
     /**
      * Port ranges to provision.
      */

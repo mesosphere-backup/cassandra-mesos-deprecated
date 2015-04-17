@@ -15,6 +15,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
@@ -318,11 +319,11 @@ public final class CassandraScheduler implements Scheduler {
                     environmentFromTaskEnv(executor.getTaskEnv()),
                     newArrayList(FluentIterable.from(executor.getDownloadList()).transform(uriToCommandInfoUri))
                 ),
-                resourceList(executor.getResources())
+                resourceList(executor.getResources(), configuration.mesosRole())
             );
 
             final TaskID taskId = taskId(cassandraNodeTask.getTaskId());
-            final List<Resource> resources = resourceList(cassandraNodeTask.getResources());
+            final List<Resource> resources = resourceList(cassandraNodeTask.getResources(), configuration.mesosRole());
             if (!cassandraNodeTask.getResources().getPortsList().isEmpty()) {
                 resources.add(ports(cassandraNodeTask.getResources().getPortsList(), configuration.mesosRole()));
             }
@@ -361,11 +362,16 @@ public final class CassandraScheduler implements Scheduler {
     }
 
     @NotNull
-    private List<Resource> resourceList(final TaskResources resources) {
-        return newArrayList(
-            cpu(resources.getCpuCores(), configuration.mesosRole()),
-            mem(resources.getMemMb(), configuration.mesosRole()),
-            disk(resources.getDiskMb(), configuration.mesosRole()));
+    @VisibleForTesting
+    static List<Resource> resourceList(@NotNull final TaskResources resources, @NotNull final String role) {
+        final List<Resource> retVal = newArrayList(
+            cpu(resources.getCpuCores(), role),
+            mem(resources.getMemMb(), role)
+        );
+        if (resources.hasDiskMb() && resources.getDiskMb() > 0) {
+            retVal.add(disk(resources.getDiskMb(), role));
+        }
+        return retVal;
     }
 
     @NotNull

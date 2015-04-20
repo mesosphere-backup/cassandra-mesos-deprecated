@@ -44,7 +44,8 @@ final class ClusterHealthEvaluationEntry<T> implements Function<ClusterHealthEva
         final boolean equivalent = equivalence.apply(expected, actual);
         return new ClusterHealthEvaluationResult<>(
             name,
-            equivalent, expected,
+            equivalent,
+            expected,
             actual
         );
     }

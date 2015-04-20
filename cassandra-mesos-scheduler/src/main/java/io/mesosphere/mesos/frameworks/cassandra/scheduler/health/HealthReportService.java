@@ -69,7 +69,8 @@ public final class HealthReportService {
             seedCount(),
             allHealthy(),
             operatingModeNormal(),
-            lastHealthCheckNewerThan(healthCheckTimeThreshold)
+            lastHealthCheckNewerThan(healthCheckTimeThreshold),
+            nodesHaveServerTask()
         );
         final List<ClusterHealthEvaluationResult<?>> results = newArrayList(
             from(evaluationEntries)

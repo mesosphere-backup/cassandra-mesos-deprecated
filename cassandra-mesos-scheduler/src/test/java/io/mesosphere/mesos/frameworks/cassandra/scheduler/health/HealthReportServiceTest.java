@@ -116,16 +116,52 @@ public class HealthReportServiceTest {
                     CassandraNode.newBuilder()
                         .setHostname("host1")
                         .setSeed(true)
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.METADATA)
+                                .setTaskId("host1-metadata")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.SERVER)
+                                .setTaskId("host1-server")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
                 )
                 .addNodes(
                     CassandraNode.newBuilder()
                         .setHostname("host2")
                         .setSeed(true)
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.METADATA)
+                                .setTaskId("host1-metadata")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.SERVER)
+                                .setTaskId("host1-server")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
                 )
                 .addNodes(
                     CassandraNode.newBuilder()
                         .setHostname("host3")
                         .setSeed(false)
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.METADATA)
+                                .setTaskId("host1-metadata")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.SERVER)
+                                .setTaskId("host1-server")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
                 );
 
         final CassandraFrameworkConfiguration.Builder config =
@@ -304,6 +340,173 @@ public class HealthReportServiceTest {
         );
         testOperationalModeActuallyIs(clusterState, config, healthCheckHistory, normal(), true);
 
+    }
+
+    @Test
+    public void allNodesHaveServerTasks() throws Exception {
+        final int numberOfNodes = 3;
+        final int numberOfSeeds = 1;
+
+        final CassandraClusterState.Builder clusterState =
+            CassandraClusterState.newBuilder()
+                .setNodesToAcquire(numberOfNodes)
+                .setSeedsToAcquire(numberOfSeeds)
+                .addNodes(
+                    CassandraNode.newBuilder()
+                        .setSeed(true)
+                        .setHostname("host1")
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.METADATA)
+                                .setTaskId("host1-metadata")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.SERVER)
+                                .setTaskId("host1-server")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                )
+                .addNodes(
+                    CassandraNode.newBuilder()
+                        .setSeed(false)
+                        .setHostname("host2")
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.METADATA)
+                                .setTaskId("host2-metadata")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.SERVER)
+                                .setTaskId("host2-server")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                )
+                .addNodes(
+                    CassandraNode.newBuilder()
+                        .setSeed(false)
+                        .setHostname("host3")
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.METADATA)
+                                .setTaskId("host3-metadata")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.SERVER)
+                                .setTaskId("host3-server")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                )
+            ;
+
+        final CassandraFrameworkConfiguration.Builder config =
+            CassandraFrameworkConfiguration.newBuilder()
+                .setFrameworkName("cassandra.testing")
+                .setInitialNumberOfNodes(numberOfNodes)
+                .setInitialNumberOfSeeds(numberOfSeeds);
+
+        final CassandraClusterHealthCheckHistory.Builder healthCheckHistory =
+            CassandraClusterHealthCheckHistory.newBuilder()
+                .setMaxEntriesPerNode(5);
+
+        final ClusterHealthEvaluationResult<List<Boolean>> result =
+            ClusterStateEvaluations.nodesHaveServerTask()
+                .apply(
+                    new ClusterHealthEvaluationContext(
+                        clusterState.build(),
+                        config.build(),
+                        healthCheckHistory.build()
+                    )
+                );
+
+        assertThat(result.getExpected()).hasSize(3);
+        assertThat(result.getActual()).hasSize(3);
+        assertThat(result.isOk()).isTrue();
+    }
+
+    @Test
+    public void allNodesHaveServerTasks_oneNodeWithOnlyMetadataTask() throws Exception {
+        final int numberOfNodes = 3;
+        final int numberOfSeeds = 1;
+
+        final CassandraClusterState.Builder clusterState =
+            CassandraClusterState.newBuilder()
+                .setNodesToAcquire(numberOfNodes)
+                .setSeedsToAcquire(numberOfSeeds)
+                .addNodes(
+                    CassandraNode.newBuilder()
+                        .setSeed(true)
+                        .setHostname("host1")
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.METADATA)
+                                .setTaskId("host1-metadata")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.SERVER)
+                                .setTaskId("host1-server")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                )
+                .addNodes(
+                    CassandraNode.newBuilder()
+                        .setSeed(false)
+                        .setHostname("host2")
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.METADATA)
+                                .setTaskId("host2-metadata")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.SERVER)
+                                .setTaskId("host2-server")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                )
+                .addNodes(
+                    CassandraNode.newBuilder()
+                        .setSeed(false)
+                        .setHostname("host3")
+                        .addTasks(
+                            CassandraNodeTask.newBuilder()
+                                .setType(CassandraNodeTask.NodeTaskType.METADATA)
+                                .setTaskId("host3-metadata")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                );
+
+        final CassandraFrameworkConfiguration.Builder config =
+            CassandraFrameworkConfiguration.newBuilder()
+                .setFrameworkName("cassandra.testing")
+                .setInitialNumberOfNodes(numberOfNodes)
+                .setInitialNumberOfSeeds(numberOfSeeds);
+
+        final CassandraClusterHealthCheckHistory.Builder healthCheckHistory =
+            CassandraClusterHealthCheckHistory.newBuilder()
+                .setMaxEntriesPerNode(5);
+
+        final ClusterHealthEvaluationResult<List<Boolean>> result =
+            ClusterStateEvaluations.nodesHaveServerTask()
+                .apply(
+                    new ClusterHealthEvaluationContext(
+                        clusterState.build(),
+                        config.build(),
+                        healthCheckHistory.build()
+                    )
+                );
+
+        assertThat(result.getExpected()).hasSize(3);
+        assertThat(result.getActual()).hasSize(3);
+        assertThat(result.isOk()).isFalse();
     }
 
     @NotNull

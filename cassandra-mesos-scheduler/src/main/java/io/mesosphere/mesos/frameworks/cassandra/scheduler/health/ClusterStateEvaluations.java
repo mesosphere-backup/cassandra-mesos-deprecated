@@ -5,7 +5,8 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Ordering;
-import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
+import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNode;
+import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.CassandraNodeTask;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.health.ClusterHealthEvaluationEntry.Equivalence;
 import io.mesosphere.mesos.util.Tuple2;
 import org.jetbrains.annotations.NotNull;
@@ -59,9 +60,9 @@ final class ClusterStateEvaluations {
                 @Override
                 public Integer apply(final ClusterHealthEvaluationContext input) {
                     return from(input.state.getNodesList())
-                        .filter(new Predicate<CassandraFrameworkProtos.CassandraNode>() {
+                        .filter(new Predicate<CassandraNode>() {
                             @Override
-                            public boolean apply(final CassandraFrameworkProtos.CassandraNode input) {
+                            public boolean apply(final CassandraNode input) {
                                 return input.getSeed();
                             }
                         })
@@ -165,6 +166,40 @@ final class ClusterStateEvaluations {
                                 }
                             })
                             .allMatch(Predicates.equalTo(true));
+                }
+            }
+        );
+    }
+
+    @NotNull
+    public static ClusterHealthEvaluationEntry<List<Boolean>> nodesHaveServerTask() {
+        return new ClusterHealthEvaluationEntry<>(
+            "nodesHaveServerTask",
+            new Function<ClusterHealthEvaluationContext, List<Boolean>>() {
+                @Override
+                public List<Boolean> apply(final ClusterHealthEvaluationContext input) {
+                    return listFullOf(input.config.getInitialNumberOfNodes(), literalValue(true));
+                }
+            },
+            new Function<ClusterHealthEvaluationContext, List<Boolean>>() {
+                @Override
+                public List<Boolean> apply(final ClusterHealthEvaluationContext input) {
+                    return newArrayList(
+                        from(input.state.getNodesList())
+                            .transform(new Function<CassandraNode, Boolean>() {
+                                @Override
+                                public Boolean apply(final CassandraNode input) {
+                                    final FluentIterable<CassandraNodeTask> nodesWithServerTasks = from(input.getTasksList())
+                                        .filter(new Predicate<CassandraNodeTask>() {
+                                            @Override
+                                            public boolean apply(final CassandraNodeTask input) {
+                                                return input.getType() == CassandraNodeTask.NodeTaskType.SERVER;
+                                            }
+                                        });
+                                    return !nodesWithServerTasks.isEmpty();
+                                }
+                            })
+                    );
                 }
             }
         );

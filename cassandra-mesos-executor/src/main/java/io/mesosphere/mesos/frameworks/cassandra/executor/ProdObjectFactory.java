@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
+
 // production object factory - there's another implementation, that's used for mocked unit tests
 final class ProdObjectFactory implements ObjectFactory {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProdObjectFactory.class);
@@ -44,9 +46,9 @@ final class ProdObjectFactory implements ObjectFactory {
 
     @Override
     @NotNull
-    public WrappedProcess launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraFrameworkProtos.CassandraServerRunTask serverRunTask) throws LaunchNodeException {
+    public WrappedProcess launchCassandraNodeTask(@NotNull final Marker taskIdMarker, @NotNull final CassandraServerRunTask serverRunTask) throws LaunchNodeException {
         try {
-            writeCassandraServerConfig(taskIdMarker, serverRunTask, serverRunTask.getCassandraServerConfig());
+            writeCassandraServerConfig(taskIdMarker, serverRunTask.getVersion(), serverRunTask.getCassandraServerConfig());
         } catch (final IOException e) {
             throw new LaunchNodeException("Failed to prepare instance files", e);
         }
@@ -55,7 +57,7 @@ final class ProdObjectFactory implements ObjectFactory {
                 .directory(new File(System.getProperty("user.dir")))
                 .redirectOutput(new File("cassandra-stdout.log"))
                 .redirectError(new File("cassandra-stderr.log"));
-        for (final CassandraFrameworkProtos.TaskEnv.Entry entry : serverRunTask.getCassandraServerConfig().getTaskEnv().getVariablesList()) {
+        for (final TaskEnv.Entry entry : serverRunTask.getCassandraServerConfig().getTaskEnv().getVariablesList()) {
             processBuilder.environment().put(entry.getName(), entry.getValue());
         }
         processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
@@ -69,19 +71,24 @@ final class ProdObjectFactory implements ObjectFactory {
     }
 
     @Override
-    public void updateCassandraServerConfig(@NotNull final Marker taskIdMarker, @NotNull final CassandraFrameworkProtos.CassandraServerRunTask cassandraServerRunTask, @NotNull final CassandraFrameworkProtos.UpdateConfigTask updateConfigTask) throws ConfigChangeException {
+    public void updateCassandraServerConfig(
+        @NotNull final Marker taskIdMarker,
+        @NotNull final CassandraServerRunTask cassandraServerRunTask,
+        @NotNull final UpdateConfigTask updateConfigTask
+    ) throws ConfigChangeException {
         try {
-            writeCassandraServerConfig(taskIdMarker, cassandraServerRunTask, updateConfigTask.getCassandraServerConfig());
+            writeCassandraServerConfig(taskIdMarker, cassandraServerRunTask.getVersion(), updateConfigTask.getCassandraServerConfig());
         } catch (final IOException e) {
             throw new ConfigChangeException("Failed to update instance files", e);
         }
     }
 
     private static void writeCassandraServerConfig(
-            @NotNull final Marker taskIdMarker,
-            @NotNull final CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask,
-            @NotNull final CassandraFrameworkProtos.CassandraServerConfig serverConfig) throws IOException {
-        for (final CassandraFrameworkProtos.TaskFile taskFile : serverConfig.getTaskFilesList()) {
+        @NotNull final Marker taskIdMarker,
+        @NotNull final String version,
+        @NotNull final CassandraServerConfig serverConfig
+    ) throws IOException {
+        for (final TaskFile taskFile : serverConfig.getTaskFilesList()) {
             final File file = new File(taskFile.getOutputPath());
             if (LOGGER.isDebugEnabled())
                 LOGGER.debug(taskIdMarker, "Overwriting file {}", file);
@@ -89,9 +96,9 @@ final class ProdObjectFactory implements ObjectFactory {
             Files.write(taskFile.getData().toByteArray(), file);
         }
 
-        modifyCassandraYaml(taskIdMarker, cassandraNodeTask);
-        modifyCassandraEnvSh(taskIdMarker, cassandraNodeTask);
-        modifyCassandraRackdc(taskIdMarker, cassandraNodeTask, serverConfig);
+        modifyCassandraYaml(taskIdMarker, version, serverConfig);
+        modifyCassandraEnvSh(taskIdMarker, version, serverConfig);
+        modifyCassandraRackdc(taskIdMarker, version);
     }
 
     @NotNull
@@ -102,7 +109,10 @@ final class ProdObjectFactory implements ObjectFactory {
                 "environment() = " + Joiner.on("\n").withKeyValueSeparator("->").join(builder.environment()) + "\n}";
     }
 
-    private static void modifyCassandraRackdc(@NotNull final Marker taskIdMarker, @NotNull final CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask, @NotNull final CassandraFrameworkProtos.CassandraServerConfig serverConfig) throws IOException {
+    private static void modifyCassandraRackdc(
+        @NotNull final Marker taskIdMarker,
+        @NotNull final String version
+    ) throws IOException {
 
         LOGGER.info(taskIdMarker, "Building cassandra-rackdc.properties");
 
@@ -113,17 +123,21 @@ final class ProdObjectFactory implements ObjectFactory {
         //props.put("dc_suffix", "");
         // Uncomment the following line to make this snitch prefer the internal ip when possible, as the Ec2MultiRegionSnitch does.
         //props.put("prefer_local", "true");
-        final File cassandraRackDc = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra-rackdc.properties");
+        final File cassandraRackDc = new File("apache-cassandra-" + version + "/conf/cassandra-rackdc.properties");
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(cassandraRackDc))) {
             props.store(bw, "Created by Apache Mesos Cassandra framework");
         }
     }
 
-    private static void modifyCassandraEnvSh(@NotNull final Marker taskIdMarker, @NotNull final CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask) throws IOException {
+    private static void modifyCassandraEnvSh(
+        @NotNull final Marker taskIdMarker,
+        @NotNull final String version,
+        @NotNull final CassandraServerConfig cassandraServerConfig
+    ) throws IOException {
         int jmxPort = 0;
         String localJmx = "yes";
         boolean noJmxAuth = false;
-        for (final CassandraFrameworkProtos.TaskEnv.Entry entry : cassandraNodeTask.getCassandraServerConfig().getTaskEnv().getVariablesList()) {
+        for (final TaskEnv.Entry entry : cassandraServerConfig.getTaskEnv().getVariablesList()) {
             if ("JMX_PORT".equals(entry.getName())) {
                 jmxPort = Integer.parseInt(entry.getValue());
             } else if ("LOCAL_JMX".equals(entry.getName())) {
@@ -138,7 +152,7 @@ final class ProdObjectFactory implements ObjectFactory {
         // Unfortunately it is not possible to pass JMX_PORT as an environment variable to C* startup -
         // it is explicitly set in cassandra-env.sh
 
-        final File cassandraEnvSh = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra-env.sh");
+        final File cassandraEnvSh = new File("apache-cassandra-" + version + "/conf/cassandra-env.sh");
 
         LOGGER.info(taskIdMarker, "Reading cassandra-env.sh");
         final List<String> lines = Files.readLines(cassandraEnvSh, Charset.forName("UTF-8"));
@@ -162,10 +176,14 @@ final class ProdObjectFactory implements ObjectFactory {
     }
 
     @SuppressWarnings("unchecked")
-    private static void modifyCassandraYaml(@NotNull final Marker taskIdMarker, @NotNull final CassandraFrameworkProtos.CassandraServerRunTask cassandraNodeTask) throws IOException {
+    private static void modifyCassandraYaml(
+        @NotNull final Marker taskIdMarker,
+        @NotNull final String version,
+        @NotNull final CassandraServerConfig cassandraServerConfig
+    ) throws IOException {
         LOGGER.info(taskIdMarker, "Building cassandra.yaml");
 
-        final File cassandraYaml = new File("apache-cassandra-" + cassandraNodeTask.getVersion() + "/conf/cassandra.yaml");
+        final File cassandraYaml = new File("apache-cassandra-" + version + "/conf/cassandra.yaml");
 
         final Yaml yaml = new Yaml();
         final Map<String, Object> yamlMap;
@@ -174,7 +192,7 @@ final class ProdObjectFactory implements ObjectFactory {
             yamlMap = (Map<String, Object>) yaml.load(br);
         }
         LOGGER.info(taskIdMarker, "Modifying cassandra.yaml");
-        for (final CassandraFrameworkProtos.TaskConfig.Entry entry : cassandraNodeTask.getCassandraServerConfig().getCassandraYamlConfig().getVariablesList()) {
+        for (final TaskConfig.Entry entry : cassandraServerConfig.getCassandraYamlConfig().getVariablesList()) {
             switch (entry.getName()) {
                 case "seeds":
                     final List<Map<String, Object>> seedProviderList = (List<Map<String, Object>>) yamlMap.get("seed_provider");

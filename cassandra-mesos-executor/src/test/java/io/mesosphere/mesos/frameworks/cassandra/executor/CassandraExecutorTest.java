@@ -228,7 +228,7 @@ public class CassandraExecutorTest {
                 .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB_STATUS)
                 .build());
         messages = driver.frameworkMessages();
-        assertEquals(1, messages.size());
+        assertTrue(messages.size() >= 1);
         assertTrue(messages.get(0).hasNodeJobStatus());
         assertTrue(driver.taskStatusList().isEmpty());
 

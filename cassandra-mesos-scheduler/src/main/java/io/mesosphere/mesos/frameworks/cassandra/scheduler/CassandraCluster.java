@@ -492,7 +492,7 @@ public final class CassandraCluster {
         return CassandraNodeTask.newBuilder()
             .setType(CassandraNodeTask.NodeTaskType.CONFIG)
             .setTaskId(taskId)
-            .setResources(configRole.getResources())
+            .setResources(METADATA_TASK_RESOURCES)
             .setTaskDetails(taskDetails)
             .build();
     }

@@ -377,14 +377,12 @@ public final class CassandraCluster {
         return executorTaskId(node) + ".server";
     }
 
-    private boolean canLaunchServerTask() {
-        return clock.now().getMillis() >= nextPossibleServerLaunchTimestamp();
-    }
-
     public long nextPossibleServerLaunchTimestamp() {
-        final long lastServerLaunchTimestamp = getClusterState().get().getLastServerLaunchTimestamp();
-        final long seconds = Math.max(getConfiguration().get().getBootstrapGraceTimeSeconds(), getConfiguration().get().getHealthCheckIntervalSeconds());
-        return lastServerLaunchTimestamp + seconds * 1000L;
+        return nextPossibleServerLaunchTimestamp(
+            getClusterState().get().getLastServerLaunchTimestamp(),
+            getConfiguration().get().getBootstrapGraceTimeSeconds(),
+            getConfiguration().get().getHealthCheckIntervalSeconds()
+        );
     }
 
     @NotNull
@@ -1167,8 +1165,11 @@ public final class CassandraCluster {
                         return null;
                     }
 
-                    if (!canLaunchServerTask()) {
-                        LOGGER.debug(marker, "Cannot launch server (timed)");
+                    final long now = clock.now().getMillis();
+                    final long nextPossibleServerLaunchTimestamp = nextPossibleServerLaunchTimestamp();
+                    if (!canLaunchServerTask(now, nextPossibleServerLaunchTimestamp)) {
+                        final long nextPossibleServerLaunchSeconds = secondsUntilNextPossibleServerLaunch(now, nextPossibleServerLaunchTimestamp);
+                        LOGGER.info(marker, "Server launch timeout active. Next server launch possible in {}s", nextPossibleServerLaunchSeconds);
                         return null;
                     }
 
@@ -1177,7 +1178,7 @@ public final class CassandraCluster {
                         // (otherwise that node will fail to start)
                         boolean anySeedRunning = anySeedRunningAndHealthy();
                         if (!anySeedRunning) {
-                            LOGGER.debug("Cannot start server task because no seed node is running");
+                            LOGGER.info("Cannot start server task because no seed node is running");
                             return null;
                         }
                     }
@@ -1197,7 +1198,7 @@ public final class CassandraCluster {
                             .setNeedsConfigUpdate(false);
                         result.getLaunchTasks().add(task);
 
-                        clusterState.updateLastServerLaunchTimestamp(clock.now().getMillis());
+                        clusterState.updateLastServerLaunchTimestamp(now);
                     }
                 } else {
                     if (node.getNeedsConfigUpdate()) {
@@ -1241,7 +1242,7 @@ public final class CassandraCluster {
             if (CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraNodeTask.NodeTaskType.SERVER) != null) {
                 final HealthCheckHistoryEntry lastHC = lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
                 if (cassandraNode.getSeed()) {
-                    if (lastHC != null && isNodeHealthJoinedAndOperatingNormally(lastHC)) {
+                    if (lastHC != null && isNodeHealthyJoinedAndOperatingNormally(lastHC)) {
                         anySeedRunning = true;
                     }
                 }
@@ -1259,7 +1260,7 @@ public final class CassandraCluster {
             .build();
     }
 
-    private static boolean isNodeHealthJoinedAndOperatingNormally(@NotNull final HealthCheckHistoryEntry lastHC) {
+    private static boolean isNodeHealthyJoinedAndOperatingNormally(@NotNull final HealthCheckHistoryEntry lastHC) {
         return lastHC.getDetails() != null
             && lastHC.getDetails().getInfo() != null
             && lastHC.getDetails().getHealthy()
@@ -1273,5 +1274,29 @@ public final class CassandraCluster {
             .setMemMb(r1.getMemMb() + r2.getMemMb())
             .setDiskMb(r1.getDiskMb() + r2.getDiskMb())
             .build();
+    }
+
+    @VisibleForTesting
+    static long nextPossibleServerLaunchTimestamp(
+        final long lastServerLaunchTimestamp,
+        final long bootstrapGraceTimeSeconds,
+        final long healthCheckIntervalSeconds
+    ) {
+        final long seconds = Math.max(bootstrapGraceTimeSeconds, healthCheckIntervalSeconds);
+        return lastServerLaunchTimestamp + seconds * 1000L;
+    }
+
+    @VisibleForTesting
+    static boolean canLaunchServerTask(final long now, final long nextPossibleServerLaunchTimestamp) {
+        return now >= nextPossibleServerLaunchTimestamp;
+    }
+
+    @VisibleForTesting
+    static long secondsUntilNextPossibleServerLaunch(final long now, final long nextPossibleServerLaunchTimestamp) {
+        final long millisUntilNext = nextPossibleServerLaunchTimestamp - now;
+        if (millisUntilNext <= 0) {
+            return 0L;
+        }
+        return millisUntilNext / 1000;
     }
 }

@@ -1,5 +1,6 @@
-Cassandra-on-Mesos on a Laptop
-==============================
+---
+title: Setting Up and Running Cassandra-Mesos
+---
 
 ------------
 
@@ -9,10 +10,46 @@ document, code behavior, and anything else may change without notice and/or brea
 
 ------------
 
-Cassandra-on-Mesos setup is simple on a  Linux machine or Mac. Windows is not currently supported.. The production configurations are only supported on Linux machines. However, you can use a
-Mac for testing and/or development.
+# Setting Up And Running Cassandra-Mesos
 
-# Requirements
+To set up Cassandra-Mesos locally for development purposes skip ahead to the [Local Setup](#local-setup) section.
+
+## Deploying Cassandra-Mesos to a DCOS Cluster
+
+Note that Cassandra-Mesos is **not** ready to be used for production workloads. Please do not use it for business critical applications just yet.
+
+### Requirements
+
+* Mesosphere DCOS cluster.
+* Mesosphere DCOS CLI installed.
+
+### Installation
+
+1. Update your local cache of the package repository:
+
+      ```bash
+      dcos package update
+      ```
+
+1. Install the Cassandra datacenter service:
+
+      ```bash
+      dcos package install cassandra
+      ```
+
+1. Verify that the service was successfully installed:
+
+      ```bash
+      dcos package list-installed
+      ```
+
+For more information about the DCOS, see the [Mesosphere docs](http://docs.mesosphere.com).
+
+## <a name="local-setup"></a>Local Setup
+
+Cassandra-on-Mesos setup is simple on a Linux machine or Mac. Windows is not currently supported.
+
+### Requirements
 
 * [Apache ZooKeeper] version 3.4.6 or newer
 * [Apache Mesos] version 0.22 or newer
@@ -20,7 +57,7 @@ Mac for testing and/or development.
 * [Cassandra-on-Mesos] checkout the `master` branch (`git clone https://github.com/mesosphere/cassandra-mesos.git`)
 * Oracle JDK 1.7.0u76 or newer
 
-# Note for Mac users
+### Note for Mac users
 
 To run multiple slaves by using local IP addresses like `127.0.0.1` or `127.0.0.2`, you must first make
 them available:
@@ -31,12 +68,12 @@ sudo ifconfig lo0 alias 127.0.0.3 up
 sudo ifconfig lo0 alias 127.0.0.4 up
 ```
 
-# Configuring and starting
+### Configuring and starting
 
 This document assumes that you have created a directory `mkdir ~/cassandra-on-mesos` and your
 working directory is `cd ~/cassandra-on-mesos`.
 
-## ZooKeeper
+#### ZooKeeper
 
 1. Create a new directory `zookeeper` and `cd` into it.
 1. Unpack ZooKeeper tarball in the `zookeeper` directory.
@@ -63,7 +100,7 @@ working directory is `cd ~/cassandra-on-mesos`.
    ~/cassandra-on-mesos/zookeeper/zookeeper-3.4.6$ bin/zkServer.sh start
    ```
 
-## Mesos
+#### Mesos
 
 1. Create a directory `mesos`and `cd` into it.
 1. If you've built Mesos from source, go into the `build` directory.
@@ -83,14 +120,14 @@ working directory is `cd ~/cassandra-on-mesos`.
    ```
 1. Verify that Mesos is running by opening `http://127.0.0.1:5050/` in your browser.
 
-## Cassandra-on-Mesos
+#### Cassandra-on-Mesos
 
-### Cassandra-on-Mesos from a shell prompt
+##### Cassandra-on-Mesos from a shell prompt
 
 1. Open the file `dev-run.bash` and update the variables as necessary.
 1. Execute `dev-run.bash`.
 
-### Cassandra-on-Mesos from an IDE
+##### Cassandra-on-Mesos from an IDE
 
 1. Run  `git clone https://github.com/mesosphere/cassandra-mesos.git`.
 1. Open your IDE, create a project and import it using the Maven model.
@@ -118,17 +155,15 @@ working directory is `cd ~/cassandra-on-mesos`.
    CASSANDRA_FILE_PATH=.../apache-cassandra-2.1.4-bin.tar.gz
    ```
 
-# Start from scratch
+### Start from scratch
 
 1. Kill all Java processes (make sure you don't accidentally kill your IDE's processes).
 1. Kill all Mesos processes, scrub the base working directory.
 1. Stop ZooKeeper, scrub the data directory.
-1. Start ZooKeeper, Mesos master, Mesos slaves, and Cassandra-on-Mesos framework. 
-
+1. Start ZooKeeper, Mesos master, Mesos slaves, and Cassandra-on-Mesos framework.
 
 
 [Apache Cassandra]: http://cassandra.apache.org/
 [Apache Mesos]: http://mesos.apache.org/
 [Apache ZooKeeper]: http://zookeeper.apache.org/
 [Cassandra-on-Mesos]: https://github.com/mesosphere/cassandra-mesos/
-

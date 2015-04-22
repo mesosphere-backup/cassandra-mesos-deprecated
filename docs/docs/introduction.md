@@ -1,45 +1,33 @@
-Cassandra-on-Mesos vs. on-premise Cassandra
-===========================================
+---
+title: Introduction to Cassandra-Meso
+---
 
 ------------
 
 **DISCLAIMER**
-_This is a very early version of Cassandra-on-Mesos framework. This
-document, code behavior, and anything else may change without notice and/or break older installations._
+_This is a very early version of Cassandra-on-Mesos framework. This document, code behavior, and anything else may change without notice and/or break older installations._
 
 ------------
 
+# Introduction to Cassandra-Mesos
 
-When running [Apache Cassandra] on [Apache Mesos] there are 
-some differences. This document gives experienced  native Apache Cassandra users a high level overview
-of the differences.
+There are some differences when running [Apache Cassandra] on [Apache Mesos] versus natively. This document gives experienced Cassandra users a high level overview of these differences.
 
-# Apache Mesos and Apache Cassandra
+## Apache Mesos
 
-## Short Apache Mesos introduction
+Apache Mesos is a cluster resource manager and scheduler that provides an easy and robust abstraction to run services in your datacenter.
 
-With Apache Mesos you can easily run distributed applications in your datacenter. Apache Mesos provides an
-intelligent scheduling layer so that you can run instances of an application based on a known set of
-resource requirements.
-
-Behind the scenes, Apache Mesos uses [Apache ZooKeeper] in a high-availability configuration to persist its state.
-"State" means everything from configuration to the status and load of individual Mesos nodes. This also includes
-the configuration and current status of deployed frameworks like Cassandra-on-Mesos.
+Behind the scenes, Apache Mesos uses [Apache ZooKeeper], a distributed configuration store to persist its state. The "state" of Mesos includes everything from configuration to the status and load of individual Mesos nodes, as well as frameworks like Cassandra-Mesos.
 
 For common Mesos terminology, see the [Mesosphere Glossary](http://mesosphere.com/docs/reference/glossary/).
 
+## Standard Apache Cassandra Installation
 
-
-## Standard Apache Cassandra on-prem installation
-
-Generally, you choose the number of nodes to run Cassandra on, install OS, JRE, and Apache Cassandra on
-these nodes, configure the nodes, and choose a set of seed nodes.
-TL;DR - you do everything on your own.
+The standard way of installing Cassandra involves installing and configuring the operating system, JVM and Cassandra manually on each node in your cluster.
 
 # Initial Cassandra-on-Mesos setup
 
-If you want to try
-Cassandra-on-Mesos on a single development machine, see the [Cassandra-on-Mesos on a Laptop](cassandra-on-mesos-laptop.markdown) page.
+If you want to try Cassandra-on-Mesos on a single development machine, see the [Getting Started]({{ site.baseurl }}/docs/) page.
 
 # Prerequisites
 
@@ -106,7 +94,7 @@ To run the above tools do the following:
 * `cqlsh` - use `com-cqlsh` instead. You can pass all `cqlsh` options to `com-cqlsh`, except host and port.
 * `nodetool` - use `com-nodetool` instead. You can pass all `nodetool` options to `com-nodetool`, except host and port.
   **Important JMX security issue** since version 2.1.4 (and 2.0.14) Cassandra no longer exposes the JMX port to all
-  interfaces but only to the loopback address. See [readme](../README.markdown) for details.
+  interfaces but only to the loopback address. See [readme](https://github.com/mesosphere/cassandra-mesos/blob/master/README.md) for details.
 * `cassandra-stress` - use `com-stress` instead. You can pass all `cassandra-stress` options to `com-stress`,except host and port.
 
 The REST API endpoint chooses the nodes from the set of live nodes randomly. If you use `nodetool`
@@ -165,33 +153,16 @@ Cluster.Builder clusterBuilder =
         .build();
 ```
 
-# Cloud computing nodes
-
-If you run Mesos on Amazon EC2 or Google Compute Engine, make sure that all Cassandra nodes live in one availability
-zone for now. Cross region deployments are currently unsupported.
-
 # Unsupported or unimplemented features
 
 * Multi-datacenter configurations are not implemented yet.
-* Cassandra's Rack/DC awareness is not supported yet, but we encourage you to choose
-  a datacenter and rack name for your cluster.
-* Automatic JRE download might not be ever supported by Cassandra-on-Mesos due to legal/licensing restrictions. 
-* Support for Mesos-DNS is not implemented yet.
-* A default initial configuration is not available yet.
-* Cassandra software download from official Apache mirrors will be added later.
-* Cassandra software updates including rolling restart is not implemented yet. Minor version updates might be easy
-  but major version updates might require additional tasks like `sstableupgrade` - so major software upgrades are
-  a much harder task.
+* Cassandra's Rack/DC awareness is not supported yet, but we encourage you to choose a datacenter and rack name for your cluster.
+* Cassandra software updates including rolling restart is not implemented yet. Minor version updates might be easy but major version updates might require additional tasks like `sstableupgrade` - so major software upgrades are a much harder task.
 * Executor software updates are not implemented yet.
-* Changes to configuration: Cassandra-on-Mesos will have different, named configurations in the future
-  so that you are able to run nodes with different configurations. 
 * SSL/encryption configuration is currently not supported.
 * Support for `sstable*` tools
 * Support for OpsCenter community edition
 * JMX authentication
-
-
-
 
 [Apache Cassandra]: http://cassandra.apache.org/
 [Apache Mesos]: http://mesos.apache.org/
@@ -199,4 +170,3 @@ zone for now. Cross region deployments are currently unsupported.
 [Marathon]: https://mesosphere.github.io/marathon/
 [Mesos-DNS]: https://mesosphere.github.io/mesos-dns/
 [DataStax Java Driver]: https://datastax.github.io/java-driver/
-

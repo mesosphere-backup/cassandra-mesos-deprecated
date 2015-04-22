@@ -1,13 +1,15 @@
-Cassandra-on-Mesos REST API
-===========================
+---
+title: REST API Reference
+---
 
 ------------
 
 **DISCLAIMER**
-_This is a very early version of Cassandra-on-Mesos framework. This
-document, code behavior, and anything else may change without notice and/or break older installations._
+_This is a very early version of Cassandra-on-Mesos framework. This document, code behavior, and anything else may change without notice and/or break older installations._
 
 ------------
+
+# REST API Reference
 
 Cassandra-on-Mesos provides a REST API though its scheduler. point your browser to `http://127.0.0.1:18080/` (or wherever your 
 Cassandra-on-Mesos scheduler is running).
@@ -408,7 +410,7 @@ Endpoint | HTTP method | Content-Types| Description
 
 ## `/live-nodes/text?limit=N`
 
-```json
+```
 NATIVE: 9042
 RPC: 9160
 JMX: 7199

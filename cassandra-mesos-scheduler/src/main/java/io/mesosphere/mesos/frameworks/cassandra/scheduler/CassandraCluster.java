@@ -1076,6 +1076,7 @@ public final class CassandraCluster {
         final CassandraNode.Builder node;
         if (!nodeOption.isPresent()) {
             if (clusterState.get().getNodesToAcquire() <= 0) {
+                LOGGER.info(marker, "Number of desired Cassandra Nodes Acquired, no new node to launch.");
                 // number of C* cluster nodes already present
                 return null;
             }
@@ -1113,9 +1114,11 @@ public final class CassandraCluster {
         if (!node.hasCassandraNodeExecutor()) {
             if (node.getTargetRunState() == CassandraNode.TargetRunState.TERMINATE) {
                 // node completely terminated
+                LOGGER.info(marker, "Node marked for Termination, not launching any tasks.");
                 return null;
             }
             final String executorId = getExecutorIdForOffer(offer);
+            LOGGER.debug(marker, "Configuring new executor {}", executorId);
             final CassandraNodeExecutor executor = buildCassandraNodeExecutor(executorId);
             node.setCassandraNodeExecutor(executor);
         }
@@ -1128,21 +1131,25 @@ public final class CassandraCluster {
         if (metadataTask == null) {
             if (node.getTargetRunState() == CassandraNode.TargetRunState.TERMINATE) {
                 // node completely terminated
+                LOGGER.info(marker, "Node marked for Termination, not launching any tasks.");
                 return null;
             }
+            LOGGER.info(marker, "Launching new metadata task for executor: {}", executorId);
             metadataTask = getMetadataTask(executorId, node.getIp());
             node.addTasks(metadataTask);
             result.getLaunchTasks().add(metadataTask);
         } else {
             final Optional<ExecutorMetadata> maybeMetadata = getExecutorMetadata(executorId);
-            if (maybeMetadata.isPresent()) {
-
+            if (!maybeMetadata.isPresent()) {
+                LOGGER.debug(marker, "Metadata for node has not been resolved can not launch server task.");
+            } else {
                 handleClusterTask(executorId, result);
 
                 final CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.NodeTaskType.SERVER);
                 if (serverTask == null) {
                     switch (node.getTargetRunState()) {
                         case RUN:
+                            LOGGER.debug(marker, "Attempting to launch server task for node.");
                             break;
                         case TERMINATE:
 
@@ -1151,7 +1158,7 @@ public final class CassandraCluster {
 
                             return result;
                         case STOP:
-                            LOGGER.debug(marker, "Cannot launch server (targetRunState==STOP)");
+                            LOGGER.info(marker, "Cannot launch server (targetRunState==STOP)");
                             return null;
                         case RESTART:
                             // change state to run (RESTART complete)
@@ -1161,7 +1168,7 @@ public final class CassandraCluster {
 
                     if (clusterState.get().getSeedsToAcquire() > 0) {
                         // we do not have enough executor metadata records to fulfil seed node requirement
-                        LOGGER.debug(marker, "Cannot launch non-seed node (seed node requirement not fulfilled)");
+                        LOGGER.info(marker, "Cannot launch non-seed node (seed node requirement not fulfilled)");
                         return null;
                     }
 
@@ -1178,7 +1185,7 @@ public final class CassandraCluster {
                         // (otherwise that node will fail to start)
                         boolean anySeedRunning = anySeedRunningAndHealthy();
                         if (!anySeedRunning) {
-                            LOGGER.info("Cannot start server task because no seed node is running");
+                            LOGGER.info(marker, "Cannot start server task because no seed node is running");
                             return null;
                         }
                     }
@@ -1201,7 +1208,9 @@ public final class CassandraCluster {
                         clusterState.updateLastServerLaunchTimestamp(now);
                     }
                 } else {
+                    LOGGER.debug(marker, "Server tasks for node already running.");
                     if (node.getNeedsConfigUpdate()) {
+                        LOGGER.info(marker, "Launching config update tasks for executor: {}", executorId);
                         final CassandraNodeTask task = getConfigUpdateTask(configUpdateTaskId(node), maybeMetadata.get());
                         node.addTasks(task)
                             .setNeedsConfigUpdate(false);
@@ -1227,6 +1236,7 @@ public final class CassandraCluster {
 
         if (!result.hasAnyTask()) {
             // nothing to do
+            LOGGER.info(marker, "No tasks to launch.");
             return null;
         }
 

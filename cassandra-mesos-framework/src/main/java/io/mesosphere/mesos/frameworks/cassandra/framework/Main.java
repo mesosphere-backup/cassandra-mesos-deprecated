@@ -220,7 +220,7 @@ public final class Main {
                 new NodeController(cassandraCluster, factory),
                 new HealthCheckController(healthReportService),
                 new QaReportController(cassandraCluster, factory),
-                // new ScaleOutController(cassandraCluster, factory)
+                new ScaleOutController(cassandraCluster, factory),
                 provider
             );
         final HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(httpServerBaseUri, rc);

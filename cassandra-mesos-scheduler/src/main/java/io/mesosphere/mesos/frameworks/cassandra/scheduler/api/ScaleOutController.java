@@ -48,7 +48,7 @@ public final class ScaleOutController {
      */
     @POST
     @Path("/nodes")
-    public Response updateNodeCount(@QueryParam("nodes") final int nodeCount) {
+    public Response updateNodeCount(@QueryParam("nodeCount") final int nodeCount) {
         final NodeCounts oldNodeCount = cluster.getClusterState().nodeCounts();
         final int newCount = cluster.updateNodeCount(nodeCount);
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {

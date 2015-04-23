@@ -43,7 +43,6 @@ public class ApiControllerTest extends AbstractApiControllerTest {
         final ObjectMapper mapper = new ObjectMapper();
         final List<ApiEndpoint> list = mapper.readValue(json.toString(), LIST_TYPE_REFERENCE);
 
-        assertThat(list).hasSize(28);
         assertThat(list).isEqualTo(
                 newArrayList(
                         new ApiEndpoint("GET",  baseUri + "config", newArrayList("application/json")),
@@ -73,7 +72,8 @@ public class ApiControllerTest extends AbstractApiControllerTest {
                         new ApiEndpoint("GET",  baseUri + "live-nodes/cqlsh", newArrayList("text/x-cassandra-cqlsh")),
                         new ApiEndpoint("GET",  baseUri + "live-nodes/nodetool", newArrayList("text/x-cassandra-nodetool")),
                         new ApiEndpoint("GET",  baseUri + "live-nodes/stress", newArrayList("text/x-cassandra-stress")),
-                        new ApiEndpoint("GET",  baseUri + "qa/report/resources", newArrayList("application/json", "text/plain"))
+                        new ApiEndpoint("GET",  baseUri + "qa/report/resources", newArrayList("application/json", "text/plain")),
+                        new ApiEndpoint("POST", baseUri + "scale/nodes?nodeCount={nodeCount}", newArrayList("application/json"))
                 )
         );
     }

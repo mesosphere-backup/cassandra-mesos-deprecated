@@ -74,7 +74,8 @@ public final class ApiController {
                 new ApiEndpoint("GET",  baseUri + "live-nodes/cqlsh", newArrayList("text/x-cassandra-cqlsh")),
                 new ApiEndpoint("GET",  baseUri + "live-nodes/nodetool", newArrayList("text/x-cassandra-nodetool")),
                 new ApiEndpoint("GET",  baseUri + "live-nodes/stress", newArrayList("text/x-cassandra-stress")),
-                new ApiEndpoint("GET",  baseUri + "qa/report/resources", newArrayList("application/json", "text/plain"))
+                new ApiEndpoint("GET",  baseUri + "qa/report/resources", newArrayList("application/json", "text/plain")),
+                new ApiEndpoint("POST", baseUri + "scale/nodes?nodeCount={nodeCount}", newArrayList("application/json"))
         );
     }
 

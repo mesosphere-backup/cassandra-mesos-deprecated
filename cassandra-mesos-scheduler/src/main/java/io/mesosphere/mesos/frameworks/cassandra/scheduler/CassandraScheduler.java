@@ -157,7 +157,7 @@ public final class CassandraScheduler implements Scheduler {
                             status.getState(),
                             status.getTaskId().getValue(),
                             status.getExecutorId().getValue(),
-                            status.getReason(),
+                            protoToString(status.getReason()),
                             status.getHealthy(),
                             status.getMessage());
                 case TASK_FINISHED:

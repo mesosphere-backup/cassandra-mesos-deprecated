@@ -60,13 +60,13 @@ message CassandraFrameworkConfiguration {
      */
     optional CassandraConfigRole defaultConfigRole = 7;
     /**
-     * Initial target number of Cassandra nodes.
+     * target number of Cassandra nodes.
      */
-    optional int32 initialNumberOfNodes = 8;
+    optional int32 targetNumberOfNodes = 8;
     /**
-     * Initial target number of seed nodes.
+     * target number of seed nodes.
      */
-    optional int32 initialNumberOfSeeds = 9;
+    optional int32 targetNumberOfSeeds = 9;
 }
 
 /**
@@ -184,16 +184,6 @@ message CassandraClusterState {
      * List of IP addresses of nodes that need to be replaced.
      */
     repeated string replaceNodeIps = 4;
-    /**
-     * Number of new nodes that have to be acquired.
-     * If replaceNodeIps is not empty, new nodes will start with the -Dcassandra.replace_address=<IP>
-     * option passed to the Cassandra process.
-     */
-    optional int32 nodesToAcquire = 5;
-    /**
-     * The number of seeds that need to be acquired.
-     */
-    optional int32 seedsToAcquire = 6;
 }
 
 /**

@@ -677,13 +677,11 @@ public final class CassandraCluster {
     }
 
     public int updateNodeCount(final int nodeCount) {
-        final int currentNodeCount = clusterState.nodeCounts().getNodeCount() + clusterState.get().getNodesToAcquire();
-        final int newNodeCount = nodeCount - currentNodeCount;
-        if (newNodeCount < 0) {
-            LOGGER.info("Cannot shrink number of nodes from {} to {}", currentNodeCount, nodeCount);
-            return currentNodeCount;
-        } else if (newNodeCount > 0) {
-            clusterState.acquireNewNodes(newNodeCount);
+        final int currentDesiredNodeCount = configuration.targetNumberOfNodes();
+        if (nodeCount < currentDesiredNodeCount) {
+            throw new IllegalArgumentException("Can not decrease the number of nodes.");
+        } else if (nodeCount > currentDesiredNodeCount) {
+            configuration.targetNumberOfNodes(nodeCount);
         }
         return nodeCount;
     }
@@ -957,7 +955,7 @@ public final class CassandraCluster {
 
         final List<CassandraNode> liveSeedNodes = getLiveSeedNodes();
 
-        if (clusterState.get().getSeedsToAcquire() > 0) {
+        if (clusterState.nodeCounts().getSeedCount() < configuration.targetNumberOfSeeds()) {
             throw new SeedChangeException("Must not change seed status while initial number of seed nodes has not been acquired");
         }
 
@@ -970,6 +968,14 @@ public final class CassandraCluster {
             .setSeed(seed));
 
         return true;
+    }
+
+    public static int numberOfNodesToAcquire(final NodeCounts nodeCounts, final PersistedCassandraFrameworkConfiguration configuration) {
+        return configuration.targetNumberOfNodes() - nodeCounts.getNodeCount();
+    }
+
+    public static int numberOfSeedsToAcquire(final NodeCounts nodeCounts, final PersistedCassandraFrameworkConfiguration configuration) {
+        return configuration.targetNumberOfSeeds() - nodeCounts.getSeedCount();
     }
 
     /**
@@ -1073,9 +1079,10 @@ public final class CassandraCluster {
         final CassandraConfigRole configRole = configuration.getDefaultConfigRole();
         final CassandraFrameworkConfiguration config = configuration.get();
 
+        final NodeCounts nodeCounts = clusterState.nodeCounts();
         final CassandraNode.Builder node;
         if (!nodeOption.isPresent()) {
-            if (clusterState.get().getNodesToAcquire() <= 0) {
+            if (nodeCounts.getNodeCount() >= configuration.targetNumberOfNodes()) {
                 LOGGER.info(marker, "Number of desired Cassandra Nodes Acquired, no new node to launch.");
                 // number of C* cluster nodes already present
                 return null;
@@ -1103,7 +1110,7 @@ public final class CassandraCluster {
 
             final String replacementForIp = clusterState.nextReplacementIp();
 
-            final boolean buildSeedNode = clusterState.doAcquireNewNodeAsSeed();
+            final boolean buildSeedNode = nodeCounts.getSeedCount() < config.getTargetNumberOfSeeds();
             final CassandraNode newNode = buildCassandraNode(offer, buildSeedNode, replacementForIp);
             clusterState.nodeAcquired(newNode);
             node = CassandraNode.newBuilder(newNode);
@@ -1166,7 +1173,7 @@ public final class CassandraCluster {
                             break;
                     }
 
-                    if (clusterState.get().getSeedsToAcquire() > 0) {
+                    if (nodeCounts.getSeedCount() < configuration.targetNumberOfSeeds()) {
                         // we do not have enough executor metadata records to fulfil seed node requirement
                         LOGGER.info(marker, "Cannot launch non-seed node (seed node requirement not fulfilled)");
                         return null;
@@ -1208,7 +1215,7 @@ public final class CassandraCluster {
                         clusterState.updateLastServerLaunchTimestamp(now);
                     }
                 } else {
-                    LOGGER.debug(marker, "Server tasks for node already running.");
+                    LOGGER.debug(marker, "Server task for node already running.");
                     if (node.getNeedsConfigUpdate()) {
                         LOGGER.info(marker, "Launching config update tasks for executor: {}", executorId);
                         final CassandraNodeTask task = getConfigUpdateTask(configUpdateTaskId(node), maybeMetadata.get());

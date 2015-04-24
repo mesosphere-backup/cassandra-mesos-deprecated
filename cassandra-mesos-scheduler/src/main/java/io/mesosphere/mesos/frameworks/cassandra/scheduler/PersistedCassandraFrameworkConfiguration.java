@@ -74,8 +74,8 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setDefaultConfigRole(fillConfigRoleGaps(configRole))
                         .setHealthCheckIntervalSeconds(healthCheckIntervalSeconds)
                         .setBootstrapGraceTimeSeconds(bootstrapGraceTimeSec)
-                        .setInitialNumberOfNodes(executorCount)
-                        .setInitialNumberOfSeeds(seedCount)
+                        .setTargetNumberOfNodes(executorCount)
+                        .setTargetNumberOfSeeds(seedCount)
                         .build();
                 }
             },
@@ -178,5 +178,29 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     @NotNull
     public String mesosRole() {
         return getDefaultConfigRole().getMesosRole();
+    }
+
+    public int targetNumberOfNodes() {
+        return get().getTargetNumberOfNodes();
+    }
+
+    public void targetNumberOfNodes(final int newNodeCount) {
+        setValue(
+            CassandraFrameworkConfiguration.newBuilder(get())
+                .setTargetNumberOfNodes(newNodeCount)
+                .build()
+        );
+    }
+
+    public int targetNumberOfSeeds() {
+        return get().getTargetNumberOfSeeds();
+    }
+
+    public void targetNumberOfSeeds(final int newSeedCount) {
+        setValue(
+            CassandraFrameworkConfiguration.newBuilder(get())
+                .setTargetNumberOfSeeds(newSeedCount)
+                .build()
+        );
     }
 }

@@ -30,15 +30,15 @@ public class NodeScaleOutTest extends AbstractCassandraSchedulerTest {
         noopOnOffer(slaves[1], 3);
         noopOnOffer(slaves[2], 3);
 
-        assertEquals(0, cluster.getClusterState().get().getNodesToAcquire());
+        assertEquals(0, CassandraCluster.numberOfNodesToAcquire(clusterState.nodeCounts(), cluster.getConfiguration()));
 
         cluster.updateNodeCount(4);
 
-        assertEquals(1, cluster.getClusterState().get().getNodesToAcquire());
+        assertEquals(1, CassandraCluster.numberOfNodesToAcquire(clusterState.nodeCounts(), cluster.getConfiguration()));
 
         startFourthNode();
 
-        assertEquals(0, cluster.getClusterState().get().getNodesToAcquire());
+        assertEquals(0, CassandraCluster.numberOfNodesToAcquire(clusterState.nodeCounts(), cluster.getConfiguration()));
 
         fourthNodeRunning();
     }

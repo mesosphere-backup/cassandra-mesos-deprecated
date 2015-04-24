@@ -52,7 +52,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
         cluster = new CassandraCluster(new SystemClock(),
             "http://127.42.42.42:42",
             new ExecutorCounter(state, 0L),
-            new PersistedCassandraClusterState(state, 3, 2),
+            new PersistedCassandraClusterState(state),
             new PersistedCassandraClusterHealthCheckHistory(state),
             new PersistedCassandraClusterJobs(state),
             configuration);

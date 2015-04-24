@@ -179,7 +179,7 @@ public final class Main {
 
         final Clock clock = new SystemClock();
         final PersistedCassandraClusterHealthCheckHistory healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);
-        final PersistedCassandraClusterState clusterState = new PersistedCassandraClusterState(state, executorCount, seedCount);
+        final PersistedCassandraClusterState clusterState = new PersistedCassandraClusterState(state);
         final CassandraCluster cassandraCluster = new CassandraCluster(
             clock,
             httpServerBaseUri.toString(),

@@ -18,9 +18,7 @@ package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.ReplaceNodePreconditionFailed;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.SeedChangeException;
+import io.mesosphere.mesos.frameworks.cassandra.scheduler.*;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.JaxRsUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -148,7 +146,8 @@ public final class NodeController {
                 }
                 json.writeEndArray();
 
-                json.writeNumberField("nodesToAcquire", clusterState.getNodesToAcquire());
+                final NodeCounts nodeCounts = cluster.getClusterState().nodeCounts();
+                json.writeNumberField("nodesToAcquire", CassandraCluster.numberOfNodesToAcquire(nodeCounts, cluster.getConfiguration()));
 
                 json.writeArrayFieldStart("nodes");
                 for (final CassandraFrameworkProtos.CassandraNode cassandraNode : clusterState.getNodesList()) {

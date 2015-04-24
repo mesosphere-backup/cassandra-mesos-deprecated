@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.NodeCounts;
+import io.mesosphere.mesos.frameworks.cassandra.scheduler.PersistedCassandraFrameworkConfiguration;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.JaxRsUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -79,34 +80,35 @@ public final class ConfigController {
             @Override
             public void write(final JsonGenerator json) throws IOException {
 
-                final CassandraFrameworkProtos.CassandraFrameworkConfiguration configuration = cluster.getConfiguration().get();
+                final PersistedCassandraFrameworkConfiguration configuration = cluster.getConfiguration();
+                final CassandraFrameworkProtos.CassandraFrameworkConfiguration config = configuration.get();
 
-                json.writeStringField("frameworkName", configuration.getFrameworkName());
-                json.writeStringField("frameworkId", configuration.getFrameworkId());
-                json.writeStringField("clusterName", configuration.getFrameworkName());
-                json.writeNumberField("initialNumberOfNodes", configuration.getInitialNumberOfNodes());
-                json.writeNumberField("initialNumberOfSeeds", configuration.getInitialNumberOfSeeds());
+                json.writeStringField("frameworkName", config.getFrameworkName());
+                json.writeStringField("frameworkId", config.getFrameworkId());
+                json.writeStringField("clusterName", config.getFrameworkName());
+                json.writeNumberField("targetNumberOfNodes", config.getTargetNumberOfNodes());
+                json.writeNumberField("targetNumberOfSeeds", config.getTargetNumberOfSeeds());
 
                 final NodeCounts nodeCounts = cluster.getClusterState().nodeCounts();
                 json.writeNumberField("currentNumberOfNodes", nodeCounts.getNodeCount());
                 json.writeNumberField("currentNumberOfSeeds", nodeCounts.getSeedCount());
-                json.writeNumberField("nodesToAcquire", cluster.getClusterState().get().getNodesToAcquire());
-                json.writeNumberField("seedsToAcquire", cluster.getClusterState().get().getSeedsToAcquire());
+                json.writeNumberField("nodesToAcquire", CassandraCluster.numberOfNodesToAcquire(nodeCounts, configuration));
+                json.writeNumberField("seedsToAcquire", CassandraCluster.numberOfSeedsToAcquire(nodeCounts, configuration));
 
-                final CassandraFrameworkProtos.CassandraConfigRole configRole = configuration.getDefaultConfigRole();
+                final CassandraFrameworkProtos.CassandraConfigRole configRole = config.getDefaultConfigRole();
                 json.writeObjectFieldStart("defaultConfigRole");
                 JaxRsUtils.writeConfigRole(json, configRole);
                 json.writeEndObject();
 
-                json.writeNumberField("nativePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_NATIVE));
-                json.writeNumberField("rpcPort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_RPC));
-                json.writeNumberField("storagePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_STORAGE));
-                json.writeNumberField("sslStoragePort", CassandraCluster.getPortMapping(configuration, CassandraCluster.PORT_STORAGE_SSL));
+                json.writeNumberField("nativePort", CassandraCluster.getPortMapping(config, CassandraCluster.PORT_NATIVE));
+                json.writeNumberField("rpcPort", CassandraCluster.getPortMapping(config, CassandraCluster.PORT_RPC));
+                json.writeNumberField("storagePort", CassandraCluster.getPortMapping(config, CassandraCluster.PORT_STORAGE));
+                json.writeNumberField("sslStoragePort", CassandraCluster.getPortMapping(config, CassandraCluster.PORT_STORAGE_SSL));
 
                 JaxRsUtils.writeSeedIps(cluster, json);
 
-                json.writeNumberField("healthCheckIntervalSeconds", configuration.getHealthCheckIntervalSeconds());
-                json.writeNumberField("bootstrapGraceTimeSeconds", configuration.getBootstrapGraceTimeSeconds());
+                json.writeNumberField("healthCheckIntervalSeconds", config.getHealthCheckIntervalSeconds());
+                json.writeNumberField("bootstrapGraceTimeSeconds", config.getBootstrapGraceTimeSeconds());
 
                 final CassandraFrameworkProtos.ClusterJobStatus currentTask = cluster.getCurrentClusterJob();
                 JaxRsUtils.writeClusterJob(cluster, json, "currentClusterTask", currentTask);

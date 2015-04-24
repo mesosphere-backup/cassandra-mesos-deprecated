@@ -212,6 +212,13 @@ The `/` endpoint returns a simple JSON object that lists all URLs the method to 
         ],
         "method": "GET",
         "url": "http://localhost:18080/qa/report/resources"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/scale/nodes?nodeCount={count}"
     }
 ]
 ```
@@ -248,6 +255,7 @@ Endpoint | HTTP method | Content-Types| Description
 `/live-nodes/nodetool`              | `GET`  | `text/x-cassandra-nodetool` | Special live-nodes endpoints that produce command line options for the Cassandra tool nodetool.
 `/live-nodes/stress`                | `GET`  | `text/x-cassandra-stress` | Special live-nodes endpoints that produce command line options for the Cassandra tool stress.
 `/qa/report/resources`              | `GET`  | `application/json`, `text/plain` | Retrieve a JSON response with relevant information to create a QA report.
+`/scale/nodes?nodeCount={count}`    | `GET`  | `application/json` | Set the desired number of nodes for the cluster (Currently only supports increasing number of nodes).
 
 # Example response
 

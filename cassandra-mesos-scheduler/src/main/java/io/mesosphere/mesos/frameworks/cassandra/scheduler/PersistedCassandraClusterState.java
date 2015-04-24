@@ -31,9 +31,8 @@ import static io.mesosphere.mesos.util.Functions.append;
 
 public final class PersistedCassandraClusterState extends StatePersistedObject<CassandraFrameworkProtos.CassandraClusterState> {
     public PersistedCassandraClusterState(
-            @NotNull final State state,
-            final int executorCount,
-            final int seedCount) {
+        @NotNull final State state
+    ) {
         super(
             "CassandraClusterState",
             state,
@@ -41,8 +40,6 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
                 @Override
                 public CassandraFrameworkProtos.CassandraClusterState get() {
                     return CassandraFrameworkProtos.CassandraClusterState.newBuilder()
-                        .setNodesToAcquire(executorCount)
-                        .setSeedsToAcquire(seedCount)
                         .build();
                 }
             },
@@ -160,7 +157,6 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
         setValue(
             builder
                 .addReplaceNodeIps(ip)
-                .setNodesToAcquire(builder.getNodesToAcquire() + 1)
                 .build()
         );
     }
@@ -181,7 +177,6 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
                     nodes(),
                     newNode
                 ))
-                .setNodesToAcquire(builder.getNodesToAcquire() - 1)
                 .build()
         );
     }
@@ -190,15 +185,6 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
     public String nextReplacementIp() {
         final List<String> list = get().getReplaceNodeIpsList();
         return list.isEmpty() ? null : list.get(0);
-    }
-
-    public void acquireNewNodes(final int newNodeCount) {
-        final CassandraFrameworkProtos.CassandraClusterState.Builder builder = CassandraFrameworkProtos.CassandraClusterState.newBuilder(get());
-        setValue(
-            builder
-                .setNodesToAcquire(builder.getNodesToAcquire() + newNodeCount)
-                .build()
-        );
     }
 
     public void nodeReplaced(@NotNull final CassandraFrameworkProtos.CassandraNode cassandraNode) {
@@ -216,15 +202,5 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
         }
 
         setValue(builder.build());
-    }
-    public boolean doAcquireNewNodeAsSeed() {
-        final CassandraFrameworkProtos.CassandraClusterState value = get();
-        if (value.getSeedsToAcquire() == 0) {
-            return false;
-        }
-        setValue(CassandraFrameworkProtos.CassandraClusterState.newBuilder(value)
-            .setSeedsToAcquire(value.getSeedsToAcquire() - 1)
-            .build());
-        return true;
     }
 }

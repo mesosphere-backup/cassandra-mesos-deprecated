@@ -73,7 +73,6 @@ public final class CassandraScheduler implements Scheduler {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("< registered(driver : {}, frameworkId : {}, masterInfo : {})", driver, protoToString(frameworkId), protoToString(masterInfo));
         }
-        cassandraCluster.updateNodeExecutors();
     }
 
     @Override
@@ -81,7 +80,6 @@ public final class CassandraScheduler implements Scheduler {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("reregistered(driver : {}, masterInfo : {})", driver, protoToString(masterInfo));
         }
-        cassandraCluster.updateNodeExecutors();
         driver.reconcileTasks(Collections.<TaskStatus>emptySet());
     }
 
@@ -157,7 +155,7 @@ public final class CassandraScheduler implements Scheduler {
                             status.getState(),
                             status.getTaskId().getValue(),
                             status.getExecutorId().getValue(),
-                            status.getReason(),
+                            protoToString(status.getReason()),
                             status.getHealthy(),
                             status.getMessage());
                 case TASK_FINISHED:

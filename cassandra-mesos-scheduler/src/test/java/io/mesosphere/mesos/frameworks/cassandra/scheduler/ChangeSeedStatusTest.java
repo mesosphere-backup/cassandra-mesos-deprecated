@@ -28,7 +28,7 @@ public class ChangeSeedStatusTest extends AbstractCassandraSchedulerTest {
 
         cleanState();
 
-        assertEquals(2, clusterState.get().getSeedsToAcquire());
+        assertEquals(2, CassandraCluster.numberOfSeedsToAcquire(clusterState.nodeCounts(), cluster.getConfiguration()));
 
         // rollout slaves
         executorMetadata = new Protos.TaskInfo[slaves.length];
@@ -41,11 +41,11 @@ public class ChangeSeedStatusTest extends AbstractCassandraSchedulerTest {
             assertEquals("Must not change seed status while initial number of seed nodes has not been acquired", e.getMessage());
         }
 
-        assertEquals(1, clusterState.get().getSeedsToAcquire());
+        assertEquals(1, CassandraCluster.numberOfSeedsToAcquire(clusterState.nodeCounts(), cluster.getConfiguration()));
         executorMetadata[1] = launchExecutor(slaves[1], 2);
-        assertEquals(0, clusterState.get().getSeedsToAcquire());
+        assertEquals(0, CassandraCluster.numberOfSeedsToAcquire(clusterState.nodeCounts(), cluster.getConfiguration()));
         executorMetadata[2] = launchExecutor(slaves[2], 3);
-        assertEquals(0, clusterState.get().getSeedsToAcquire());
+        assertEquals(0, CassandraCluster.numberOfSeedsToAcquire(clusterState.nodeCounts(), cluster.getConfiguration()));
 
         threeNodeClusterPost();
 

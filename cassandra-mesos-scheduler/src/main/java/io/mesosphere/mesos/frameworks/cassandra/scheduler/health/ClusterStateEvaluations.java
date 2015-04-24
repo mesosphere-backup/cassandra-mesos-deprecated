@@ -35,7 +35,7 @@ final class ClusterStateEvaluations {
             new Function<ClusterHealthEvaluationContext, Integer>() {
                 @Override
                 public Integer apply(final ClusterHealthEvaluationContext input) {
-                    return input.config.getInitialNumberOfNodes();
+                    return input.config.getTargetNumberOfNodes();
                 }
             },
             new Function<ClusterHealthEvaluationContext, Integer>() {
@@ -53,7 +53,7 @@ final class ClusterStateEvaluations {
             new Function<ClusterHealthEvaluationContext, Integer>() {
                 @Override
                 public Integer apply(final ClusterHealthEvaluationContext input) {
-                    return input.config.getInitialNumberOfSeeds();
+                    return input.config.getTargetNumberOfSeeds();
                 }
             },
             new Function<ClusterHealthEvaluationContext, Integer>() {
@@ -78,7 +78,7 @@ final class ClusterStateEvaluations {
             new Function<ClusterHealthEvaluationContext, List<Boolean>>() {
                 @Override
                 public List<Boolean> apply(final ClusterHealthEvaluationContext input) {
-                    return listFullOf(input.config.getInitialNumberOfNodes(), literalValue(true));
+                    return listFullOf(input.config.getTargetNumberOfNodes(), literalValue(true));
                 }
             },
             new Function<ClusterHealthEvaluationContext, List<Boolean>>() {
@@ -105,7 +105,7 @@ final class ClusterStateEvaluations {
             new Function<ClusterHealthEvaluationContext, List<Optional<String>>>() {
                 @Override
                 public List<Optional<String>> apply(final ClusterHealthEvaluationContext input) {
-                    return listFullOf(input.config.getInitialNumberOfNodes(), literalValue(Optional.of("NORMAL")));
+                    return listFullOf(input.config.getTargetNumberOfNodes(), literalValue(Optional.of("NORMAL")));
                 }
             },
             new Function<ClusterHealthEvaluationContext, List<Optional<String>>>() {
@@ -138,7 +138,7 @@ final class ClusterStateEvaluations {
             new Function<ClusterHealthEvaluationContext, List<Long>>() {
                 @Override
                 public List<Long> apply(final ClusterHealthEvaluationContext input) {
-                    return listFullOf(input.config.getInitialNumberOfNodes(), literalValue(timestamp));
+                    return listFullOf(input.config.getTargetNumberOfNodes(), literalValue(timestamp));
                 }
             },
             new Function<ClusterHealthEvaluationContext, List<Long>>() {
@@ -178,7 +178,7 @@ final class ClusterStateEvaluations {
             new Function<ClusterHealthEvaluationContext, List<Boolean>>() {
                 @Override
                 public List<Boolean> apply(final ClusterHealthEvaluationContext input) {
-                    return listFullOf(input.config.getInitialNumberOfNodes(), literalValue(true));
+                    return listFullOf(input.config.getTargetNumberOfNodes(), literalValue(true));
                 }
             },
             new Function<ClusterHealthEvaluationContext, List<Boolean>>() {

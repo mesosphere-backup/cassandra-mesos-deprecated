@@ -39,15 +39,13 @@ public class HealthReportServiceTest {
         final int numberOfSeeds = 1;
 
         final CassandraClusterState.Builder clusterState =
-            CassandraClusterState.newBuilder()
-                .setNodesToAcquire(numberOfNodes)
-                .setSeedsToAcquire(numberOfSeeds);
+            CassandraClusterState.newBuilder();
 
         final CassandraFrameworkConfiguration.Builder config =
             CassandraFrameworkConfiguration.newBuilder()
                 .setFrameworkName("cassandra.testing")
-                .setInitialNumberOfNodes(numberOfNodes)
-                .setInitialNumberOfSeeds(numberOfSeeds);
+                .setTargetNumberOfNodes(numberOfNodes)
+                .setTargetNumberOfSeeds(numberOfSeeds);
 
         final CassandraClusterHealthCheckHistory.Builder healthCheckHistory =
             CassandraClusterHealthCheckHistory.newBuilder()
@@ -110,8 +108,6 @@ public class HealthReportServiceTest {
 
         final CassandraClusterState.Builder clusterState =
             CassandraClusterState.newBuilder()
-                .setNodesToAcquire(numberOfNodes)
-                .setSeedsToAcquire(numberOfSeeds)
                 .addNodes(
                     CassandraNode.newBuilder()
                         .setHostname("host1")
@@ -169,8 +165,8 @@ public class HealthReportServiceTest {
                 .setFrameworkName("cassandra.testing")
                 .setHealthCheckIntervalSeconds(60)
                 .setBootstrapGraceTimeSeconds(120)
-                .setInitialNumberOfNodes(numberOfNodes)
-                .setInitialNumberOfSeeds(numberOfSeeds);
+                .setTargetNumberOfNodes(numberOfNodes)
+                .setTargetNumberOfSeeds(numberOfSeeds);
 
         final CassandraClusterHealthCheckHistory.Builder healthCheckHistory =
             CassandraClusterHealthCheckHistory.newBuilder()
@@ -270,15 +266,13 @@ public class HealthReportServiceTest {
         final int numberOfSeeds = 1;
 
         final CassandraClusterState.Builder clusterState =
-            CassandraClusterState.newBuilder()
-                .setNodesToAcquire(numberOfNodes)
-                .setSeedsToAcquire(numberOfSeeds);
+            CassandraClusterState.newBuilder();
 
         final CassandraFrameworkConfiguration.Builder config =
             CassandraFrameworkConfiguration.newBuilder()
                 .setFrameworkName("cassandra.testing")
-                .setInitialNumberOfNodes(numberOfNodes)
-                .setInitialNumberOfSeeds(numberOfSeeds);
+                .setTargetNumberOfNodes(numberOfNodes)
+                .setTargetNumberOfNodes(numberOfSeeds);
 
         final CassandraClusterHealthCheckHistory.Builder healthCheckHistory =
             CassandraClusterHealthCheckHistory.newBuilder()
@@ -349,8 +343,6 @@ public class HealthReportServiceTest {
 
         final CassandraClusterState.Builder clusterState =
             CassandraClusterState.newBuilder()
-                .setNodesToAcquire(numberOfNodes)
-                .setSeedsToAcquire(numberOfSeeds)
                 .addNodes(
                     CassandraNode.newBuilder()
                         .setSeed(true)
@@ -407,8 +399,8 @@ public class HealthReportServiceTest {
         final CassandraFrameworkConfiguration.Builder config =
             CassandraFrameworkConfiguration.newBuilder()
                 .setFrameworkName("cassandra.testing")
-                .setInitialNumberOfNodes(numberOfNodes)
-                .setInitialNumberOfSeeds(numberOfSeeds);
+                .setTargetNumberOfNodes(numberOfNodes)
+                .setTargetNumberOfSeeds(numberOfSeeds);
 
         final CassandraClusterHealthCheckHistory.Builder healthCheckHistory =
             CassandraClusterHealthCheckHistory.newBuilder()
@@ -436,8 +428,6 @@ public class HealthReportServiceTest {
 
         final CassandraClusterState.Builder clusterState =
             CassandraClusterState.newBuilder()
-                .setNodesToAcquire(numberOfNodes)
-                .setSeedsToAcquire(numberOfSeeds)
                 .addNodes(
                     CassandraNode.newBuilder()
                         .setSeed(true)
@@ -487,8 +477,8 @@ public class HealthReportServiceTest {
         final CassandraFrameworkConfiguration.Builder config =
             CassandraFrameworkConfiguration.newBuilder()
                 .setFrameworkName("cassandra.testing")
-                .setInitialNumberOfNodes(numberOfNodes)
-                .setInitialNumberOfSeeds(numberOfSeeds);
+                .setTargetNumberOfNodes(numberOfNodes)
+                .setTargetNumberOfSeeds(numberOfSeeds);
 
         final CassandraClusterHealthCheckHistory.Builder healthCheckHistory =
             CassandraClusterHealthCheckHistory.newBuilder()

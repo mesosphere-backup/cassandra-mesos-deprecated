@@ -18,7 +18,6 @@ package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
-import io.mesosphere.mesos.frameworks.cassandra.scheduler.NodeCounts;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.JaxRsUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -48,17 +47,20 @@ public final class ScaleOutController {
      */
     @POST
     @Path("/nodes")
-    public Response updateNodeCount(@QueryParam("nodes") final int nodeCount) {
-        final NodeCounts oldNodeCount = cluster.getClusterState().nodeCounts();
-        final int newCount = cluster.updateNodeCount(nodeCount);
-        return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
-            @Override
-            public void write(final JsonGenerator json) throws IOException {
-                json.writeNumberField("oldNodeCount", oldNodeCount.getNodeCount());
-                json.writeNumberField("seedNodeCount", oldNodeCount.getSeedCount());
-                json.writeBooleanField("applied", newCount == nodeCount);
-                json.writeNumberField("newNodeCount", newCount);
-            }
-        });
+    public Response updateNodeCount(@QueryParam("nodeCount") final int nodeCount) {
+        try {
+            final int newCount = cluster.updateNodeCount(nodeCount);
+            return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
+                @Override
+                public void write(final JsonGenerator json) throws IOException {
+                    json.writeNumberField("newNodeCount", newCount);
+                }
+            });
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                .type("application/json")
+                .entity(String.format("{\"message\":\"%s\"}", e.getMessage()))
+                .build();
+        }
     }
 }

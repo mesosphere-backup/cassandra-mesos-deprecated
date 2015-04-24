@@ -66,7 +66,7 @@ public abstract class AbstractSchedulerTest {
         cluster = new CassandraCluster(new SystemClock(),
                 "http://127.0.0.1:65535",
                 new ExecutorCounter(state, 0L),
-                new PersistedCassandraClusterState(state, 3, 2),
+                new PersistedCassandraClusterState(state),
                 healthCheckHistory,
                 new PersistedCassandraClusterJobs(state),
                 configuration);

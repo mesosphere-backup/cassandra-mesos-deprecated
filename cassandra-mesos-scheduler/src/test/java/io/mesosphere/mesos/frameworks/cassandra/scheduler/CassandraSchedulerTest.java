@@ -70,7 +70,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
             assertNotNull(exec);
             assertThat(nodes).isNotEmpty();
             for (final CassandraFrameworkProtos.FileDownload down : exec.getDownloadList()) {
-                assertThat(down.getDownloadUrl()).startsWith("http://127.42.42.42:42/");
+                assertThat(down.getDownloadUrl()).startsWith("http://127.0.0.1:65535/");
             }
         }
 

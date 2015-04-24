@@ -266,16 +266,6 @@ public final class CassandraCluster {
         );
     }
 
-    public void updateNodeExecutors() {
-        final List<CassandraNode> nodes = new ArrayList<>();
-        for (final CassandraNode node : clusterState.nodes()) {
-            nodes.add(CassandraNode.newBuilder(node)
-                .setCassandraNodeExecutor(buildCassandraNodeExecutor(node.getCassandraNodeExecutor().getExecutorId()))
-                .build());
-        }
-        clusterState.nodes(nodes);
-    }
-
     public void addExecutorMetadata(@NotNull final ExecutorMetadata executorMetadata) {
         clusterState.executorMetadata(append(
             clusterState.executorMetadata(),
@@ -1080,11 +1070,23 @@ public final class CassandraCluster {
         final CassandraFrameworkConfiguration config = configuration.get();
 
         final NodeCounts nodeCounts = clusterState.nodeCounts();
+        final boolean allSeedsAcquired = nodeCounts.getSeedCount() >= configuration.targetNumberOfSeeds();
+
+        final long now = clock.now().getMillis();
+        final long nextPossibleServerLaunchTimestamp = nextPossibleServerLaunchTimestamp();
+        final boolean canLaunchServerTask = canLaunchServerTask(now, nextPossibleServerLaunchTimestamp);
+
         final CassandraNode.Builder node;
         if (!nodeOption.isPresent()) {
             if (nodeCounts.getNodeCount() >= configuration.targetNumberOfNodes()) {
-                LOGGER.info(marker, "Number of desired Cassandra Nodes Acquired, no new node to launch.");
+                LOGGER.debug(marker, "Number of desired Cassandra Nodes Acquired, no new node to launch.");
                 // number of C* cluster nodes already present
+                return null;
+            }
+
+            if (allSeedsAcquired && !canLaunchServerTask) {
+                final long nextPossibleServerLaunchSeconds = secondsUntilNextPossibleServerLaunch(now, nextPossibleServerLaunchTimestamp);
+                LOGGER.info(marker, "Preventing creation of new node because server launch timeout active. Next server launch possible in {}s", nextPossibleServerLaunchSeconds);
                 return null;
             }
 
@@ -1110,8 +1112,7 @@ public final class CassandraCluster {
 
             final String replacementForIp = clusterState.nextReplacementIp();
 
-            final boolean buildSeedNode = nodeCounts.getSeedCount() < config.getTargetNumberOfSeeds();
-            final CassandraNode newNode = buildCassandraNode(offer, buildSeedNode, replacementForIp);
+            final CassandraNode newNode = buildCassandraNode(offer, !allSeedsAcquired, replacementForIp);
             clusterState.nodeAcquired(newNode);
             node = CassandraNode.newBuilder(newNode);
         } else {
@@ -1130,9 +1131,9 @@ public final class CassandraCluster {
             node.setCassandraNodeExecutor(executor);
         }
 
-        final TasksForOffer result = new TasksForOffer(node.getCassandraNodeExecutor());
-
         final CassandraNodeExecutor executor = node.getCassandraNodeExecutor();
+
+        final TasksForOffer result = new TasksForOffer(executor);
         final String executorId = executor.getExecutorId();
         CassandraNodeTask metadataTask = CassandraFrameworkProtosUtils.getTaskForNode(node.build(), CassandraNodeTask.NodeTaskType.METADATA);
         if (metadataTask == null) {
@@ -1173,15 +1174,13 @@ public final class CassandraCluster {
                             break;
                     }
 
-                    if (nodeCounts.getSeedCount() < configuration.targetNumberOfSeeds()) {
+                    if (!allSeedsAcquired) {
                         // we do not have enough executor metadata records to fulfil seed node requirement
                         LOGGER.info(marker, "Cannot launch non-seed node (seed node requirement not fulfilled)");
                         return null;
                     }
 
-                    final long now = clock.now().getMillis();
-                    final long nextPossibleServerLaunchTimestamp = nextPossibleServerLaunchTimestamp();
-                    if (!canLaunchServerTask(now, nextPossibleServerLaunchTimestamp)) {
+                    if (!canLaunchServerTask) {
                         final long nextPossibleServerLaunchSeconds = secondsUntilNextPossibleServerLaunch(now, nextPossibleServerLaunchTimestamp);
                         LOGGER.info(marker, "Server launch timeout active. Next server launch possible in {}s", nextPossibleServerLaunchSeconds);
                         return null;

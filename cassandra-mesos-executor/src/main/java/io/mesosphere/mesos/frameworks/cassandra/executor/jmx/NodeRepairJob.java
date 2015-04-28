@@ -66,8 +66,8 @@ public class NodeRepairJob extends AbstractNodeJob implements NotificationListen
 
             LOGGER.info("Starting repair on keyspace {}", keyspace);
 
-            // equivalent to 'nodetool repair' WITHOUT --partitioner-range, --full, --in-local-dc, --sequential
-            final int commandNo = checkNotNull(jmxConnect).getStorageServiceProxy().forceRepairAsync(keyspace, false, false, false, false);
+            // do 'nodetool repair' in local-DC and on node's primary range
+            final int commandNo = checkNotNull(jmxConnect).getStorageServiceProxy().forceRepairAsync(keyspace, false, true, true, false);
             if (commandNo == 0) {
                 LOGGER.info("Nothing to repair for keyspace {}", keyspace);
                 continue;

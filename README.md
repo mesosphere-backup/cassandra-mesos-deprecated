@@ -12,12 +12,12 @@ document, code behavior, and anything else may change without notice and/or brea
 ------------
 
 # Design
-A design document outlining what features and characteristics are being targeted by the Cassandra Mesos Framework can be found in the docs folder in [design.markdown](docs/design.markdown).
+The design document outlining the features and characteristics being targeted by the Cassandra Mesos Framework can be found at the index of the [docs](http://mesosphere.github.io/cassandra-mesos/docs/).
 
 # Current Status
 
 ### Implemented
-* The framework can register with Mesos providing a failover timeout so that if the framework disconnects from mesos tasks will continue to run.
+* The framework can register with Mesos, providing a failover timeout so that if the framework disconnects from Mesos tasks will continue to run.
 * The number of nodes, amount of resources (cpu, ram, disk and ports) are all configurable and evaluated when resources offers from Mesos are taken into consideration.  
 * cassandra.yaml and varaibles for cassandra-env.sh are provided by the scheduler as part of the task definition.
 * Health checks are performed by the executor and results are sent back to the scheduler using messaging mechanisms provided by Mesos.
@@ -37,13 +37,13 @@ A design document outlining what features and characteristics are being targeted
 
 # Running the Framework
 
-Currently the recommended way to run the Cassandra Mesos Framework is via Marathon. A `marathon.json` from the latest build can be found [here](https://teamcity.mesosphere.io/guestAuth/repository/download/Oss_Mesos_Cassandra_CassandraFramework/.lastSuccessful/marathon.json).
+Currently the recommended way to run the Cassandra-Mesos Framework is via Marathon. A `marathon.json` from the latest build can be found [here](https://teamcity.mesosphere.io/guestAuth/repository/download/Oss_Mesos_Cassandra_CassandraFramework/.lastSuccessful/marathon.json).
 
-Once you've downloaded the marathon.json update the `MESOS_ZK` url and any other parameters you would like to change. Then POST the marathon.json to your marathon instance and the framework will boostrap itself.
+Once you've downloaded the `marathon.json` update the `MESOS_ZK` URL and any other parameters you would like to change. Then POST the `marathon.json` to your marathon instance and the framework will boostrap itself.
 
 ## Mesos Node Configuration
 
-You will need to expand the port range managed by Mesos on each node so that it includes the standard cassandra ports.
+You will need to expand the port range managed by Mesos on each node so that it includes the standard Cassandra ports.
 
 This can be done by passing the following flag to the mesos-slave process:
 ```
@@ -159,7 +159,7 @@ The Cassandra Mesos Framework is a maven project with modules for the Framework,
 ### Install Maven
 The Cassandra Mesos Framework requires an install of Maven 3.2.x.
 
-### Setup maven toolchain for protoc
+### Setup Maven toolchain for protoc
 
 1. Download version 2.5.0 of protobuf [here](https://code.google.com/p/protobuf/downloads/list)
 2. Install

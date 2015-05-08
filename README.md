@@ -11,6 +11,14 @@ document, code behavior, and anything else may change without notice and/or brea
 
 ------------
 
+## Documentation
+
+Cassandra-Mesos documentation is available on the [Cassandra-Mesos GitHub pages site](http://mesosphere.github.io/cassandra-mesos/).
+
+### Contributing
+
+We heartily welcome external contributions to Cassandra-Mesos's documentation. Documentation should be committed to the `master` branch and published to our GitHub pages site using the instructions in [docs/README.md](https://github.com/mesosphere/cassandra-mesos/tree/master/docs).
+
 # Design
 The design document outlining the features and characteristics being targeted by the Cassandra Mesos Framework can be found at the index of the [docs](http://mesosphere.github.io/cassandra-mesos/docs/).
 

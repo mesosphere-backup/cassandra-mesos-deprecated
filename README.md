@@ -159,7 +159,7 @@ stress tests with your application.
 
 ## Rest API
 
-See the [Rest API Doc](docs/rest-api.markdown)
+See the [Rest API Doc](http://mesosphere.github.io/cassandra-mesos/docs/rest-api.html)
 
 ## Build
 The Cassandra Mesos Framework is a maven project with modules for the Framework, Scheduler, Executor and Model. Standard maven convention applies. The Framework and Executor are both built as `jar-with-dependencies` in addition to their standalone jar, so that they are easy to run and distribute.

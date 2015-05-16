@@ -221,6 +221,27 @@ The `/` endpoint returns a simple JSON object that lists all URLs the method to 
         ],
         "method": "POST",
         "url": "http://localhost:18080/scale/nodes?nodeCount={count}"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/health/process"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/health/cluster"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/health/cluster/report"
     }
 ]
 ```
@@ -258,6 +279,9 @@ Endpoint | HTTP method | Content-Types| Description
 `/live-nodes/stress`                | `GET`  | `text/x-cassandra-stress` | Special live-nodes endpoints that produce command line options for the Cassandra tool stress.
 `/qa/report/resources`              | `GET`  | `application/json`, `text/plain` | Retrieve a JSON response with relevant information to create a QA report.
 `/scale/nodes?nodeCount={count}`    | `GET`  | `application/json` | Set the desired number of nodes for the cluster (Currently only supports increasing number of nodes).
+`/health/process`                   | `GET`  | `application/json` | Simple health check to make sure the framework scheduler process is running (Used by Marathon to determine if process is healthy)
+`/health/cluster`                   | `GET`  | `application/json` | Health check that can be ran by marathon to exposed the health of the Cassandra Cluster (200 if health 500 if not health)
+`/health/cluster/report`            | `GET`  | `application/json` | Health check report that provides visibility into what is evaluated when `/health/cluster` is accessed.
 
 # Example response
 
@@ -783,3 +807,88 @@ LOG: /private/tmp/mesos/slave1/slaves/20150402-133617-16777343-5050-33867-S0/fra
 LOG: /private/tmp/mesos/slave1/slaves/20150402-133617-16777343-5050-33867-S0/frameworks/20150402-133617-16777343-5050-33867-0001/executors/cassandra.node.1.executor/runs/40a91e16-fde8-4b29-b4f7-6dc01c9206ad/apache-cassandra-2.1.4/logs/system.log
 ```
 
+## GET `/health/process`
+
+```json
+{
+    "healthy": true
+}
+```
+
+## GET `/health/cluster`
+
+```json
+{
+    "healthy": true
+}
+```
+
+## GET `/health/cluster/report`
+
+```json
+{
+    "healthy": false,
+    "results": [
+        {
+            "name": "nodeCount",
+            "ok": false,
+            "expected": 3,
+            "actual": 1
+        },
+        {
+            "name": "seedCount",
+            "ok": true,
+            "expected": 1,
+            "actual": 1
+        },
+        {
+            "name": "allHealthy",
+            "ok": false,
+            "expected": [
+                true,
+                true,
+                true
+            ],
+            "actual": [
+                true
+            ]
+        },
+        {
+            "name": "operatingModeNormal",
+            "ok": false,
+            "expected": [
+                "NORMAL",
+                "NORMAL",
+                "NORMAL"
+            ],
+            "actual": [
+                "NORMAL"
+            ]
+        },
+        {
+            "name": "lastHealthCheckNewerThan",
+            "ok": false,
+            "expected": [
+                1431707706729,
+                1431707706729,
+                1431707706729
+            ],
+            "actual": [
+                1431707949828
+            ]
+        },
+        {
+            "name": "nodesHaveServerTask",
+            "ok": false,
+            "expected": [
+                true,
+                true,
+                true
+            ],
+            "actual": [
+                true
+            ]
+        }
+    ]
+}
+```

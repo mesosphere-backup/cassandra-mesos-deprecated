@@ -169,7 +169,7 @@ The Cassandra Mesos Framework requires an install of Maven 3.2.x.
 
 ### Setup Maven toolchain for protoc
 
-1. Download version 2.5.0 of protobuf [here](https://code.google.com/p/protobuf/downloads/list)
+1. Download version 2.5.0 of protobuf [here](https://github.com/google/protobuf/releases/tag/v2.5.0)
 2. Install
   1. Linux (make sure g++ compiler is installed)
     1. Run the following commands to build protobuf

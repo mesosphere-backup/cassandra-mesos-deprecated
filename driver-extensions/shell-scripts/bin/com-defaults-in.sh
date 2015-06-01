@@ -24,5 +24,5 @@
 #API_PORT=18080
 
 # Define the path where your local Apache Cassandra distribution has been unpacked.
-# Example: CASSANDRA_HOME=/home/user/apache-cassandra-2.1.4
+# Example: CASSANDRA_HOME=/home/user/apache-cassandra-2.1.5
 #CASSANDRA_HOME=

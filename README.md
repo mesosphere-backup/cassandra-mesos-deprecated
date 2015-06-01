@@ -252,7 +252,7 @@ EXECUTOR_FILE_PATH=${PROJECT_DIR}/cassandra-mesos-executor/target/cassandra-meso
 # the jre, and it doesn't have to be provided by the slave host.
 JRE_FILE_PATH=${PROJECT_DIR}/target/framework-package/jdk.tar.gz
 
-# The file path to where a tar of Apache Cassandra 2.1.4 is on the local file system.
+# The file path to where a tar of Apache Cassandra 2.1.5 is on the local file system.
 # This file will be served by the build-in http server so that tasks will be able to easily access
 # the cassandra server, and it doesn't have to be provided by the slave host.
 CASSANDRA_FILE_PATH=${PROJECT_DIR}/target/framework-package/cassandra.tar.gz

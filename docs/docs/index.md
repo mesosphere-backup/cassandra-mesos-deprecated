@@ -152,7 +152,7 @@ working directory is `cd ~/cassandra-on-mesos`.
    # Absolute path to the JRE you downloaded
    JRE_FILE_PATH=...jre-7u76-macosx-x64.tar.gz
    # Absolute path to the Apache Cassandra you downloaded
-   CASSANDRA_FILE_PATH=.../apache-cassandra-2.1.4-bin.tar.gz
+   CASSANDRA_FILE_PATH=.../apache-cassandra-2.1.5-bin.tar.gz
    ```
 
 ### Start from scratch

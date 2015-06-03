@@ -148,7 +148,7 @@ working directory is `cd ~/cassandra-on-mesos`.
    # Absolute path of libmesos 
    MESOS_NATIVE_JAVA_LIBRARY=.../libmesos.dylib
    # Absolute path where of the Cassandra-on-Mesos executor
-   EXECUTOR_FILE_PATH=.../cassandra-executor-0.1.0-SNAPSHOT-jar-with-dependencies.jar
+   EXECUTOR_FILE_PATH=.../cassandra-executor-0.1.0-jar-with-dependencies.jar
    # Absolute path to the JRE you downloaded
    JRE_FILE_PATH=...jre-7u76-macosx-x64.tar.gz
    # Absolute path to the Apache Cassandra you downloaded

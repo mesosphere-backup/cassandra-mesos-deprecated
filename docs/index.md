@@ -94,7 +94,7 @@ The Custom Mesos Executor will be responsible for providing a high-fidelity mean
 #### Nodes
 1. Static Port configuration for all ports listed in [10](#resources) below
 
-## Out of Scope for Version 1.0
+## Out of Scope for Version 0.1.0
 
 * Support for reducing the size of a ring
 * Data backup

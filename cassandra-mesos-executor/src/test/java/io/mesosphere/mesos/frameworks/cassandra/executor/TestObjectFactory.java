@@ -29,6 +29,7 @@ import javax.management.Notification;
 import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
 import javax.management.openmbean.TabularData;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.net.InetAddress;
@@ -360,6 +361,11 @@ class TestObjectFactory implements ObjectFactory {
 
         @Override
         public void takeColumnFamilySnapshot(final String keyspaceName, final String columnFamilyName, final String tag) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void takeMultipleColumnFamilySnapshot(final String tag, final String... columnFamilyList) throws IOException {
             throw new UnsupportedOperationException();
         }
 

@@ -81,7 +81,8 @@ message CassandraConfigRole {
     optional string name = 1;
 
     /**
-     * Cassandra version string. Example: 2.1.4
+     * Cassandra version string. Corresponds to the version used in Cassandras packaging
+     * apache-cassandra-{cassandraVersion}-bin.tar.gz
      */
     optional string cassandraVersion = 2;
 

@@ -181,6 +181,13 @@ public final class NodeController {
                     json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
                     json.writeNumberField("jmxPort", cassandraNode.getJmxConnect().getJmxPort());
                     json.writeBooleanField("seedNode", cassandraNode.getSeed());
+
+                    CassandraFrameworkProtos.RackDc rackDc = cassandraNode.getRackDc();
+                    json.writeObjectFieldStart("rackDc");
+                    json.writeStringField("rack", rackDc.getRack());
+                    json.writeStringField("dc", rackDc.getDc());
+                    json.writeEndObject();
+
                     if (!cassandraNode.hasCassandraDaemonPid()) {
                         json.writeNullField("cassandraDaemonPid");
                     } else {
@@ -475,6 +482,38 @@ public final class NodeController {
                 json.writeBooleanField("success", true);
                 json.writeStringField("hostname", cassandraNode.getHostname());
                 json.writeStringField("targetRunState", cassandraNode.getTargetRunState().name());
+            }
+        });
+    }
+
+    /**
+     * Update node with specified parameters. Note: node should be restarted for changes to take effect.
+     */
+    @POST
+    @Path("/{node}/rackdc")
+    public Response nodeRackDc(
+            @PathParam("node") String id,
+            @FormParam("rack") final String rack,
+            @FormParam("dc") String dc
+    ) {
+        CassandraFrameworkProtos.CassandraNode node = cluster.findNode(id);
+        if (node == null) return Response.status(404).build();
+
+        final CassandraFrameworkProtos.CassandraNode.Builder copy = CassandraFrameworkProtos.CassandraNode.newBuilder(node);
+        CassandraFrameworkProtos.RackDc.Builder rackDc = CassandraFrameworkProtos.RackDc.newBuilder(node.getRackDc());
+
+        if (rack != null) rackDc.setRack(rack);
+        if (dc != null) rackDc.setDc(dc);
+
+        copy.setRackDc(rackDc);
+        cluster.getClusterState().addOrSetNode(copy.build());
+
+        return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
+            @Override
+            public void write(final JsonGenerator json) throws IOException {
+                json.writeBooleanField("success", true);
+                json.writeStringField("rack", copy.getRackDc().getRack());
+                json.writeStringField("dc", copy.getRackDc().getDc());
             }
         });
     }

@@ -43,7 +43,9 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         @NotNull final String mesosRole,
         @NotNull final String dataDirectory,
         final boolean jmxLocal,
-        final boolean jmxNoAuthentication
+        final boolean jmxNoAuthentication,
+        final String defaultRack,
+        final String defaultDc
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -76,6 +78,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setBootstrapGraceTimeSeconds(bootstrapGraceTimeSec)
                         .setTargetNumberOfNodes(executorCount)
                         .setTargetNumberOfSeeds(seedCount)
+                        .setDefaultRackDc(CassandraFrameworkProtos.RackDc.newBuilder().setRack(defaultRack).setDc(defaultDc))
                         .build();
                 }
             },
@@ -142,6 +145,13 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     @NotNull
     public CassandraFrameworkProtos.CassandraConfigRole getDefaultConfigRole() {
         return get().getDefaultConfigRole();
+    }
+
+    @NotNull
+    public CassandraFrameworkProtos.RackDc getDefaultRackDc() {
+        CassandraFrameworkProtos.RackDc rackDc = get().getDefaultRackDc();
+        if (rackDc == null) rackDc = CassandraFrameworkProtos.RackDc.newBuilder().setRack("RACK0").setDc("DC0").build();
+        return rackDc;
     }
 
     @NotNull

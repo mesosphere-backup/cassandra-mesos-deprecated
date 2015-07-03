@@ -405,7 +405,7 @@ public final class CassandraCluster {
             builder.setReplacementForIp(replacementForIp);
         }
 
-        builder.setRackDc(RackDc.newBuilder().setRack("RACK0").setDc("DC0"));
+        builder.setRackDc(configuration.getDefaultRackDc());
 
         try {
             final InetAddress ia = InetAddress.getByName(offer.getHostname());

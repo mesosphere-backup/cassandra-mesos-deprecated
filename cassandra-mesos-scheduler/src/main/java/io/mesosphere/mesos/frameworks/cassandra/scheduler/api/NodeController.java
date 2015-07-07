@@ -486,6 +486,11 @@ public final class NodeController {
         });
     }
 
+    public static class RackDcParams {
+        public String rack;
+        public String dc;
+    }
+
     /**
      * Update node with specified parameters. Note: node should be restarted for changes to take effect.
      */
@@ -493,8 +498,7 @@ public final class NodeController {
     @Path("/{node}/rackdc")
     public Response nodeRackDc(
             @PathParam("node") String id,
-            @FormParam("rack") final String rack,
-            @FormParam("dc") String dc
+            RackDcParams params
     ) {
         CassandraFrameworkProtos.CassandraNode node = cluster.findNode(id);
         if (node == null) return Response.status(404).build();
@@ -502,8 +506,8 @@ public final class NodeController {
         final CassandraFrameworkProtos.CassandraNode.Builder copy = CassandraFrameworkProtos.CassandraNode.newBuilder(node);
         CassandraFrameworkProtos.RackDc.Builder rackDc = CassandraFrameworkProtos.RackDc.newBuilder(node.getRackDc());
 
-        if (rack != null) rackDc.setRack(rack);
-        if (dc != null) rackDc.setDc(dc);
+        if (params.rack != null) rackDc.setRack(params.rack);
+        if (params.dc != null) rackDc.setDc(params.dc);
 
         copy.setRackDc(rackDc);
         cluster.getClusterState().addOrSetNode(copy.build());

@@ -65,7 +65,7 @@ public class ApiControllerTest extends AbstractApiControllerTest {
                         new ApiEndpoint("POST", "node/{node}/restart/", newArrayList("application/json")),
                         new ApiEndpoint("POST", "node/{node}/terminate/", newArrayList("application/json")),
                         new ApiEndpoint("POST", "node/{node}/replace/", newArrayList("application/json")),
-                        new ApiEndpoint("POST", "node/{node}/rackdc?rack=$rack&dc=$dc", newArrayList("application/json")),
+                        new ApiEndpoint("POST", "node/{node}/rackdc", newArrayList("application/json")),
                         new ApiEndpoint("POST", "node/{node}/make-seed/", newArrayList("application/json")),
                         new ApiEndpoint("POST", "node/{node}/make-non-seed/", newArrayList("application/json")),
                         new ApiEndpoint("GET",  "live-nodes", newArrayList("application/json")),

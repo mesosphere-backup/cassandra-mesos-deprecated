@@ -43,7 +43,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
-import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +52,6 @@ import java.util.logging.LogManager;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static io.mesosphere.mesos.frameworks.cassandra.scheduler.util.InetAddressUtils.formatInetAddress;
 import static io.mesosphere.mesos.util.ProtoUtils.frameworkId;
 
 public final class Main {
@@ -111,6 +109,7 @@ public final class Main {
         }
 
         final int port0 = Integer.parseInt(portOption.get());
+        final String host = Env.option("HOST").or("localhost");
 
         final int       executorCount               = Integer.parseInt(     Env.option("CASSANDRA_NODE_COUNT").or("3"));
         final int       seedCount                   = Integer.parseInt(     Env.option("CASSANDRA_SEED_COUNT").or("2"));
@@ -125,6 +124,7 @@ public final class Main {
         final String    zkUrl                       =                       Env.option("CASSANDRA_ZK").or("zk://localhost:2181/cassandra-mesos");
         final long      zkTimeoutMs                 = Long.parseLong(       Env.option("CASSANDRA_ZK_TIMEOUT_MS").or("10000"));
         final String    mesosMasterZkUrl            =                       Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");
+        final String    mesosUser                   =                       Env.option("MESOS_USER").or("");
         final long      failoverTimeout             = Long.parseLong(       Env.option("CASSANDRA_FAILOVER_TIMEOUT_SECONDS").or(String.valueOf(Period.days(7).toStandardSeconds().getSeconds())));
         final String    mesosRole                   =                       Env.option("CASSANDRA_FRAMEWORK_MESOS_ROLE").or("*");
         final String    dataDirectory               =                       Env.option("CASSANDRA_DATA_DIRECTORY").or(DEFAULT_DATA_DIRECTORY);  // TODO: Temporary. Will be removed when MESOS-1554 is released
@@ -165,7 +165,7 @@ public final class Main {
         final FrameworkInfo.Builder frameworkBuilder =
             FrameworkInfo.newBuilder()
                 .setFailoverTimeout(failoverTimeout)
-                .setUser("") // Have Mesos fill in the current user.
+                .setUser(mesosUser)
                 .setName(frameworkName)
                 .setRole(mesosRole)
                 .setCheckpoint(true);
@@ -175,7 +175,7 @@ public final class Main {
             frameworkBuilder.setId(frameworkId(frameworkId.get()));
         }
 
-        final URI httpServerBaseUri = URI.create(String.format("http://%s:%d/", formatInetAddress(InetAddress.getLocalHost()), port0));
+        final URI httpServerBaseUri = URI.create("http://" + host + ":" + port0 + "/");
 
         final Clock clock = new SystemClock();
         final PersistedCassandraClusterHealthCheckHistory healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);

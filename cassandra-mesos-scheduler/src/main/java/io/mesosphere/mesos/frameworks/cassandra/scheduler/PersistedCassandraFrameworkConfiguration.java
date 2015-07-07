@@ -44,8 +44,8 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         @NotNull final String dataDirectory,
         final boolean jmxLocal,
         final boolean jmxNoAuthentication,
-        final String defaultRack,
-        final String defaultDc
+        @NotNull final String defaultRack,
+        @NotNull final String defaultDc
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -147,6 +147,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         return get().getDefaultConfigRole();
     }
 
+    // TODO: Persistence Schema Update
     @NotNull
     public CassandraFrameworkProtos.RackDc getDefaultRackDc() {
         CassandraFrameworkProtos.RackDc rackDc = get().getDefaultRackDc();

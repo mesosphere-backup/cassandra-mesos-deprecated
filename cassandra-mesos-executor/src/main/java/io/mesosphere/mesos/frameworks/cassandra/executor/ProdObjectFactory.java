@@ -117,7 +117,7 @@ final class ProdObjectFactory implements ObjectFactory {
         LOGGER.info(taskIdMarker, "Building cassandra-rackdc.properties");
 
         final Properties props = new Properties();
-        RackDc rackDc = serverConfig.getRackDc();
+        final RackDc rackDc = serverConfig.getRackDc();
         props.put("dc", rackDc.getDc());
         props.put("rack", rackDc.getRack());
 

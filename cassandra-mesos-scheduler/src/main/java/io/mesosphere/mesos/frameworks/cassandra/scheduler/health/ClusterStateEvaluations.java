@@ -41,7 +41,14 @@ final class ClusterStateEvaluations {
             new Function<ClusterHealthEvaluationContext, Integer>() {
                 @Override
                 public Integer apply(final ClusterHealthEvaluationContext input) {
-                    return input.state.getNodesList().size();
+                    return from(input.state.getNodesList())
+                        .filter(new Predicate<CassandraNode>() {
+                            @Override
+                            public boolean apply(final CassandraNode input) {
+                                return input.getTargetRunState() != CassandraNode.TargetRunState.TERMINATE;
+                            }
+                        })
+                        .size();
                 }
             });
     }
@@ -60,6 +67,12 @@ final class ClusterStateEvaluations {
                 @Override
                 public Integer apply(final ClusterHealthEvaluationContext input) {
                     return from(input.state.getNodesList())
+                        .filter(new Predicate<CassandraNode>() {
+                            @Override
+                            public boolean apply(final CassandraNode input) {
+                                return input.getTargetRunState() != CassandraNode.TargetRunState.TERMINATE;
+                            }
+                        })
                         .filter(new Predicate<CassandraNode>() {
                             @Override
                             public boolean apply(final CassandraNode input) {
@@ -186,6 +199,12 @@ final class ClusterStateEvaluations {
                 public List<Boolean> apply(final ClusterHealthEvaluationContext input) {
                     return newArrayList(
                         from(input.state.getNodesList())
+                            .filter(new Predicate<CassandraNode>() {
+                                @Override
+                                public boolean apply(final CassandraNode input) {
+                                    return input.getTargetRunState() != CassandraNode.TargetRunState.TERMINATE;
+                                }
+                            })
                             .transform(new Function<CassandraNode, Boolean>() {
                                 @Override
                                 public Boolean apply(final CassandraNode input) {
@@ -207,7 +226,26 @@ final class ClusterStateEvaluations {
 
     @NotNull
     private static FluentIterable<HealthCheckHistoryEntry> getLatestHealthCheckHistoryEntries(@NotNull final ClusterHealthEvaluationContext input) {
+        final FluentIterable<String> runningExecutorIds = from(input.state.getNodesList())
+            .filter(new Predicate<CassandraNode>() {
+                @Override
+                public boolean apply(final CassandraNode input) {
+                    return input.hasCassandraNodeExecutor();
+                }
+            })
+            .transform(new Function<CassandraNode, String>() {
+                @Override
+                public String apply(final CassandraNode input) {
+                    return input.getCassandraNodeExecutor().getExecutorId();
+                }
+            });
         final ListMultimap<String, HealthCheckHistoryEntry> index = from(input.healthCheckHistory.getEntriesList())
+            .filter(new Predicate<HealthCheckHistoryEntry>() {
+                @Override
+                public boolean apply(final HealthCheckHistoryEntry input) {
+                    return runningExecutorIds.contains(input.getExecutorId());
+                }
+            })
             .index(new Function<HealthCheckHistoryEntry, String>() {
                 @Override
                 public String apply(final HealthCheckHistoryEntry input) {

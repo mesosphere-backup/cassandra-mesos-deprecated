@@ -146,6 +146,9 @@ message CassandraConfigRole {
      */
     optional string mesosRole = 8;
 
+    /** Rack/dc info */
+    optional RackDc rackDc = 9;
+
     /**
      * A pre-defined data directory specifying where cassandra should write it's data.
      * NOTE:
@@ -346,6 +349,17 @@ message ClusterJobKeyspaceStatus {
 }
 
 /**
+ * Describes node rack and dc.
+ */
+message RackDc {
+    /** Rack identifier */
+    optional string rack = 1 [default = "RACK0"];
+
+    /** DataCenter identifier */
+    optional string dc = 2  [default = "DC0"];
+}
+
+/**
  * Describes a node.
  */
 message CassandraNode {
@@ -435,6 +449,9 @@ message CassandraNode {
      * need to be restarted.
      */
     optional bool needsConfigUpdate = 14;
+
+    /** Rack/DC information */
+    optional RackDc rackDc = 15;
 }
 /**
  * Describes a data volume for a node.
@@ -686,6 +703,9 @@ message CassandraServerConfig {
      * Cassandra.yaml configuration details.
      */
     required TaskConfig cassandraYamlConfig = 3;
+
+    /** Rack/DC information */
+    optional RackDc rackDc = 4;
 }
 
 /**

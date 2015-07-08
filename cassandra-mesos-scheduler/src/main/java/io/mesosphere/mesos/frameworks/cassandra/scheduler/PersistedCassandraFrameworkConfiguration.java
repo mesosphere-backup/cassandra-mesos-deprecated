@@ -43,7 +43,9 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         @NotNull final String mesosRole,
         @NotNull final String dataDirectory,
         final boolean jmxLocal,
-        final boolean jmxNoAuthentication
+        final boolean jmxNoAuthentication,
+        @NotNull final String defaultRack,
+        @NotNull final String defaultDc
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -65,7 +67,8 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                                 .setValue(jmxLocal ? "yes" : "no"))
                             .addVariables(CassandraFrameworkProtos.TaskEnv.Entry.newBuilder()
                                 .setName("CASSANDRA_JMX_NO_AUTHENTICATION")
-                                .setValue(jmxNoAuthentication ? "yes" : "no")));
+                                .setValue(jmxNoAuthentication ? "yes" : "no")))
+                        .setRackDc(CassandraFrameworkProtos.RackDc.newBuilder().setRack(defaultRack).setDc(defaultDc));
                     if (javeHeapMb > 0) {
                         configRole.setMemJavaHeapMb(javeHeapMb);
                     }
@@ -142,6 +145,14 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     @NotNull
     public CassandraFrameworkProtos.CassandraConfigRole getDefaultConfigRole() {
         return get().getDefaultConfigRole();
+    }
+
+    // TODO: Persistence Schema Update
+    @NotNull
+    public CassandraFrameworkProtos.RackDc getDefaultRackDc() {
+        CassandraFrameworkProtos.RackDc rackDc = getDefaultConfigRole().getRackDc();
+        if (rackDc == null) rackDc = CassandraFrameworkProtos.RackDc.newBuilder().setRack("RACK0").setDc("DC0").build();
+        return rackDc;
     }
 
     @NotNull

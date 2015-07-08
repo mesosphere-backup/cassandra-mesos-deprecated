@@ -98,7 +98,7 @@ final class ProdObjectFactory implements ObjectFactory {
 
         modifyCassandraYaml(taskIdMarker, version, serverConfig);
         modifyCassandraEnvSh(taskIdMarker, version, serverConfig);
-        modifyCassandraRackdc(taskIdMarker, version);
+        modifyCassandraRackdc(taskIdMarker, version, serverConfig);
     }
 
     @NotNull
@@ -110,15 +110,17 @@ final class ProdObjectFactory implements ObjectFactory {
     }
 
     private static void modifyCassandraRackdc(
-        @NotNull final Marker taskIdMarker,
-        @NotNull final String version
+            @NotNull final Marker taskIdMarker,
+            @NotNull final String version,
+            @NotNull final CassandraServerConfig serverConfig
     ) throws IOException {
-
         LOGGER.info(taskIdMarker, "Building cassandra-rackdc.properties");
 
         final Properties props = new Properties();
-        props.put("dc", "DC1");
-        props.put("rack", "RAC1");
+        final RackDc rackDc = serverConfig.getRackDc();
+        props.put("dc", rackDc.getDc());
+        props.put("rack", rackDc.getRack());
+
         // Add a suffix to a datacenter name. Used by the Ec2Snitch and Ec2MultiRegionSnitch to append a string to the EC2 region name.
         //props.put("dc_suffix", "");
         // Uncomment the following line to make this snitch prefer the internal ip when possible, as the Ec2MultiRegionSnitch does.

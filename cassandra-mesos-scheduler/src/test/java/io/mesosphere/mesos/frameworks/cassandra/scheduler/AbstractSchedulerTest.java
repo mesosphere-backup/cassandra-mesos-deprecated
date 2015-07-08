@@ -60,7 +60,9 @@ public abstract class AbstractSchedulerTest {
             "*",
             ".",
             true,
-            false);
+            false,
+            "RACK0",
+            "DC0");
 
         healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);
         cluster = new CassandraCluster(new SystemClock(),

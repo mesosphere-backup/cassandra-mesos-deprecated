@@ -405,6 +405,8 @@ public final class CassandraCluster {
             builder.setReplacementForIp(replacementForIp);
         }
 
+        builder.setRackDc(configuration.getDefaultRackDc());
+
         try {
             final InetAddress ia = InetAddress.getByName(offer.getHostname());
 
@@ -463,12 +465,13 @@ public final class CassandraCluster {
     @NotNull
     private CassandraNodeTask getConfigUpdateTask(
         @NotNull final String taskId,
+        @NotNull final RackDc rackDc,
         @NotNull final ExecutorMetadata metadata
     ) {
         final CassandraFrameworkConfiguration config = configuration.get();
         final CassandraConfigRole configRole = config.getDefaultConfigRole();
 
-        final CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, TaskEnv.getDefaultInstance());
+        final CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, rackDc, TaskEnv.getDefaultInstance());
 
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setType(TaskDetails.TaskDetailsType.UPDATE_CONFIG)
@@ -515,7 +518,7 @@ public final class CassandraCluster {
             command.add("-Dcassandra.replace_address=" + node.getReplacementForIp());
         }
 
-        final CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, taskEnv.build());
+        final CassandraServerConfig cassandraServerConfig = buildCassandraServerConfig(metadata, config, configRole, node.getRackDc(), taskEnv.build());
 
         final TaskDetails taskDetails = TaskDetails.newBuilder()
             .setType(TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN)
@@ -546,6 +549,7 @@ public final class CassandraCluster {
         @NotNull final ExecutorMetadata metadata,
         @NotNull final CassandraFrameworkConfiguration config,
         @NotNull final CassandraConfigRole configRole,
+        @NotNull final RackDc rackDc,
         @NotNull final TaskEnv taskEnv
     ) {
         final TaskConfig.Builder taskConfig = TaskConfig.newBuilder(configRole.getCassandraYamlConfig());
@@ -568,6 +572,7 @@ public final class CassandraCluster {
         return CassandraServerConfig.newBuilder()
             .setCassandraYamlConfig(taskConfig)
             .setTaskEnv(taskEnv)
+            .setRackDc(rackDc)
             .build();
     }
 
@@ -1217,7 +1222,7 @@ public final class CassandraCluster {
                     LOGGER.debug(marker, "Server task for node already running.");
                     if (node.getNeedsConfigUpdate()) {
                         LOGGER.info(marker, "Launching config update tasks for executor: {}", executorId);
-                        final CassandraNodeTask task = getConfigUpdateTask(configUpdateTaskId(node), maybeMetadata.get());
+                        final CassandraNodeTask task = getConfigUpdateTask(configUpdateTaskId(node), node.getRackDc(), maybeMetadata.get());
                         node.addTasks(task)
                             .setNeedsConfigUpdate(false);
                         result.getLaunchTasks().add(task);

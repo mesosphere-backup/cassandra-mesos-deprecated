@@ -163,6 +163,13 @@ The `/` endpoint returns a simple JSON object that lists all URLs the method to 
             "application/json"
         ],
         "method": "POST",
+        "url": "http://localhost:18080/node/{node}/rackdc"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
         "url": "http://localhost:18080/node/{node}/make-seed/"
     },
     {
@@ -270,6 +277,7 @@ Endpoint | HTTP method | Content-Types| Description
 `/node/{node}/restart`              | `POST` | `application/json` | Sets the run-status of the `node` (either IP, hostname, or executor ID) to `RESTART`, which is effectively a sequence of `STOP` followed by `RUN`.
 `/node/{node}/terminate`            | `POST` | `application/json` | Sets the requested run-status of the `node` (either IP, hostname, or executor ID) to `TERMINATE`, which ensures that the Cassandra node can be replaced. There's no way to bring a `terminated` node back.
 `/node/{node}/replace`              | `POST` | `application/json` | Allocates a new Cassandra node that is configured to replace the given _node_ (either IP, hostname, or executor ID).
+`/node/{node}/rackdc`               | `POST` | `application/json` | Updates node with specified rack and dc passed as JSON object.
 `/node/{node}/make-seed`            | `POST` | `application/json` | Converts a non-seed node to a seed node. Implicitly forces a rollout of the Cassandra configuration to all nodes.
 `/node/{node}/make-non-seed`        | `POST` | `application/json` | Converts a seed node to a non-seed node. Implicitly forces a rollout of the Cassandra configuration to all nodes.
 `/live-nodes`                       | `GET`  | `application/json` | Retrieve multiple live nodes, limited to 3 nodes by default. The limit can be changed with the query parameter `limit`.
@@ -728,6 +736,24 @@ IP: 127.0.0.2
    "ipToReplace" : "127.0.0.1",
    "hostname" : "localhost",
    "targetRunState": "TERMINATE"
+}
+```
+
+## `/node/{node}/rackdc`
+request:
+```json
+{
+  "rack": "RACK2",
+  "dc": "DC2"
+}
+```
+
+response:
+```json
+{
+    "success": true,
+    "rack": "RACK2",
+    "dc": "DC2"
 }
 ```
 

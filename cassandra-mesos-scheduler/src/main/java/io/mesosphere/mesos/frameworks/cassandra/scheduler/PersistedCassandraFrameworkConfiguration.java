@@ -67,7 +67,8 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                                 .setValue(jmxLocal ? "yes" : "no"))
                             .addVariables(CassandraFrameworkProtos.TaskEnv.Entry.newBuilder()
                                 .setName("CASSANDRA_JMX_NO_AUTHENTICATION")
-                                .setValue(jmxNoAuthentication ? "yes" : "no")));
+                                .setValue(jmxNoAuthentication ? "yes" : "no")))
+                        .setRackDc(CassandraFrameworkProtos.RackDc.newBuilder().setRack(defaultRack).setDc(defaultDc));
                     if (javeHeapMb > 0) {
                         configRole.setMemJavaHeapMb(javeHeapMb);
                     }
@@ -78,7 +79,6 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setBootstrapGraceTimeSeconds(bootstrapGraceTimeSec)
                         .setTargetNumberOfNodes(executorCount)
                         .setTargetNumberOfSeeds(seedCount)
-                        .setDefaultRackDc(CassandraFrameworkProtos.RackDc.newBuilder().setRack(defaultRack).setDc(defaultDc))
                         .build();
                 }
             },
@@ -150,7 +150,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     // TODO: Persistence Schema Update
     @NotNull
     public CassandraFrameworkProtos.RackDc getDefaultRackDc() {
-        CassandraFrameworkProtos.RackDc rackDc = get().getDefaultRackDc();
+        CassandraFrameworkProtos.RackDc rackDc = getDefaultConfigRole().getRackDc();
         if (rackDc == null) rackDc = CassandraFrameworkProtos.RackDc.newBuilder().setRack("RACK0").setDc("DC0").build();
         return rackDc;
     }

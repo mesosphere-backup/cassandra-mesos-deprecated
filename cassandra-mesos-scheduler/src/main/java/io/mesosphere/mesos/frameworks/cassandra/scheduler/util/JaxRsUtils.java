@@ -183,6 +183,14 @@ public final class JaxRsUtils {
             }
             json.writeEndObject();
         }
+
+        RackDc rackDc = configRole.getRackDc();
+        if (rackDc != null) {
+            json.writeObjectFieldStart("rackDc");
+            json.writeStringField("rack", rackDc.getRack());
+            json.writeStringField("dc", rackDc.getDc());
+            json.writeEndObject();
+        }
     }
 
     public static void writeTask(final JsonGenerator json, final CassandraNodeTask task) throws IOException {

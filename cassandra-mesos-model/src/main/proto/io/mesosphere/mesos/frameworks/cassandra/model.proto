@@ -67,9 +67,6 @@ message CassandraFrameworkConfiguration {
      * target number of seed nodes.
      */
     optional int32 targetNumberOfSeeds = 9;
-
-    /** Default rack/dc info */
-    optional RackDc defaultRackDc = 10;
 }
 
 /**
@@ -148,6 +145,9 @@ message CassandraConfigRole {
      * mesos role to be used to receive resource offers
      */
     optional string mesosRole = 8;
+
+    /** Rack/dc info */
+    optional RackDc rackDc = 9;
 
     /**
      * A pre-defined data directory specifying where cassandra should write it's data.

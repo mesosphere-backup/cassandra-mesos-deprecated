@@ -233,6 +233,12 @@ final class ClusterStateEvaluations {
                     return input.hasCassandraNodeExecutor();
                 }
             })
+            .filter(new Predicate<CassandraNode>() {
+                @Override
+                public boolean apply(final CassandraNode input) {
+                    return input.getTargetRunState() != CassandraNode.TargetRunState.TERMINATE;
+                }
+            })
             .transform(new Function<CassandraNode, String>() {
                 @Override
                 public String apply(final CassandraNode input) {

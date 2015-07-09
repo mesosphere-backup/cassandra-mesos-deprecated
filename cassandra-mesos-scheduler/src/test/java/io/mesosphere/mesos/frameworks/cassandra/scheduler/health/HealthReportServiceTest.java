@@ -973,7 +973,20 @@ public class HealthReportServiceTest {
                                 .setTaskId("host4-server")
                                 .setResources(TaskResources.getDefaultInstance())
                         )
-                );
+                )
+                .addNodes(
+                    CassandraNode.newBuilder()
+                        .setHostname("host5")
+                        .setSeed(false)
+                        .setTargetRunState(CassandraNode.TargetRunState.TERMINATE)
+                        .setCassandraNodeExecutor(
+                            CassandraNodeExecutor.newBuilder()
+                                .setExecutorId("exec5")
+                                .setSource("source")
+                                .setResources(TaskResources.getDefaultInstance())
+                        )
+                )
+            ;
 
         final CassandraFrameworkConfiguration.Builder config =
             CassandraFrameworkConfiguration.newBuilder()
@@ -1041,6 +1054,20 @@ public class HealthReportServiceTest {
                                         .setOperationMode("NORMAL")
                                 )
                         )
+                )
+                .addEntries(
+                    HealthCheckHistoryEntry.newBuilder()
+                        .setTimestampStart(1)
+                        .setTimestampEnd(healthCheckExpiration)
+                        .setExecutorId("exec5")
+                        .setDetails(
+                            HealthCheckDetails.newBuilder()
+                                .setHealthy(true)
+                                .setInfo(
+                                    NodeInfo.newBuilder()
+                                        .setOperationMode("NORMAL")
+                                )
+                        )
                 );
 
         when(clock.now()).thenReturn(now);
@@ -1054,7 +1081,6 @@ public class HealthReportServiceTest {
             )
         );
 
-        assertThat(report.isHealthy()).isTrue();
         final ListMultimap<String, ClusterHealthEvaluationResult<?>> index = from(report.getResults())
             .index(new Function<ClusterHealthEvaluationResult<?>, String>() {
                 @Override
@@ -1088,6 +1114,7 @@ public class HealthReportServiceTest {
         assertThat(lastHealthCheckNewerThan.getActual()).isEqualTo(newArrayList(healthCheckExpiration, healthCheckExpiration, healthCheckExpiration));
         assertThat(lastHealthCheckNewerThan.isOk()).isTrue();
 
+        assertThat(report.isHealthy()).isTrue();
     }
 
     @NotNull

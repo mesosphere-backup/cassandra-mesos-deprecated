@@ -67,7 +67,7 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
             }
 
             if (!nodeForExecutorId.isPresent()) {
-                rejectNode(remainingNodes);
+                rejectNode(currentJob, remainingNodes);
                 return;
             }
 
@@ -75,7 +75,7 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
 
             if (node.getTargetRunState() != CassandraFrameworkProtos.CassandraNode.TargetRunState.RUN
                 || !cluster.isLiveNode(node)) {
-                rejectNode(remainingNodes);
+                rejectNode(currentJob, remainingNodes);
                 return;
             }
 
@@ -107,13 +107,13 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
         }
     }
 
-    private void rejectNode(@NotNull final List<String> remainingNodes) {
-        final CassandraFrameworkProtos.ClusterJobStatus currentJob;
-        currentJob = CassandraFrameworkProtos.ClusterJobStatus.newBuilder()
-            .clearRemainingNodes()
-            .addAllRemainingNodes(remainingNodes)
-            .build();
-        jobsState.setCurrentJob(currentJob);
+    private void rejectNode(@NotNull final CassandraFrameworkProtos.ClusterJobStatus currentJob, @NotNull final List<String> remainingNodes) {
+        final CassandraFrameworkProtos.ClusterJobStatus updatedJob =
+                CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob)
+                        .clearRemainingNodes()
+                        .addAllRemainingNodes(remainingNodes)
+                        .build();
+        jobsState.setCurrentJob(updatedJob);
     }
 
     @Override

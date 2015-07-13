@@ -26,8 +26,11 @@ import org.apache.mesos.state.State;
 import org.jetbrains.annotations.NotNull;
 import org.joda.time.Duration;
 
-public final class PersistedCassandraFrameworkConfiguration extends StatePersistedObject<CassandraFrameworkConfiguration> {
+import java.util.List;
 
+import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.ExternalDc;
+
+public final class PersistedCassandraFrameworkConfiguration extends StatePersistedObject<CassandraFrameworkConfiguration> {
     public PersistedCassandraFrameworkConfiguration(
         @NotNull final State state,
         @NotNull final String frameworkName,
@@ -45,7 +48,8 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         final boolean jmxLocal,
         final boolean jmxNoAuthentication,
         @NotNull final String defaultRack,
-        @NotNull final String defaultDc
+        @NotNull final String defaultDc,
+        @NotNull final List<ExternalDc> externalDcs
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -79,6 +83,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setBootstrapGraceTimeSeconds(bootstrapGraceTimeSec)
                         .setTargetNumberOfNodes(executorCount)
                         .setTargetNumberOfSeeds(seedCount)
+                        .addAllExternalDcs(externalDcs)
                         .build();
                 }
             },

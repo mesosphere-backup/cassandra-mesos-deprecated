@@ -15,11 +15,17 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.framework;
 
+import com.google.common.collect.Maps;
 import org.junit.Test;
 
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 
-import static io.mesosphere.mesos.frameworks.cassandra.framework.Main.*;
+import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.ExternalDc;
+import static io.mesosphere.mesos.frameworks.cassandra.framework.Main.SystemExitException;
+import static io.mesosphere.mesos.frameworks.cassandra.framework.Main.validateZkUrl;
+import static junit.framework.Assert.assertEquals;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class MainTest {
@@ -81,4 +87,17 @@ public class MainTest {
         validateZkUrl("zk://host1:2181/cassandra-mesos/");
     }
 
+    @Test
+    public void testGetExternalDcs() {
+        Map<String, String> opts = Maps.newLinkedHashMap();
+        opts.put("dc0", "http://dc0");
+        opts.put("dc1", "http://dc1");
+
+        List<ExternalDc> dcs = Main.getExternalDcs(opts);
+        assertEquals(2, dcs.size());
+
+        ExternalDc dc0 = dcs.get(0);
+        assertEquals("dc0", dc0.getName());
+        assertEquals("http://dc0", dc0.getUrl());
+    }
 }

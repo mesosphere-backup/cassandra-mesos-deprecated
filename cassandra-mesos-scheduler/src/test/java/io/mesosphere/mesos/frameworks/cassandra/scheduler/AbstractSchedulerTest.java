@@ -15,6 +15,8 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.util.SystemClock;
 import io.mesosphere.mesos.util.Tuple2;
@@ -62,7 +64,9 @@ public abstract class AbstractSchedulerTest {
             true,
             false,
             "RACK0",
-            "DC0");
+            "DC0",
+            Lists.<CassandraFrameworkProtos.ExternalDc>newArrayList()
+        );
 
         healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);
         cluster = new CassandraCluster(new SystemClock(),
@@ -71,7 +75,8 @@ public abstract class AbstractSchedulerTest {
                 new PersistedCassandraClusterState(state),
                 healthCheckHistory,
                 new PersistedCassandraClusterJobs(state),
-                configuration);
+                configuration,
+                new SeedManager(configuration, new ObjectMapper(), new SystemClock()));
 
         clusterState = cluster.getClusterState();
     }

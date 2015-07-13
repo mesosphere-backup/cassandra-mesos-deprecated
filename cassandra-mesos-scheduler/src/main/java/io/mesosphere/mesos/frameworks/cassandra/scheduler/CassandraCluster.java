@@ -114,6 +114,8 @@ public final class CassandraCluster {
     private final PersistedCassandraFrameworkConfiguration configuration;
     @NotNull
     private final PersistedCassandraClusterJobs jobsState;
+    @NotNull
+    private final SeedManager seedManager;
 
     @NotNull
     private final Map<ClusterJobType, ClusterJobHandler> clusterJobHandlers;
@@ -138,7 +140,8 @@ public final class CassandraCluster {
         @NotNull final PersistedCassandraClusterState clusterState,
         @NotNull final PersistedCassandraClusterHealthCheckHistory healthCheckHistory,
         @NotNull final PersistedCassandraClusterJobs jobsState,
-        @NotNull final PersistedCassandraFrameworkConfiguration configuration
+        @NotNull final PersistedCassandraFrameworkConfiguration configuration,
+        @NotNull final SeedManager seedManager
     ) {
         this.clock = clock;
         this.httpServerBaseUrl = httpServerBaseUrl;
@@ -147,6 +150,7 @@ public final class CassandraCluster {
         this.healthCheckHistory = healthCheckHistory;
         this.jobsState = jobsState;
         this.configuration = configuration;
+        this.seedManager = seedManager;
 
         clusterJobHandlers = new EnumMap<>(ClusterJobType.class);
         clusterJobHandlers.put(ClusterJobType.CLEANUP, new NodeTaskClusterJobHandler(this, jobsState));
@@ -162,6 +166,11 @@ public final class CassandraCluster {
     @NotNull
     public PersistedCassandraFrameworkConfiguration getConfiguration() {
         return configuration;
+    }
+
+    @NotNull
+    public SeedManager getSeedManager() {
+        return seedManager;
     }
 
     @Nullable
@@ -316,8 +325,12 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    public List<String> getSeedNodeIps() {
-        return CassandraFrameworkProtosUtils.getSeedNodeIps(clusterState.nodes());
+    public List<String> getSeedNodeIps(final boolean addExternal) {
+        final List<String> seeds = CassandraFrameworkProtosUtils.getSeedNodeIps(clusterState.nodes());
+        if (addExternal) {
+            seeds.addAll(seedManager.getSeeds());
+        }
+        return seeds;
     }
 
     @NotNull
@@ -561,7 +574,7 @@ public final class CassandraCluster {
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("ssl_storage_port", getPortMapping(config, PORT_STORAGE_SSL)));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("native_transport_port", getPortMapping(config, PORT_NATIVE)));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("rpc_port", getPortMapping(config, PORT_RPC)));
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("seeds", SEEDS_FORMAT_JOINER.join(getSeedNodeIps())));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("seeds", SEEDS_FORMAT_JOINER.join(getSeedNodeIps(true))));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("endpoint_snitch", config.hasSnitch() ? config.getSnitch() : "GossipingPropertyFileSnitch"));
         // data directory config
         // TODO: Update the logic here for defining data directories when mesos persistent volumes are released

@@ -1,5 +1,6 @@
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
+import com.google.common.collect.Lists;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.mesos.state.InMemoryState;
 import org.junit.Test;
@@ -30,7 +31,8 @@ public class PersistedCassandraFrameworkConfigurationTest {
                 false,
                 true,
                 "RACK1",
-                "DC1"
+                "DC1",
+                Lists.<CassandraFrameworkProtos.ExternalDc>newArrayList()
         );
 
         CassandraFrameworkProtos.RackDc rackDc = config.getDefaultRackDc();

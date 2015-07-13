@@ -17,7 +17,9 @@ package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
+import io.mesosphere.mesos.util.Clock;
 import io.mesosphere.mesos.util.ProtoUtils;
+import io.mesosphere.mesos.util.SystemClock;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
 
@@ -27,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
 
 public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTest {
+    protected Clock clock = new SystemClock();
     protected CassandraScheduler scheduler;
     protected MockSchedulerDriver driver;
 
@@ -1150,7 +1153,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
     protected void cleanState() {
         super.cleanState();
 
-        scheduler = new CassandraScheduler(configuration, cluster);
+        scheduler = new CassandraScheduler(configuration, cluster, clock);
 
         driver = new MockSchedulerDriver(scheduler);
         driver.callRegistered(Protos.FrameworkID.newBuilder().setValue(UUID.randomUUID().toString()).build());

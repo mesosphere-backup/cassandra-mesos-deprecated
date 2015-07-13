@@ -67,6 +67,26 @@ message CassandraFrameworkConfiguration {
      * target number of seed nodes.
      */
     optional int32 targetNumberOfSeeds = 9;
+
+    /** List of external DCs running other rings of this cluster */
+    repeated ExternalDc externalDcs = 10;
+}
+
+/**
+ * External DC, running other ring of the same cluster
+ */
+message ExternalDc {
+    /** DC name */
+    optional string name = 1;
+
+    /** REST API url */
+    optional string url = 2;
+
+    /** Time of last seed fetching */
+    optional int64 seedFetchTime = 3;
+
+    /** List of fetched seeds */
+    repeated string seeds = 4;
 }
 
 /**

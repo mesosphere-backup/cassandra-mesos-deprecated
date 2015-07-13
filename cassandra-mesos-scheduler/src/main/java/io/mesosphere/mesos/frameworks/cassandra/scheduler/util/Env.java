@@ -18,6 +18,10 @@ package io.mesosphere.mesos.frameworks.cassandra.scheduler.util;
 import com.google.common.base.Optional;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Map;
+
+import static com.google.common.collect.Maps.newHashMap;
+
 public final class Env {
 
     @NotNull
@@ -33,6 +37,20 @@ public final class Env {
     @NotNull
     public static Optional<String> option(@NotNull final String key) {
         return Optional.fromNullable(System.getenv(key));
+    }
+
+    @NotNull
+    public static Map<String, String> filterStartsWith(@NotNull final String prefix, final boolean trimPrefix) {
+        final Map<String, String> result = newHashMap();
+
+        for (final Map.Entry<String, String> entry : System.getenv().entrySet()) {
+            final String key = entry.getKey();
+            if (key.startsWith(prefix)) {
+                result.put(trimPrefix ? key.substring(prefix.length()) : key, entry.getValue());
+            }
+        }
+
+        return result;
     }
 
     @NotNull

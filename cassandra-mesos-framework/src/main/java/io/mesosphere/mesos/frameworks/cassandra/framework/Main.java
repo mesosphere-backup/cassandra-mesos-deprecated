@@ -45,6 +45,8 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -52,6 +54,8 @@ import java.util.logging.LogManager;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.google.common.collect.Lists.newArrayList;
+import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.ExternalDc;
 import static io.mesosphere.mesos.util.ProtoUtils.frameworkId;
 
 public final class Main {
@@ -133,6 +137,7 @@ public final class Main {
         final String    defaultRack                 =                       Env.option("CASSANDRA_DEFAULT_RACK").or("RACK0");
         final String    defaultDc                   =                       Env.option("CASSANDRA_DEFAULT_DC").or("DC0");
 
+        final List<ExternalDc> externalDcs = getExternalDcs(Env.filterStartsWith("CASSANDRA_EXTERNAL_DC_", true));
         final Matcher matcher = validateZkUrl(zkUrl);
 
         final State state = new ZooKeeperState(
@@ -163,7 +168,8 @@ public final class Main {
             jmxLocal,
             jmxNoAuthentication,
             defaultRack,
-            defaultDc);
+            defaultDc,
+            externalDcs);
 
 
         final FrameworkInfo.Builder frameworkBuilder =
@@ -184,6 +190,7 @@ public final class Main {
         final Clock clock = new SystemClock();
         final PersistedCassandraClusterHealthCheckHistory healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);
         final PersistedCassandraClusterState clusterState = new PersistedCassandraClusterState(state);
+        final SeedManager seedManager = new SeedManager(configuration, new ObjectMapper(), new SystemClock());
         final CassandraCluster cassandraCluster = new CassandraCluster(
             clock,
             httpServerBaseUri.toString(),
@@ -191,7 +198,8 @@ public final class Main {
             clusterState,
             healthCheckHistory,
             new PersistedCassandraClusterJobs(state),
-            configuration
+            configuration,
+            seedManager
         );
         final HealthReportService healthReportService = new HealthReportService(
             clusterState,
@@ -201,7 +209,8 @@ public final class Main {
         );
         final Scheduler scheduler = new CassandraScheduler(
             configuration,
-            cassandraCluster
+            cassandraCluster,
+            clock
         );
 
         final JsonFactory factory = new JsonFactory();
@@ -239,6 +248,8 @@ public final class Main {
             driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), mesosMasterZkUrl);
         }
 
+        seedManager.startSyncingSeeds(60);
+
         final int status;
         switch (driver.run()) {
             case DRIVER_STOPPED:
@@ -259,6 +270,20 @@ public final class Main {
         // Ensure that the driver process terminates.
         driver.stop(true);
         return status;
+    }
+
+    static List<ExternalDc> getExternalDcs(Map<String, String> dcOpts) {
+        final List<ExternalDc> externalDcs = newArrayList();
+
+        for (final String key: dcOpts.keySet()) {
+            externalDcs.add(
+                ExternalDc.newBuilder()
+                    .setName(key)
+                    .setUrl(dcOpts.get(key))
+                    .build()
+            );
+        }
+        return externalDcs;
     }
 
     static Matcher validateZkUrl(final String zkUrl) {

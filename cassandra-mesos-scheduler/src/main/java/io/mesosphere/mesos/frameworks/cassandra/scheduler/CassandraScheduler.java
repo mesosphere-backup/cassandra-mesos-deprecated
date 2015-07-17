@@ -22,6 +22,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.mesosphere.mesos.util.Clock;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -55,13 +56,17 @@ public final class CassandraScheduler implements Scheduler {
     private final PersistedCassandraFrameworkConfiguration configuration;
     @NotNull
     private final CassandraCluster cassandraCluster;
+    @NotNull
+    private final Clock clock;
 
     public CassandraScheduler(
         @NotNull final PersistedCassandraFrameworkConfiguration configuration,
-        @NotNull final CassandraCluster cassandraCluster
+        @NotNull final CassandraCluster cassandraCluster,
+        @NotNull final Clock clock
     ) {
         this.configuration = configuration;
         this.cassandraCluster = cassandraCluster;
+        this.clock = clock;
     }
 
     @Override
@@ -88,6 +93,7 @@ public final class CassandraScheduler implements Scheduler {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("> resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
         }
+
         for (final Offer offer : offers) {
             final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname());
             final boolean offerUsed = evaluateOffer(driver, marker, offer);

@@ -28,7 +28,7 @@ public final class JaxRsUtils {
 
     public static void writeSeedIps(@NotNull final CassandraCluster cluster, @NotNull final JsonGenerator json) throws IOException {
         json.writeArrayFieldStart("seeds");
-        for (final String seed : cluster.getSeedNodeIps()) {
+        for (final String seed : cluster.getSeedNodeIps(false)) {
             json.writeString(seed);
         }
         json.writeEndArray();

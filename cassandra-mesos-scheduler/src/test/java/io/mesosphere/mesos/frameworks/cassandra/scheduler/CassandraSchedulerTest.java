@@ -15,6 +15,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.TaskResources;
 import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
@@ -55,9 +56,11 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
             new PersistedCassandraClusterState(state),
             new PersistedCassandraClusterHealthCheckHistory(state),
             new PersistedCassandraClusterJobs(state),
-            configuration);
+            configuration,
+            new SeedManager(configuration, new ObjectMapper(), new SystemClock())
+        );
         clusterState = cluster.getClusterState();
-        scheduler = new CassandraScheduler(configuration, cluster);
+        scheduler = new CassandraScheduler(configuration, cluster, clock);
         driver = new MockSchedulerDriver(scheduler);
 
         driver.callReRegistered();

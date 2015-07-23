@@ -20,6 +20,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
@@ -673,7 +674,10 @@ public final class CassandraCluster {
             errors.add(String.format("Not enough disk resources for role %s. Required %d only %d available", mesosRole, resources.getDiskMb(), availableDisk));
         }
 
-        final TreeSet<Long> ports = resourceValueRange(headOption(index.get("ports")));
+        ImmutableSet<Long> ports = from(index.get("ports"))
+                .transformAndConcat(resourceToPortSet())
+                .toSet();
+
         for (final Map.Entry<String, Long> entry : portMapping.entrySet()) {
             final String key = entry.getKey();
             final Long value = entry.getValue();

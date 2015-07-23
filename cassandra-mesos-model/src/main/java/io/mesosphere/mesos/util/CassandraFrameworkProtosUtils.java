@@ -16,17 +16,22 @@
 package io.mesosphere.mesos.util;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 
+import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.Resource;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.TreeSet;
 
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
+import static io.mesosphere.mesos.util.ProtoUtils.resourceValueRange;
 
 public final class CassandraFrameworkProtosUtils {
 
@@ -170,6 +175,15 @@ public final class CassandraFrameworkProtosUtils {
             }
         }
         return builder;
+    }
+
+    public static Function<Resource, TreeSet<Long>> resourceToPortSet() {
+        return new Function<Resource, TreeSet<Long>>() {
+            @Override
+            public TreeSet<Long> apply(@Nullable Resource resource) {
+                return resourceValueRange(Optional.fromNullable(resource));
+            }
+        };
     }
 
     private static final class CassandraNodeToIp implements Function<CassandraNode, String> {

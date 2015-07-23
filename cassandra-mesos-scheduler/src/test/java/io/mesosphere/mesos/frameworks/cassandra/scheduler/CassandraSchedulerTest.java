@@ -566,6 +566,44 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 "Unavailable port 10000(port3) for role FOO_BAR. 0 other ports available"
             );
 
+        offer = Protos.Offer.newBuilder()
+                .setHostname("host1")
+                .setId(Protos.OfferID.newBuilder().setValue("offer"))
+                .setSlaveId(Protos.SlaveID.newBuilder().setValue("slave"))
+                .setFrameworkId(Protos.FrameworkID.newBuilder().setValue("frw1"))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("cpus")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8d)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("mem")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("disk")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .addResources(Protos.Resource.newBuilder()
+                                .setName("ports")
+                                .setRole("BAZ")
+                                .setType(Protos.Value.Type.RANGES)
+                                .setRanges(Protos.Value.Ranges.newBuilder()
+                                        .addRange(Protos.Value.Range.newBuilder().setBegin(7000).setEnd(10000)))
+                )
+                .build();
+
+        errs = CassandraCluster.hasResources(offer,
+                resources(8, 8192, 8192), new HashMap<String, Long>() {{
+                    put("port1", 7000L);
+                    put("port2", 7002L);
+                    put("port3", 10000L);
+                }}, "BAZ");
+        assertNotNull(errs);
+        assertThat(errs)
+                .isEmpty();
     }
 
     @Test

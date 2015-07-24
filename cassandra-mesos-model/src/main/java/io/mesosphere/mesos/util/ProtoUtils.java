@@ -17,11 +17,16 @@ package io.mesosphere.mesos.util;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.*;
 import org.jetbrains.annotations.NotNull;
 
+import javax.swing.text.html.Option;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
@@ -31,6 +36,8 @@ import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Sets.newTreeSet;
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.TaskEnv;
+import static io.mesosphere.mesos.util.CassandraFrameworkProtosUtils.resourceHasExpectedRole;
+import static io.mesosphere.mesos.util.CassandraFrameworkProtosUtils.resourceToPortSet;
 
 public final class ProtoUtils {
 
@@ -186,6 +193,15 @@ public final class ProtoUtils {
             }
             final long value = (long) resource.get().getScalar().getValue();
             return Optional.of(value);
+        } else {
+            return Optional.absent();
+        }
+    }
+
+    @NotNull
+    public static Optional<String> resourceValueRole(@NotNull final Optional<Resource> resource) {
+        if (resource.isPresent()) {
+            return Optional.of(resource.get().getRole());
         } else {
             return Optional.absent();
         }

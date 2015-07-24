@@ -16,6 +16,11 @@
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.TaskResources;
 import io.mesosphere.mesos.util.CassandraFrameworkProtosUtils;
@@ -26,6 +31,9 @@ import org.junit.Test;
 
 import java.util.*;
 
+import static com.google.common.collect.FluentIterable.from;
+import static com.google.common.collect.ImmutableList.of;
+import static com.google.common.collect.Lists.newArrayList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
 
@@ -593,11 +601,71 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                         .setRanges(Protos.Value.Ranges.newBuilder()
                                 .addRange(Protos.Value.Range.newBuilder().setBegin(5000).setEnd(6000))))
                 .addResources(Protos.Resource.newBuilder()
-                                .setName("ports")
-                                .setRole("BAZ")
-                                .setType(Protos.Value.Type.RANGES)
-                                .setRanges(Protos.Value.Ranges.newBuilder()
-                                        .addRange(Protos.Value.Range.newBuilder().setBegin(7000).setEnd(10000)))
+                        .setName("ports")
+                        .setRole("BAZ")
+                        .setType(Protos.Value.Type.RANGES)
+                        .setRanges(Protos.Value.Ranges.newBuilder()
+                                .addRange(Protos.Value.Range.newBuilder().setBegin(7000).setEnd(10000)))
+                )
+                .build();
+
+        errs = CassandraCluster.hasResources(offer,
+                resources(8, 8192, 8192), new HashMap<String, Long>() {{
+                    put("port1", 7000L);
+                    put("port2", 7002L);
+                    put("port3", 10000L);
+                }}, "BAZ");
+        assertNotNull(errs);
+        assertThat(errs)
+                .isEmpty();
+
+        offer = Protos.Offer.newBuilder()
+                .setHostname("host1")
+                .setId(Protos.OfferID.newBuilder().setValue("offer"))
+                .setSlaveId(Protos.SlaveID.newBuilder().setValue("slave"))
+                .setFrameworkId(Protos.FrameworkID.newBuilder().setValue("frw1"))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("cpus")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(1d)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("cpus")
+                        .setRole("BAZ")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8d)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("mem")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(100)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("mem")
+                        .setRole("BAZ")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("disk")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(10)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("disk")
+                        .setRole("BAZ")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("ports")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.RANGES)
+                        .setRanges(Protos.Value.Ranges.newBuilder()
+                                .addRange(Protos.Value.Range.newBuilder().setBegin(5000).setEnd(6000))))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("ports")
+                        .setRole("BAZ")
+                        .setType(Protos.Value.Type.RANGES)
+                        .setRanges(Protos.Value.Ranges.newBuilder()
+                                .addRange(Protos.Value.Range.newBuilder().setBegin(7000).setEnd(10000)))
                 )
                 .build();
 
@@ -657,13 +725,13 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
     @Test
     public void testResourceList_includesDiskAbove0() throws Exception {
         final List<Protos.Resource> resources = CassandraScheduler.resourceList(
-            TaskResources.newBuilder()
-                .setCpuCores(0.5)
-                .setMemMb(512)
-                .setDiskMb(1)
-                .build(),
-            "*"
-        );
+                TaskResources.newBuilder()
+                        .setCpuCores(0.5)
+                        .setMemMb(512)
+                        .setDiskMb(1)
+                        .build(),
+                "*",
+                Protos.Offer.getDefaultInstance());
 
         assertThat(resources).hasSize(3);
         assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
@@ -679,8 +747,8 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .setMemMb(512)
                 .setDiskMb(0)
                 .build(),
-            "*"
-        );
+            "*",
+                Protos.Offer.getDefaultInstance());
 
         assertThat(resources).hasSize(2);
         assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
@@ -696,8 +764,8 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .setMemMb(512)
                 .setDiskMb(-1)
                 .build(),
-            "*"
-        );
+            "*",
+                Protos.Offer.getDefaultInstance());
 
         assertThat(resources).hasSize(2);
         assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
@@ -705,4 +773,160 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
         assertThat(resources).doesNotContain(ProtoUtils.disk(-1, "*"));
     }
 
+    @Test
+    public void testResourceList_doesReturnResourcesWithTheRoleFromOffers() {
+        Protos.Offer offer = Protos.Offer.newBuilder()
+                .setFrameworkId(frameworkId)
+                .setHostname("somehost.name")
+                .setId(Protos.OfferID.newBuilder().setValue(randomID()))
+                .setSlaveId(Protos.SlaveID.newBuilder().setValue("someslave").build())
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("cpus")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8d)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("mem")
+                        .setRole("someRole")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("disk")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .build();
+
+        final List<Protos.Resource> resources = CassandraScheduler.resourceList(
+                TaskResources.newBuilder()
+                        .setCpuCores(0.5)
+                        .setMemMb(512)
+                        .setDiskMb(1000)
+                        .build(),
+                "someRole",
+                offer);
+
+        assertThat(resources).hasSize(3);
+        assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
+        assertThat(resources).contains(ProtoUtils.mem(512, "someRole"));
+        assertThat(resources).contains(ProtoUtils.disk(1000, "*"));
+    }
+    @Test
+    public void testResourceList_doesReturnResourcesWithTheRoleFromResourceOfferThatMatchesRequriements() {
+        Protos.Offer offer = Protos.Offer.newBuilder()
+                .setFrameworkId(frameworkId)
+                .setHostname("somehost.name")
+                .setId(Protos.OfferID.newBuilder().setValue(randomID()))
+                .setSlaveId(Protos.SlaveID.newBuilder().setValue("someslave").build())
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("cpus")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8d)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("mem")
+                        .setRole("someRole")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(100)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("mem")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("disk")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .build();
+
+        final List<Protos.Resource> resources = CassandraScheduler.resourceList(
+                TaskResources.newBuilder()
+                        .setCpuCores(0.5)
+                        .setMemMb(512)
+                        .setDiskMb(1000)
+                        .build(),
+                "someRole",
+                offer);
+
+        assertThat(resources).hasSize(3);
+        assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
+        assertThat(resources).contains(ProtoUtils.mem(512, "*"));
+        assertThat(resources).contains(ProtoUtils.disk(1000, "*"));
+    }
+
+    @Test
+    public void testPorts_doesReturnPortsWithTheRoleFromOffers() {
+        Protos.Offer offer = Protos.Offer.newBuilder()
+                .setFrameworkId(frameworkId)
+                .setHostname("somehost.name")
+                .setId(Protos.OfferID.newBuilder().setValue(randomID()))
+                .setSlaveId(Protos.SlaveID.newBuilder().setValue("someslave").build())
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("cpus")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8d)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("mem")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("disk")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("ports")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.RANGES)
+                        .setRanges(Protos.Value.Ranges.newBuilder()
+                                .addRange(Protos.Value.Range.newBuilder().setBegin(7000).setEnd(10000))))
+                .build();
+
+        ImmutableList<Long> ports = of(8080l, 9090l);
+        final Protos.Resource resources = CassandraScheduler.ports(ports, "someRole", offer);
+
+        assertThat(resources.getName()).isEqualTo("ports");
+        assertThat(resources.getRanges().getRangeList()).contains(range(8080),range(9090));
+        assertThat(resources.getRole()).isEqualTo("*");
+    }
+
+    private Protos.Value.Range range(int value) {
+        return Protos.Value.Range.newBuilder().setBegin(value).setEnd(value).build();
+    }
+
+
+    @Test
+    public void testResourceOffers_canHandleOffersWithMixedRoles() throws InvalidProtocolBufferException {
+        cleanState("someOtherRole");
+        Protos.Offer offer = createOffer(slaves[0]);
+
+        scheduler.resourceOffers(driver, newArrayList(offer));
+
+        Collection<Protos.TaskInfo> launchedTasks = driver.launchTasks()._2;
+        assertThat(launchedTasks).isNotEmpty();
+        Protos.TaskInfo launchedTask = launchedTasks.iterator().next();
+        List<Protos.Resource> resources = launchedTask.getResourcesList();
+        ImmutableListMultimap<String, Protos.Resource> resourceMap = FluentIterable.from(resources)
+                .index(resourceByName());
+
+        Protos.Resource cpus = resourceMap.get("cpus").get(0);
+        assertThat(cpus.getRole()).isEqualTo("*");
+        assertThat(cpus.getScalar().getValue()).isEqualTo(0.1);
+
+        Protos.Resource mem = resourceMap.get("mem").get(0);
+        assertThat(mem.getRole()).isEqualTo("*");
+        assertThat(mem.getScalar().getValue()).isEqualTo(32.0);
+    }
+
+    private Function<Protos.Resource, String> resourceByName() {
+        return new Function<Protos.Resource, String>() {
+            @Override
+            public String apply(Protos.Resource resource) {
+                return resource.getName();
+            }
+        };
+    }
 }

@@ -47,7 +47,7 @@ public abstract class AbstractSchedulerTest {
     };
     protected PersistedCassandraClusterHealthCheckHistory healthCheckHistory;
 
-    protected void cleanState() {
+    protected void cleanState(String mesosRole) {
         // start with clean state
         state = new InMemoryState();
 
@@ -59,7 +59,7 @@ public abstract class AbstractSchedulerTest {
                 "2.1.4",
             2, 4096, 4096, 0,
             3, 2,
-            "*",
+            mesosRole,
             ".",
             true,
             false,
@@ -81,7 +81,12 @@ public abstract class AbstractSchedulerTest {
         clusterState = cluster.getClusterState();
     }
 
-    protected Protos.Offer createOffer(final Tuple2<Protos.SlaveID, String> slave) {
+    protected void cleanState() {
+        cleanState("*");
+    }
+
+
+        protected Protos.Offer createOffer(final Tuple2<Protos.SlaveID, String> slave) {
         final Protos.Offer.Builder builder = Protos.Offer.newBuilder()
                 .setFrameworkId(frameworkId)
                 .setHostname(slave._2)

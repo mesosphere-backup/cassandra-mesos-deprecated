@@ -18,6 +18,8 @@ package io.mesosphere.mesos.util;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 
@@ -26,12 +28,13 @@ import org.apache.mesos.Protos.Resource;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.TreeSet;
 
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
-import static io.mesosphere.mesos.util.ProtoUtils.resourceValueRange;
+import static io.mesosphere.mesos.util.ProtoUtils.*;
 
 public final class CassandraFrameworkProtosUtils {
 
@@ -177,13 +180,81 @@ public final class CassandraFrameworkProtosUtils {
         return builder;
     }
 
+    @NotNull
     public static Function<Resource, TreeSet<Long>> resourceToPortSet() {
         return new Function<Resource, TreeSet<Long>>() {
             @Override
+            @NotNull
             public TreeSet<Long> apply(@Nullable Resource resource) {
                 return resourceValueRange(Optional.fromNullable(resource));
             }
         };
+    }
+
+    public static Predicate<Resource> containsPorts(final Iterable<Long> ports) {
+        return new Predicate<Resource>() {
+            @Override
+            public boolean apply(Resource resource) {
+                TreeSet<Long> portsInResource = resourceValueRange(Optional.fromNullable(resource));
+                return portsInResource.containsAll(newArrayList(ports));
+            }
+        };
+    }
+
+    public static ImmutableListMultimap<String, Resource> resourcesForRoleAndOffer(String role, Protos.Offer offer) {
+        return from(offer.getResourcesList())
+                .filter(resourceHasExpectedRole(role))
+                .index(resourceToName());
+    }
+
+    public static Predicate<Resource> scalarValueAtLeast(final long v) {
+        return new Predicate<Resource>() {
+            @Override
+            public boolean apply(Resource resource) {
+                return resource.getType() == Protos.Value.Type.SCALAR &&
+                        resource.getScalar().getValue() > v;
+            }
+        };
+    }
+
+    public static Function<Resource, Double> toDoubleResourceValue() {
+        return new Function<Resource, Double>() {
+            @Override
+            public Double apply(@Nullable Resource resource) {
+                return resourceValueDouble(Optional.fromNullable(resource)).or(0.0);
+            }
+        };
+    }
+
+    public static Function<Resource, Long> toLongResourceValue() {
+        return new Function<Resource, Long>() {
+            @Override
+            public Long apply(@Nullable Resource resource) {
+                return resourceValueLong(Optional.fromNullable(resource)).or(0l);
+            }
+        };
+    }
+
+    public static Optional<Double> maxResourceValueDouble(List<Resource> resource) {
+        ImmutableList<Double> values = from(resource)
+                .transform(toDoubleResourceValue())
+                .toList();
+        if (values.isEmpty()) {
+            return Optional.absent();
+        } else {
+            return Optional.of(Collections.max(values));
+        }
+    }
+
+    public static Optional<Long> maxResourceValueLong(List<Resource> resource) {
+        ImmutableList<Long> values = from(resource)
+                .transform(toLongResourceValue())
+                .toList();
+        if (values.isEmpty()) {
+            return Optional.absent();
+        } else {
+            return Optional.of(Collections.max(values));
+        }
     }
 
     private static final class CassandraNodeToIp implements Function<CassandraNode, String> {

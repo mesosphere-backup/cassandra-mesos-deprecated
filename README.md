@@ -64,7 +64,8 @@ All configuration is handled through environment variables (this lends itself we
 
 ## Framework Runtime Configuration
 
-The following environment variables can be used to configure how the framework will operate.
+The following environment variables can be used to bootstrap the configuration of the framework. After first run, configuration is read from the framework state in Zookeeper to be consistent across restarts.
+
 ```bash
 # name of the cassandra cluster, this will be part of the framework name in Mesos
 CASSANDRA_CLUSTER_NAME=dev-cluster

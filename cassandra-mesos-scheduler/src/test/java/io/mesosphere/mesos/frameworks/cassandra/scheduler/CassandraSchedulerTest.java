@@ -724,13 +724,13 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
     @Test
     public void testResourceList_includesDiskAbove0() throws Exception {
         final List<Protos.Resource> resources = CassandraScheduler.resourceList(
-                TaskResources.newBuilder()
-                        .setCpuCores(0.5)
-                        .setMemMb(512)
-                        .setDiskMb(1)
-                        .build(),
-                "*",
-                Protos.Offer.getDefaultInstance());
+            TaskResources.newBuilder()
+                .setCpuCores(0.5)
+                .setMemMb(512)
+                .setDiskMb(1)
+                .build(),
+            "*",
+            Protos.Offer.getDefaultInstance());
 
         assertThat(resources).hasSize(3);
         assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
@@ -747,7 +747,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .setDiskMb(0)
                 .build(),
             "*",
-                Protos.Offer.getDefaultInstance());
+            Protos.Offer.getDefaultInstance());
 
         assertThat(resources).hasSize(2);
         assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
@@ -764,7 +764,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .setDiskMb(-1)
                 .build(),
             "*",
-                Protos.Offer.getDefaultInstance());
+            Protos.Offer.getDefaultInstance());
 
         assertThat(resources).hasSize(2);
         assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));

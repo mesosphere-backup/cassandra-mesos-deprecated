@@ -31,7 +31,6 @@ import org.junit.Test;
 
 import java.util.*;
 
-import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.ImmutableList.of;
 import static com.google.common.collect.Lists.newArrayList;
 import static org.assertj.core.api.Assertions.assertThat;

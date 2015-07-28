@@ -1151,7 +1151,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         }
     }
 
-    protected void cleanState(String mesosRole) {
+    protected void cleanState(final String mesosRole) {
         super.cleanState(mesosRole);
 
         scheduler = new CassandraScheduler(configuration, cluster, clock);

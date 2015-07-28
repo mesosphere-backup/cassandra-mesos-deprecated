@@ -182,60 +182,32 @@ public final class CassandraFrameworkProtosUtils {
 
     @NotNull
     public static Function<Resource, TreeSet<Long>> resourceToPortSet() {
-        return new Function<Resource, TreeSet<Long>>() {
-            @Override
-            @NotNull
-            public TreeSet<Long> apply(@Nullable Resource resource) {
-                return resourceValueRange(Optional.fromNullable(resource));
-            }
-        };
+        return ResourceToPortSet.INSTANCE;
     }
 
-    public static Predicate<Resource> containsPorts(final Iterable<Long> ports) {
-        return new Predicate<Resource>() {
-            @Override
-            public boolean apply(Resource resource) {
-                TreeSet<Long> portsInResource = resourceValueRange(Optional.fromNullable(resource));
-                return portsInResource.containsAll(newArrayList(ports));
-            }
-        };
+    public static Predicate<Resource> containsPorts(@NotNull final Iterable<Long> ports) {
+        return new ContainsPorts(ports);
     }
 
-    public static ImmutableListMultimap<String, Resource> resourcesForRoleAndOffer(String role, Protos.Offer offer) {
+    public static ImmutableListMultimap<String, Resource> resourcesForRoleAndOffer(@NotNull final String role, @NotNull final Protos.Offer offer) {
         return from(offer.getResourcesList())
                 .filter(resourceHasExpectedRole(role))
                 .index(resourceToName());
     }
 
     public static Predicate<Resource> scalarValueAtLeast(final long v) {
-        return new Predicate<Resource>() {
-            @Override
-            public boolean apply(Resource resource) {
-                return resource.getType() == Protos.Value.Type.SCALAR &&
-                        resource.getScalar().getValue() > v;
-            }
-        };
+        return new ScalarValueAtLeast(v);
     }
 
     public static Function<Resource, Double> toDoubleResourceValue() {
-        return new Function<Resource, Double>() {
-            @Override
-            public Double apply(@Nullable Resource resource) {
-                return resourceValueDouble(Optional.fromNullable(resource)).or(0.0);
-            }
-        };
+        return ToDoubleResourceValue.INSTANCE;
     }
 
     public static Function<Resource, Long> toLongResourceValue() {
-        return new Function<Resource, Long>() {
-            @Override
-            public Long apply(@Nullable Resource resource) {
-                return resourceValueLong(Optional.fromNullable(resource)).or(0l);
-            }
-        };
+        return ToLongResourceValue.INSTANCE;
     }
 
-    public static Optional<Double> maxResourceValueDouble(List<Resource> resource) {
+    public static Optional<Double> maxResourceValueDouble(@NotNull final List<Resource> resource) {
         ImmutableList<Double> values = from(resource)
                 .transform(toDoubleResourceValue())
                 .toList();
@@ -246,7 +218,7 @@ public final class CassandraFrameworkProtosUtils {
         }
     }
 
-    public static Optional<Long> maxResourceValueLong(List<Resource> resource) {
+    public static Optional<Long> maxResourceValueLong(@NotNull final List<Resource> resource) {
         ImmutableList<Long> values = from(resource)
                 .transform(toLongResourceValue())
                 .toList();
@@ -395,6 +367,62 @@ public final class CassandraFrameworkProtosUtils {
         @Override
         public Long apply(@NotNull final HealthCheckHistoryEntry input) {
             return input.getTimestampEnd();
+        }
+    }
+
+    private static class ResourceToPortSet implements Function<Resource, TreeSet<Long>> {
+        private static final ResourceToPortSet INSTANCE = new ResourceToPortSet();
+
+        @Override
+        @NotNull
+        public TreeSet<Long> apply(@Nullable final Resource resource) {
+            return resourceValueRange(Optional.fromNullable(resource));
+        }
+    }
+
+    private static class ContainsPorts implements Predicate<Resource> {
+        private final Iterable<Long> ports;
+
+        public ContainsPorts(@NotNull final Iterable<Long> ports) {
+            this.ports = ports;
+        }
+
+        @Override
+        public boolean apply(@Nullable final Resource resource) {
+            TreeSet<Long> portsInResource = resourceValueRange(Optional.fromNullable(resource));
+            return portsInResource.containsAll(newArrayList(ports));
+        }
+    }
+
+    private static class ScalarValueAtLeast implements Predicate<Resource> {
+        private final long v;
+
+        public ScalarValueAtLeast(final long v) {
+            this.v = v;
+        }
+
+        @Override
+        public boolean apply(@NotNull final Resource resource) {
+            return resource.getType() == Protos.Value.Type.SCALAR &&
+                    resource.getScalar().getValue() > v;
+        }
+    }
+
+    private static class ToDoubleResourceValue implements Function<Resource, Double> {
+        private static final ToDoubleResourceValue INSTANCE = new ToDoubleResourceValue();
+
+        @Override
+        public Double apply(@Nullable final Resource resource) {
+            return resourceValueDouble(Optional.fromNullable(resource)).or(0.0);
+        }
+    }
+
+    private static class ToLongResourceValue implements Function<Resource, Long> {
+        private static final ToLongResourceValue INSTANCE = new ToLongResourceValue();
+
+        @Override
+        public Long apply(@Nullable final Resource resource) {
+            return resourceValueLong(Optional.fromNullable(resource)).or(0l);
         }
     }
 }

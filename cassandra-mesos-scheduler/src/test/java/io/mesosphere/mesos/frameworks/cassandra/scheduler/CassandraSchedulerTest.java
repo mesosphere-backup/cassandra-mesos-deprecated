@@ -892,11 +892,6 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
         assertThat(resources.getRole()).isEqualTo("*");
     }
 
-    private Protos.Value.Range range(int value) {
-        return Protos.Value.Range.newBuilder().setBegin(value).setEnd(value).build();
-    }
-
-
     @Test
     public void testResourceOffers_canHandleOffersWithMixedRoles() throws InvalidProtocolBufferException {
         cleanState("someOtherRole");
@@ -928,4 +923,9 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
             }
         };
     }
+
+    private Protos.Value.Range range(int value) {
+        return Protos.Value.Range.newBuilder().setBegin(value).setEnd(value).build();
+    }
+
 }

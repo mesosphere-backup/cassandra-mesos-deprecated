@@ -47,7 +47,7 @@ public abstract class AbstractSchedulerTest {
     };
     protected PersistedCassandraClusterHealthCheckHistory healthCheckHistory;
 
-    protected void cleanState(String mesosRole) {
+    protected void cleanState(final String mesosRole) {
         // start with clean state
         state = new InMemoryState();
 

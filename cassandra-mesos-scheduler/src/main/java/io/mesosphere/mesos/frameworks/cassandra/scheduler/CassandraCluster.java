@@ -156,6 +156,7 @@ public final class CassandraCluster {
         clusterJobHandlers = new EnumMap<>(ClusterJobType.class);
         clusterJobHandlers.put(ClusterJobType.CLEANUP, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.REPAIR, new NodeTaskClusterJobHandler(this, jobsState));
+        clusterJobHandlers.put(ClusterJobType.BACKUP, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.RESTART, new RestartClusterJobHandler(this, jobsState));
     }
 

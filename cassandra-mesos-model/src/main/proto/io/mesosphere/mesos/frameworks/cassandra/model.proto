@@ -255,6 +255,8 @@ enum ClusterJobType {
     CLEANUP = 1;
     REPAIR = 2;
     RESTART = 3;
+    BACKUP = 4;
+    RESTORE = 5;
 }
 
 /**

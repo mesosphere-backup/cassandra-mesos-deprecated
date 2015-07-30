@@ -1,16 +1,16 @@
 package io.mesosphere.mesos.frameworks.cassandra.scheduler.api;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.CassandraCluster;
 import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.ClusterJobUtils;
+import io.mesosphere.mesos.frameworks.cassandra.scheduler.util.JaxRsUtils;
 import org.jetbrains.annotations.NotNull;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
 
 @Path("/cluster/backup")
 @Produces("application/json")
@@ -35,8 +35,18 @@ public final class ClusterBackupController {
      */
     @POST
     @Path("/start")
-    public Response backupStart() {
-        return ClusterJobUtils.startJob(cluster, factory, CassandraFrameworkProtos.ClusterJobType.BACKUP);
+    public Response backupStart(@QueryParam("name") String name) {
+        if (name == null || name.isEmpty()) {
+            return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
+                @Override
+                public void write(final JsonGenerator json) throws IOException {
+                    json.writeBooleanField("started", false);
+                    json.writeStringField("error", "name required");
+                }
+            });
+        }
+
+        return ClusterJobUtils.startJob(cluster, factory, CassandraFrameworkProtos.ClusterJobType.BACKUP, name);
     }
 
     /**

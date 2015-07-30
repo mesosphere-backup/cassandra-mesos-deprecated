@@ -31,10 +31,14 @@ public class NodeBackupJob extends AbstractNodeJob {
 
     @NotNull
     private final ExecutorService executorService;
+    @NotNull
+    private final String backupName;
+
     private Future<?> backupFuture;
 
-    public NodeBackupJob(@NotNull final Protos.TaskID taskId, @NotNull final ExecutorService executorService) {
+    public NodeBackupJob(@NotNull final Protos.TaskID taskId, @NotNull final String backupName, @NotNull final ExecutorService executorService) {
         super(taskId);
+        this.backupName = backupName;
         this.executorService = executorService;
     }
 
@@ -68,8 +72,7 @@ public class NodeBackupJob extends AbstractNodeJob {
                     LOGGER.info("Starting backup on keyspace {}", keyspace);
                     keyspaceStarted();
 
-                    String tag = "backup-" + System.currentTimeMillis();
-                    checkNotNull(jmxConnect).getStorageServiceProxy().takeSnapshot(tag, keyspace);
+                    checkNotNull(jmxConnect).getStorageServiceProxy().takeSnapshot(backupName, keyspace);
                     keyspaceFinished("SUCCESS", keyspace);
                 } catch (final Exception e) {
                     LOGGER.error("Failed to backup keyspace " + keyspace, e);

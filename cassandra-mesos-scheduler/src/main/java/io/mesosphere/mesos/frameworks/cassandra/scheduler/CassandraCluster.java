@@ -733,6 +733,10 @@ public final class CassandraCluster {
     }
 
     public boolean startClusterTask(@NotNull final ClusterJobType jobType) {
+        return startClusterTask(jobType, null);
+    }
+
+    public boolean startClusterTask(@NotNull final ClusterJobType jobType, final String data) {
         if (jobsState.get().hasCurrentClusterJob()) {
             return false;
         }
@@ -740,6 +744,8 @@ public final class CassandraCluster {
         final ClusterJobStatus.Builder builder = ClusterJobStatus.newBuilder()
                 .setJobType(jobType)
                 .setStartedTimestamp(clock.now().getMillis());
+
+        if (data != null) builder.setData(data);
 
         for (final CassandraNode cassandraNode : clusterState.nodes()) {
             if (cassandraNode.hasCassandraNodeExecutor()) {

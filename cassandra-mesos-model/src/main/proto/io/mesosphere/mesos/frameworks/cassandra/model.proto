@@ -305,6 +305,10 @@ message ClusterJobStatus {
      * Job status of the node currently executing.
      */
     optional NodeJobStatus currentNode = 7;
+    /**
+     * Job specific data
+     */
+    optional string data = 8;
 }
 /**
  * Per-node status of a cluster-wide job in ClusterJobStatus.
@@ -738,6 +742,10 @@ message NodeJobTask {
      * Cluster job type.
      */
     required ClusterJobType jobType = 1;
+    /**
+     * Job specific data
+     */
+    optional string data = 2;
 }
 
 /**

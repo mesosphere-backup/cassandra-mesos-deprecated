@@ -68,6 +68,7 @@ public final class JaxRsUtils {
             }
             json.writeEndArray();
 
+            if (jobStatus.hasData()) json.writeStringField("data", jobStatus.getData());
             json.writeEndObject();
         } else {
             json.writeNullField(name);

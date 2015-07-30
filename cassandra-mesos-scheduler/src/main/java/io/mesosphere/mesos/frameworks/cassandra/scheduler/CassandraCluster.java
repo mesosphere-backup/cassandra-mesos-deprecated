@@ -93,7 +93,8 @@ public final class CassandraCluster {
     );
 
     private static final Map<String, String> executorEnv = unmodifiableHashMap(
-        tuple2("JAVA_OPTS", "-Xms256m -Xmx256m")
+        tuple2("JAVA_OPTS", "-Xms256m -Xmx256m"),
+        tuple2("MESOSPHERE_LD_LIBRARY_PATH", "/opt/mesosphere/lib")
     );
 
     private static final TaskResources EXECUTOR_RESOURCES = taskResources(0.1, 384, 256);
@@ -606,6 +607,7 @@ public final class CassandraCluster {
         final CassandraConfigRole configRole = configuration.getDefaultConfigRole();
 
         final List<String> command = newArrayList(
+            "export LD_LIBRARY_PATH=$MESOSPHERE_LD_LIBRARY_PATH:$LD_LIBRARY_PATH && ",
             javaExec,
 //            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005",
             "-XX:+PrintCommandLineFlags",

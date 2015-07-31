@@ -248,8 +248,8 @@ public final class CassandraFrameworkProtosUtils {
         return RoleAndPortsToResource.INSTANCE;
     }
 
-    public static Function<Long, String> byRole(@NotNull final ListMultimap<String, Resource> index) {
-        return new ByRole(index);
+    public static Function<Long, String> byRole(@NotNull final ListMultimap<String, Resource> resourcesForRoleAndOffer) {
+        return new ByRole(resourcesForRoleAndOffer);
     }
 
     private static final class CassandraNodeToIp implements Function<CassandraNode, String> {
@@ -453,21 +453,21 @@ public final class CassandraFrameworkProtosUtils {
         public static final RoleAndPortsToResource INSTANCE = new RoleAndPortsToResource();
 
         @Override
-        public Resource apply(@NotNull final Map.Entry<String, Collection<Long>> stringCollectionEntry) {
-            return ports(from(stringCollectionEntry.getValue()), stringCollectionEntry.getKey());
+        public Resource apply(@NotNull final Map.Entry<String, Collection<Long>> roleAndPorts) {
+            return ports(from(roleAndPorts.getValue()), roleAndPorts.getKey());
         }
     }
 
     private static class ByRole implements Function<Long, String> {
-        private final ListMultimap<String, Resource> index;
+        private final ListMultimap<String, Resource> resourcesForRoleAndOffer;
 
-        public ByRole(@NotNull final ListMultimap<String, Resource> index) {
-            this.index = index;
+        public ByRole(@NotNull final ListMultimap<String, Resource> resourcesForRoleAndOffer) {
+            this.resourcesForRoleAndOffer = resourcesForRoleAndOffer;
         }
 
         @Override
-        public String apply(@NotNull final Long aLong) {
-            return roleForPort(aLong, index);
+        public String apply(@NotNull final Long port) {
+            return roleForPort(port, resourcesForRoleAndOffer);
         }
     }
 }

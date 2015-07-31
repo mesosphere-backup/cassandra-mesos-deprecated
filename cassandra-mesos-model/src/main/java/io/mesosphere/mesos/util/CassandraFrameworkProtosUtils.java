@@ -20,6 +20,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ListMultimap;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 
@@ -28,8 +29,10 @@ import org.apache.mesos.Protos.Resource;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeSet;
 
 import static com.google.common.collect.FluentIterable.from;
@@ -185,8 +188,8 @@ public final class CassandraFrameworkProtosUtils {
         return ResourceToPortSet.INSTANCE;
     }
 
-    public static Predicate<Resource> containsPorts(@NotNull final Iterable<Long> ports) {
-        return new ContainsPorts(ports);
+    public static Predicate<Resource> containsPort(@NotNull long port) {
+        return new ContainsPort(port);
     }
 
     public static ImmutableListMultimap<String, Resource> resourcesForRoleAndOffer(@NotNull final String role, @NotNull final Protos.Offer offer) {
@@ -227,6 +230,26 @@ public final class CassandraFrameworkProtosUtils {
         } else {
             return Optional.of(Collections.max(values));
         }
+    }
+
+    public static String roleForPort(final long port, @NotNull final ListMultimap<String, Resource> index) {
+        Optional<Resource> offeredPorts = from(index.get("ports"))
+                .filter(containsPort(port))
+                .first();
+
+        if (offeredPorts.isPresent()) {
+            return offeredPorts.get().getRole();
+        } else {
+            return "*";
+        }
+    }
+
+    public static Function<Map.Entry<String, Collection<Long>>, Resource> roleAndPortsToResource() {
+        return RoleAndPortsToResource.INSTANCE;
+    }
+
+    public static Function<Long, String> byRole(@NotNull final ListMultimap<String, Resource> index) {
+        return new ByRole(index);
     }
 
     private static final class CassandraNodeToIp implements Function<CassandraNode, String> {
@@ -380,17 +403,17 @@ public final class CassandraFrameworkProtosUtils {
         }
     }
 
-    private static class ContainsPorts implements Predicate<Resource> {
-        private final Iterable<Long> ports;
+    private static class ContainsPort implements Predicate<Resource> {
+        private final long port;
 
-        public ContainsPorts(@NotNull final Iterable<Long> ports) {
-            this.ports = ports;
+        public ContainsPort(final long port) {
+            this.port = port;
         }
 
         @Override
         public boolean apply(@Nullable final Resource resource) {
             TreeSet<Long> portsInResource = resourceValueRange(Optional.fromNullable(resource));
-            return portsInResource.containsAll(newArrayList(ports));
+            return portsInResource.contains(port);
         }
     }
 
@@ -423,6 +446,28 @@ public final class CassandraFrameworkProtosUtils {
         @Override
         public Long apply(@Nullable final Resource resource) {
             return resourceValueLong(Optional.fromNullable(resource)).or(0l);
+        }
+    }
+
+    private static class RoleAndPortsToResource implements Function<Map.Entry<String,Collection<Long>>, Resource> {
+        public static final RoleAndPortsToResource INSTANCE = new RoleAndPortsToResource();
+
+        @Override
+        public Resource apply(@NotNull final Map.Entry<String, Collection<Long>> stringCollectionEntry) {
+            return ports(from(stringCollectionEntry.getValue()), stringCollectionEntry.getKey());
+        }
+    }
+
+    private static class ByRole implements Function<Long, String> {
+        private final ListMultimap<String, Resource> index;
+
+        public ByRole(@NotNull final ListMultimap<String, Resource> index) {
+            this.index = index;
+        }
+
+        @Override
+        public String apply(@NotNull final Long aLong) {
+            return roleForPort(aLong, index);
         }
     }
 }

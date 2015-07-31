@@ -885,12 +885,77 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .build();
 
         ImmutableList<Long> ports = of(8080l, 9090l);
-        final Protos.Resource resources = CassandraScheduler.ports(ports, "someRole", offer);
+        List<Protos.Resource> resources = CassandraScheduler.ports(ports, "someRole", offer);
 
-        assertThat(resources.getName()).isEqualTo("ports");
-        assertThat(resources.getRanges().getRangeList()).contains(range(8080),range(9090));
-        assertThat(resources.getRole()).isEqualTo("*");
+        Protos.Resource expectedPortsResource = Protos.Resource.newBuilder()
+                .setName("ports")
+                .setRole("*")
+                .setType(Protos.Value.Type.RANGES)
+                .setRanges(Protos.Value.Ranges.newBuilder()
+                        .addRange(rangeOfOne(8080))
+                        .addRange(rangeOfOne(9090)))
+                .build();
+        assertThat(resources).hasSize(1);
+        assertThat(resources).contains(expectedPortsResource);
     }
+
+    @Test
+    public void testPorts_doesReturnResourcesWithPortsFromSeveralPartsOfTheOffer() {
+        Protos.Offer offer = Protos.Offer.newBuilder()
+                .setFrameworkId(frameworkId)
+                .setHostname("somehost.name")
+                .setId(Protos.OfferID.newBuilder().setValue(randomID()))
+                .setSlaveId(Protos.SlaveID.newBuilder().setValue("someslave").build())
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("cpus")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8d)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("mem")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("disk")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.SCALAR)
+                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(8192)))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("ports")
+                        .setRole("*")
+                        .setType(Protos.Value.Type.RANGES)
+                        .setRanges(Protos.Value.Ranges.newBuilder()
+                                .addRange(Protos.Value.Range.newBuilder().setBegin(7000).setEnd(9000))))
+                .addResources(Protos.Resource.newBuilder()
+                        .setName("ports")
+                        .setRole("someRole")
+                        .setType(Protos.Value.Type.RANGES)
+                        .setRanges(Protos.Value.Ranges.newBuilder()
+                                .addRange(Protos.Value.Range.newBuilder().setBegin(9000).setEnd(10000))))
+                .build();
+
+        List<Protos.Resource> resources = CassandraScheduler.ports(of(8080l, 9090l), "someRole", offer);
+
+        Protos.Resource expectedResourceForPort8080 = Protos.Resource.newBuilder()
+                .setName("ports")
+                .setRole("*")
+                .setType(Protos.Value.Type.RANGES)
+                .setRanges(Protos.Value.Ranges.newBuilder()
+                        .addRange(rangeOfOne(8080)))
+                .build();
+        Protos.Resource expectedResourceForPort9090 = Protos.Resource.newBuilder()
+                .setName("ports")
+                .setRole("someRole")
+                .setType(Protos.Value.Type.RANGES)
+                .setRanges(Protos.Value.Ranges.newBuilder()
+                        .addRange(rangeOfOne(9090)))
+                .build();
+
+        assertThat(resources).hasSize(2);
+        assertThat(resources).contains(expectedResourceForPort8080, expectedResourceForPort9090);
+    }
+
 
     @Test
     public void testResourceOffers_canHandleOffersWithMixedRoles() throws InvalidProtocolBufferException {
@@ -924,7 +989,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
         };
     }
 
-    private Protos.Value.Range range(int value) {
+    private Protos.Value.Range rangeOfOne(int value) {
         return Protos.Value.Range.newBuilder().setBegin(value).setEnd(value).build();
     }
 

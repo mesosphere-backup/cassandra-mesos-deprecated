@@ -20,11 +20,11 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ListMultimap;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.util.Clock;
-import io.mesosphere.mesos.util.ProtoUtils;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -333,7 +334,7 @@ public final class CassandraScheduler implements Scheduler {
             final TaskID taskId = taskId(cassandraNodeTask.getTaskId());
             final List<Resource> resources = resourceList(cassandraNodeTask.getResources(), configuration.mesosRole(), offer);
             if (!cassandraNodeTask.getResources().getPortsList().isEmpty()) {
-                resources.add(ports(cassandraNodeTask.getResources().getPortsList(), configuration.mesosRole(), offer));
+                resources.addAll(ports(cassandraNodeTask.getResources().getPortsList(), configuration.mesosRole(), offer));
             }
 
             final TaskInfo task = TaskInfo.newBuilder()
@@ -393,22 +394,17 @@ public final class CassandraScheduler implements Scheduler {
 
     @NotNull
     @VisibleForTesting
-    static Resource ports(@NotNull final Iterable<Long> ports, @NotNull final String mesosRole, Offer offer) {
-        final ListMultimap<String, Resource> index = resourcesForRoleAndOffer(mesosRole, offer);
+    static List<Resource> ports(@NotNull final Iterable<Long> ports, @NotNull final String mesosRole, Offer offer) {
+        final ListMultimap<String, Resource> resourcesForRoleAndOffer = resourcesForRoleAndOffer(mesosRole, offer);
 
-        Optional<Resource> offeredPorts = from(index.get("ports"))
-                .filter(containsPorts(ports))
-                .first();
+        ImmutableMap<String, Collection<Long>> portsByRole = from(ports)
+                .index(byRole(resourcesForRoleAndOffer))
+                .asMap();
 
-        String roleToUse;
-        if (offeredPorts.isPresent()) {
-            roleToUse = offeredPorts.get().getRole();
-        } else {
-            roleToUse = "*";
-        }
-        return ProtoUtils.ports(ports, roleToUse);
+        return from(portsByRole.entrySet())
+                .transform(roleAndPortsToResource()).toList();
+
     }
-
 
     @NotNull
     private static Environment environmentFromTaskEnv(@NotNull final TaskEnv taskEnv) {

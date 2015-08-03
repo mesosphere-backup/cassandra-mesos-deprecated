@@ -20,6 +20,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ListMultimap;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.util.Clock;
@@ -33,11 +35,15 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
+import static io.mesosphere.mesos.util.CassandraFrameworkProtosUtils.*;
+import static io.mesosphere.mesos.util.Functions.headOption;
 import static io.mesosphere.mesos.util.ProtoUtils.*;
 
 public final class CassandraScheduler implements Scheduler {
@@ -311,7 +317,6 @@ public final class CassandraScheduler implements Scheduler {
         final List<TaskInfo> taskInfos = newArrayList();
 
         for (final CassandraNodeTask cassandraNodeTask : tasksForOffer.getLaunchTasks()) {
-
             final TaskDetails taskDetails = cassandraNodeTask.getTaskDetails();
 
             final ExecutorInfo info = executorInfo(
@@ -323,13 +328,13 @@ public final class CassandraScheduler implements Scheduler {
                     environmentFromTaskEnv(executor.getTaskEnv()),
                     newArrayList(FluentIterable.from(executor.getDownloadList()).transform(uriToCommandInfoUri))
                 ),
-                resourceList(executor.getResources(), configuration.mesosRole())
+                resourceList(executor.getResources(), configuration.mesosRole(), offer)
             );
 
             final TaskID taskId = taskId(cassandraNodeTask.getTaskId());
-            final List<Resource> resources = resourceList(cassandraNodeTask.getResources(), configuration.mesosRole());
+            final List<Resource> resources = resourceList(cassandraNodeTask.getResources(), configuration.mesosRole(), offer);
             if (!cassandraNodeTask.getResources().getPortsList().isEmpty()) {
-                resources.add(ports(cassandraNodeTask.getResources().getPortsList(), configuration.mesosRole()));
+                resources.addAll(ports(cassandraNodeTask.getResources().getPortsList(), configuration.mesosRole(), offer));
             }
 
             final TaskInfo task = TaskInfo.newBuilder()
@@ -367,15 +372,38 @@ public final class CassandraScheduler implements Scheduler {
 
     @NotNull
     @VisibleForTesting
-    static List<Resource> resourceList(@NotNull final TaskResources resources, @NotNull final String role) {
+    static List<Resource> resourceList(@NotNull final TaskResources taskResources, @NotNull final String role, Offer offer) {
+        final ListMultimap<String, Resource> index = resourcesForRoleAndOffer(role, offer);
+
+        final String cpuRole = resourceValueRole(headOption(index.get("cpus"))).or("*");
+        Optional<Resource> memResource = from(index.get("mem"))
+                .filter(scalarValueAtLeast(taskResources.getMemMb()))
+                .first();
+        final String memRole = resourceValueRole(memResource).or("*");
+        final String diskRole = resourceValueRole(headOption(index.get("disk"))).or("*");
+
         final List<Resource> retVal = newArrayList(
-            cpu(resources.getCpuCores(), role),
-            mem(resources.getMemMb(), role)
+            cpu(taskResources.getCpuCores(), cpuRole),
+            mem(taskResources.getMemMb(), memRole)
         );
-        if (resources.hasDiskMb() && resources.getDiskMb() > 0) {
-            retVal.add(disk(resources.getDiskMb(), role));
+        if (taskResources.hasDiskMb() && taskResources.getDiskMb() > 0) {
+            retVal.add(disk(taskResources.getDiskMb(), diskRole));
         }
         return retVal;
+    }
+
+    @NotNull
+    @VisibleForTesting
+    static List<Resource> ports(@NotNull final Iterable<Long> ports, @NotNull final String mesosRole, Offer offer) {
+        final ListMultimap<String, Resource> resourcesForRoleAndOffer = resourcesForRoleAndOffer(mesosRole, offer);
+
+        ImmutableMap<String, Collection<Long>> portsByRole = from(ports)
+                .index(byRole(resourcesForRoleAndOffer))
+                .asMap();
+
+        return from(portsByRole.entrySet())
+                .transform(roleAndPortsToResource()).toList();
+
     }
 
     @NotNull

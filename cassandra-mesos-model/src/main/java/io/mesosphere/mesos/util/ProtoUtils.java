@@ -192,6 +192,15 @@ public final class ProtoUtils {
     }
 
     @NotNull
+    public static Optional<String> resourceValueRole(@NotNull final Optional<Resource> resource) {
+        if (resource.isPresent()) {
+            return Optional.of(resource.get().getRole());
+        } else {
+            return Optional.absent();
+        }
+    }
+
+    @NotNull
     public static TreeSet<Long> resourceValueRange(@NotNull final Optional<Resource> resource) {
         if (resource.isPresent()) {
             return resourceValueRange(resource.get());

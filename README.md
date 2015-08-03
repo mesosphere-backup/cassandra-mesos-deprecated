@@ -102,7 +102,7 @@ CASSANDRA_BOOTSTRAP_GRACE_TIME_SECONDS=120
 # The number of seconds that should be used as the mesos framework timeout (default 604800 seconds / 7 days)
 CASSANDRA_FAILOVER_TIMEOUT_SECONDS=604800
 
-# The mesos role to used to reserve resources (default *). If this is set, the framework only accepts offers that have resources for that role.
+# The mesos role to used to reserve resources (default *). If this is set, the framework accepts offers that have resources for that role or the default role *
 CASSANDRA_FRAMEWORK_MESOS_ROLE=*
 
 # A pre-defined data directory specifying where cassandra should write it's data. 

@@ -20,6 +20,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
@@ -651,31 +652,31 @@ public final class CassandraCluster {
     @NotNull
     static List<String> hasResources(
         @NotNull final Protos.Offer offer,
-        @NotNull final TaskResources resources,
+        @NotNull final TaskResources taskResources,
         @NotNull final Map<String, Long> portMapping,
         @NotNull final String mesosRole
     ) {
         final List<String> errors = newArrayList();
-        final ListMultimap<String, Protos.Resource> index = from(offer.getResourcesList())
-                .filter(resourceHasExpectedRole(mesosRole))
-                .index(resourceToName());
+        final ListMultimap<String, Protos.Resource> availableResources = resourcesForRoleAndOffer(mesosRole,offer);
 
+        final double availableCpus = maxResourceValueDouble(availableResources.get("cpus")).or(0d);
+        final long availableMem = maxResourceValueLong(availableResources.get("mem")).or(0l);
+        final long availableDisk = maxResourceValueLong(availableResources.get("disk")).or(0l);
 
-        final double availableCpus = resourceValueDouble(headOption(index.get("cpus"))).or(0.0);
-        final long availableMem = resourceValueLong(headOption(index.get("mem"))).or(0L);
-        final long availableDisk = resourceValueLong(headOption(index.get("disk"))).or(0L);
-
-        if (availableCpus < resources.getCpuCores()) {
-            errors.add(String.format("Not enough cpu resources for role %s. Required %s only %s available", mesosRole, String.valueOf(resources.getCpuCores()), String.valueOf(availableCpus)));
+        if (availableCpus < taskResources.getCpuCores()) {
+            errors.add(String.format("Not enough cpu resources for role %s. Required %s only %s available", mesosRole, String.valueOf(taskResources.getCpuCores()), String.valueOf(availableCpus)));
         }
-        if (availableMem < resources.getMemMb()) {
-            errors.add(String.format("Not enough mem resources for role %s. Required %d only %d available", mesosRole, resources.getMemMb(), availableMem));
+        if (availableMem < taskResources.getMemMb()) {
+            errors.add(String.format("Not enough mem resources for role %s. Required %d only %d available", mesosRole, taskResources.getMemMb(), availableMem));
         }
-        if (availableDisk < resources.getDiskMb()) {
-            errors.add(String.format("Not enough disk resources for role %s. Required %d only %d available", mesosRole, resources.getDiskMb(), availableDisk));
+        if (availableDisk < taskResources.getDiskMb()) {
+            errors.add(String.format("Not enough disk resources for role %s. Required %d only %d available", mesosRole, taskResources.getDiskMb(), availableDisk));
         }
 
-        final TreeSet<Long> ports = resourceValueRange(headOption(index.get("ports")));
+        ImmutableSet<Long> ports = from(availableResources.get("ports"))
+                .transformAndConcat(resourceToPortSet())
+                .toSet();
+
         for (final Map.Entry<String, Long> entry : portMapping.entrySet()) {
             final String key = entry.getKey();
             final Long value = entry.getValue();

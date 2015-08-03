@@ -971,6 +971,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         return executorMetadata;
     }
 
+
     protected void executorTaskError(final Protos.TaskInfo taskInfo) {
         scheduler.statusUpdate(driver, Protos.TaskStatus.newBuilder()
             .setExecutorId(executorId(taskInfo))
@@ -1150,13 +1151,17 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         }
     }
 
-    protected void cleanState() {
-        super.cleanState();
+    protected void cleanState(final String mesosRole) {
+        super.cleanState(mesosRole);
 
         scheduler = new CassandraScheduler(configuration, cluster, clock);
 
         driver = new MockSchedulerDriver(scheduler);
         driver.callRegistered(Protos.FrameworkID.newBuilder().setValue(UUID.randomUUID().toString()).build());
+    }
+
+    protected void cleanState() {
+        cleanState("*");
     }
 
     protected static String executorIdValue(final Protos.TaskInfo executorMetadata) {

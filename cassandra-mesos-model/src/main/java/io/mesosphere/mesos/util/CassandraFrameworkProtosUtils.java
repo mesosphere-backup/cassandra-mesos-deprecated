@@ -16,17 +16,28 @@
 package io.mesosphere.mesos.util;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ListMultimap;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 
+import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.Resource;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
 
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
+import static io.mesosphere.mesos.util.ProtoUtils.*;
 
 public final class CassandraFrameworkProtosUtils {
 
@@ -172,6 +183,75 @@ public final class CassandraFrameworkProtosUtils {
         return builder;
     }
 
+    @NotNull
+    public static Function<Resource, TreeSet<Long>> resourceToPortSet() {
+        return ResourceToPortSet.INSTANCE;
+    }
+
+    public static Predicate<Resource> containsPort(@NotNull long port) {
+        return new ContainsPort(port);
+    }
+
+    public static ImmutableListMultimap<String, Resource> resourcesForRoleAndOffer(@NotNull final String role, @NotNull final Protos.Offer offer) {
+        return from(offer.getResourcesList())
+                .filter(resourceHasExpectedRole(role))
+                .index(resourceToName());
+    }
+
+    public static Predicate<Resource> scalarValueAtLeast(final long v) {
+        return new ScalarValueAtLeast(v);
+    }
+
+    public static Function<Resource, Double> toDoubleResourceValue() {
+        return ToDoubleResourceValue.INSTANCE;
+    }
+
+    public static Function<Resource, Long> toLongResourceValue() {
+        return ToLongResourceValue.INSTANCE;
+    }
+
+    public static Optional<Double> maxResourceValueDouble(@NotNull final List<Resource> resource) {
+        ImmutableList<Double> values = from(resource)
+                .transform(toDoubleResourceValue())
+                .toList();
+        if (values.isEmpty()) {
+            return Optional.absent();
+        } else {
+            return Optional.of(Collections.max(values));
+        }
+    }
+
+    public static Optional<Long> maxResourceValueLong(@NotNull final List<Resource> resource) {
+        ImmutableList<Long> values = from(resource)
+                .transform(toLongResourceValue())
+                .toList();
+        if (values.isEmpty()) {
+            return Optional.absent();
+        } else {
+            return Optional.of(Collections.max(values));
+        }
+    }
+
+    public static String roleForPort(final long port, @NotNull final ListMultimap<String, Resource> index) {
+        Optional<Resource> offeredPorts = from(index.get("ports"))
+                .filter(containsPort(port))
+                .first();
+
+        if (offeredPorts.isPresent()) {
+            return offeredPorts.get().getRole();
+        } else {
+            return "*";
+        }
+    }
+
+    public static Function<Map.Entry<String, Collection<Long>>, Resource> roleAndPortsToResource() {
+        return RoleAndPortsToResource.INSTANCE;
+    }
+
+    public static Function<Long, String> byRole(@NotNull final ListMultimap<String, Resource> resourcesForRoleAndOffer) {
+        return new ByRole(resourcesForRoleAndOffer);
+    }
+
     private static final class CassandraNodeToIp implements Function<CassandraNode, String> {
         private static final CassandraNodeToIp INSTANCE = new CassandraNodeToIp();
 
@@ -299,7 +379,8 @@ public final class CassandraFrameworkProtosUtils {
 
         @Override
         public boolean apply(final Resource item) {
-            return item.getRole().equals(role);
+            String givenRole = item.getRole();
+            return givenRole.equals(role) || givenRole.equals("*");
         }
     }
 
@@ -309,6 +390,84 @@ public final class CassandraFrameworkProtosUtils {
         @Override
         public Long apply(@NotNull final HealthCheckHistoryEntry input) {
             return input.getTimestampEnd();
+        }
+    }
+
+    private static class ResourceToPortSet implements Function<Resource, TreeSet<Long>> {
+        private static final ResourceToPortSet INSTANCE = new ResourceToPortSet();
+
+        @Override
+        @NotNull
+        public TreeSet<Long> apply(@Nullable final Resource resource) {
+            return resourceValueRange(Optional.fromNullable(resource));
+        }
+    }
+
+    private static class ContainsPort implements Predicate<Resource> {
+        private final long port;
+
+        public ContainsPort(final long port) {
+            this.port = port;
+        }
+
+        @Override
+        public boolean apply(@Nullable final Resource resource) {
+            TreeSet<Long> portsInResource = resourceValueRange(Optional.fromNullable(resource));
+            return portsInResource.contains(port);
+        }
+    }
+
+    private static class ScalarValueAtLeast implements Predicate<Resource> {
+        private final long v;
+
+        public ScalarValueAtLeast(final long v) {
+            this.v = v;
+        }
+
+        @Override
+        public boolean apply(@NotNull final Resource resource) {
+            return resource.getType() == Protos.Value.Type.SCALAR &&
+                    resource.getScalar().getValue() > v;
+        }
+    }
+
+    private static class ToDoubleResourceValue implements Function<Resource, Double> {
+        private static final ToDoubleResourceValue INSTANCE = new ToDoubleResourceValue();
+
+        @Override
+        public Double apply(@Nullable final Resource resource) {
+            return resourceValueDouble(Optional.fromNullable(resource)).or(0.0);
+        }
+    }
+
+    private static class ToLongResourceValue implements Function<Resource, Long> {
+        private static final ToLongResourceValue INSTANCE = new ToLongResourceValue();
+
+        @Override
+        public Long apply(@Nullable final Resource resource) {
+            return resourceValueLong(Optional.fromNullable(resource)).or(0l);
+        }
+    }
+
+    private static class RoleAndPortsToResource implements Function<Map.Entry<String,Collection<Long>>, Resource> {
+        public static final RoleAndPortsToResource INSTANCE = new RoleAndPortsToResource();
+
+        @Override
+        public Resource apply(@NotNull final Map.Entry<String, Collection<Long>> roleAndPorts) {
+            return ports(from(roleAndPorts.getValue()), roleAndPorts.getKey());
+        }
+    }
+
+    private static class ByRole implements Function<Long, String> {
+        private final ListMultimap<String, Resource> resourcesForRoleAndOffer;
+
+        public ByRole(@NotNull final ListMultimap<String, Resource> resourcesForRoleAndOffer) {
+            this.resourcesForRoleAndOffer = resourcesForRoleAndOffer;
+        }
+
+        @Override
+        public String apply(@NotNull final Long port) {
+            return roleForPort(port, resourcesForRoleAndOffer);
         }
     }
 }

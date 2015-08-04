@@ -46,6 +46,10 @@ public class ApiControllerTest extends AbstractApiControllerTest {
         assertThat(list).isEqualTo(
                 newArrayList(
                         new ApiEndpoint("GET",  "config", newArrayList("application/json")),
+                        new ApiEndpoint("POST", "cluster/backup/start", newArrayList("application/json")),
+                        new ApiEndpoint("POST", "cluster/backup/abort", newArrayList("application/json")),
+                        new ApiEndpoint("GET",  "cluster/backup/status", newArrayList("application/json")),
+                        new ApiEndpoint("GET",  "cluster/backup/last", newArrayList("application/json")),
                         new ApiEndpoint("POST", "cluster/cleanup/start", newArrayList("application/json")),
                         new ApiEndpoint("POST", "cluster/cleanup/abort", newArrayList("application/json")),
                         new ApiEndpoint("GET",  "cluster/cleanup/status", newArrayList("application/json")),

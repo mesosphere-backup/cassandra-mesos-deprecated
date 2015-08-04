@@ -178,6 +178,7 @@ public abstract class AbstractApiControllerTest extends AbstractCassandraSchedul
                     new ClusterCleanupController(cluster,factory),
                     new ClusterRepairController(cluster,factory),
                     new ClusterRollingRestartController(cluster,factory),
+                    new ClusterBackupController(cluster,factory),
                     new ConfigController(cluster,factory),
                     new LiveEndpointsController(cluster,factory),
                     new NodeController(cluster,factory),

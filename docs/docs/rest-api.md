@@ -30,6 +30,34 @@ The `/` endpoint returns a simple JSON object that lists all URLs the method to 
             "application/json"
         ],
         "method": "POST",
+        "url": "http://localhost:18080/cluster/backup/start"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/cluster/backup/abort"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/cluster/backup/status"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/cluster/backup/last"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
         "url": "http://localhost:18080/cluster/cleanup/start"
     },
     {
@@ -258,6 +286,10 @@ The `/` endpoint returns a simple JSON object that lists all URLs the method to 
 Endpoint | HTTP method | Content-Types| Description
 --- | --- | --- | ---
 `/config`                           | `GET`  | `application/json` | Returns the configuration.
+`/cluster/backup/start`             | `POST` | `application/json` | Endpoints to start a cluster-wide backup
+`/cluster/backup/abort`             | `POST` | `application/json` | Abort the cluster-wide backup
+`/cluster/backup/status`            | `GET`  | `application/json` | Inquire the current backup status
+`/cluster/backup/last`              | `GET`  | `application/json` | Inquire the status of the last backup
 `/cluster/cleanup/start`            | `POST` | `application/json` | Endpoints to start a cluster-wide cleanup.
 `/cluster/cleanup/abort`            | `POST` | `application/json` | Abort the cluster-wide cleanup
 `/cluster/cleanup/status`           | `GET`  | `application/json` | Inquire the current status.
@@ -534,6 +566,100 @@ IP: 127.0.0.2
             },
             "remainingKeyspaces" : [ ]
         } ]
+    }
+}
+```
+
+## `/cluster/backup/start?name=backup-0`
+
+```json
+{
+     "started" : true
+}
+```
+
+## `/cluster/backup/status`
+
+```json
+{
+    "running": true,
+    "backup": {
+        "type": "BACKUP",
+        "started": 1438275504302,
+        "finished": null,
+        "aborted": false,
+        "remainingNodes": [
+            "cassandra.dev-cluster.node.0.executor"
+        ],
+        "currentNode": {
+            "executorId": "cassandra.dev-cluster.node.1.executor",
+            "taskId": "cassandra.dev-cluster.node.1.executor.BACKUP",
+            "hostname": "slave0",
+            "ip": "192.168.3.6",
+            "startedTimestamp": 1438275507096,
+            "finishedTimestamp": null,
+            "processedKeyspaces": {},
+            "remainingKeyspaces": []
+        },
+        "completedNodes": [],
+        "backupName": "backup-0"
+    }
+}
+```
+
+## `/cluster/backup/abort`
+
+```json
+{
+    "aborted" : true
+}
+```
+
+## `/cluster/backup/last`
+
+```json
+{
+    "present": true,
+    "backup": {
+        "type": "BACKUP",
+        "started": 1438275504302,
+        "finished": 1438275520152,
+        "aborted": false,
+        "remainingNodes": [],
+        "currentNode": null,
+        "completedNodes": [
+            {
+                "executorId": "cassandra.dev-cluster.node.1.executor",
+                "taskId": "cassandra.dev-cluster.node.1.executor.BACKUP",
+                "hostname": "slave0",
+                "ip": "192.168.3.6",
+                "startedTimestamp": 1438275507164,
+                "finishedTimestamp": 1438275507184,
+                "processedKeyspaces": {
+                    "system_traces": {
+                        "status": "SUCCESS",
+                        "durationMillis": 5
+                    }
+                },
+                "remainingKeyspaces": []
+            },
+            {
+                "executorId": "cassandra.dev-cluster.node.0.executor",
+                "taskId": "cassandra.dev-cluster.node.0.executor.BACKUP",
+                "hostname": "master",
+                "ip": "192.168.3.5",
+                "startedTimestamp": 1438275514117,
+                "finishedTimestamp": 1438275514137,
+                "processedKeyspaces": {
+                    "system_traces": {
+                        "status": "SUCCESS",
+                        "durationMillis": 10
+                    }
+                },
+                "remainingKeyspaces": []
+            }
+        ],
+        "backupName": "backup-0"
     }
 }
 ```

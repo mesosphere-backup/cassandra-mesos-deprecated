@@ -157,6 +157,7 @@ public final class CassandraCluster {
         clusterJobHandlers = new EnumMap<>(ClusterJobType.class);
         clusterJobHandlers.put(ClusterJobType.CLEANUP, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.REPAIR, new NodeTaskClusterJobHandler(this, jobsState));
+        clusterJobHandlers.put(ClusterJobType.BACKUP, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.RESTART, new RestartClusterJobHandler(this, jobsState));
     }
 
@@ -733,6 +734,10 @@ public final class CassandraCluster {
     }
 
     public boolean startClusterTask(@NotNull final ClusterJobType jobType) {
+        return startClusterTask(jobType, null);
+    }
+
+    public boolean startClusterTask(@NotNull final ClusterJobType jobType, final String backupName) {
         if (jobsState.get().hasCurrentClusterJob()) {
             return false;
         }
@@ -740,6 +745,10 @@ public final class CassandraCluster {
         final ClusterJobStatus.Builder builder = ClusterJobStatus.newBuilder()
                 .setJobType(jobType)
                 .setStartedTimestamp(clock.now().getMillis());
+
+        if (backupName != null) {
+            builder.setBackupName(backupName);
+        }
 
         for (final CassandraNode cassandraNode : clusterState.nodes()) {
             if (cassandraNode.hasCassandraNodeExecutor()) {

@@ -79,8 +79,10 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
                 return;
             }
 
-            CassandraFrameworkProtos.NodeJobTask.Builder nodeJobTaskBuilder = CassandraFrameworkProtos.NodeJobTask.newBuilder().setJobType(currentJob.getJobType());
-            if (currentJob.hasData()) nodeJobTaskBuilder.setData(currentJob.getData());
+            final CassandraFrameworkProtos.NodeJobTask.Builder nodeJobTaskBuilder = CassandraFrameworkProtos.NodeJobTask.newBuilder().setJobType(currentJob.getJobType());
+            if (currentJob.hasBackupName()) {
+                nodeJobTaskBuilder.setBackupName(currentJob.getBackupName());
+            }
 
             final CassandraFrameworkProtos.TaskDetails taskDetails = CassandraFrameworkProtos.TaskDetails.newBuilder()
                 .setType(CassandraFrameworkProtos.TaskDetails.TaskDetailsType.NODE_JOB)

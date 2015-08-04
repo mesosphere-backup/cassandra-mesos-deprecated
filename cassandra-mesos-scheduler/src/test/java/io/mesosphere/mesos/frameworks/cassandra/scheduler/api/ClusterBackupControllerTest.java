@@ -27,7 +27,7 @@ public class ClusterBackupControllerTest extends AbstractApiControllerTest {
     public void testBackup() throws Exception {
         threeNodeCluster();
 
-        Tuple2<Integer, JsonNode> tup = fetchJson("/cluster/backup/start?name=backup", true);
+        Tuple2<Integer, JsonNode> tup = fetchJson("/cluster/backup/start", true);
         assertEquals(200, tup._1.intValue());
         JsonNode json = tup._2;
 
@@ -62,7 +62,7 @@ public class ClusterBackupControllerTest extends AbstractApiControllerTest {
         assertTrue(status.has("currentNode"));
         assertTrue(status.has("completedNodes"));
         assertTrue(status.get("completedNodes").isArray());
-        assertEquals("backup", status.get("data").asText());
+        assertTrue(status.get("backupName").asText(), status.get("backupName").asText().startsWith("backup-"));
 
         // abort
 
@@ -85,7 +85,26 @@ public class ClusterBackupControllerTest extends AbstractApiControllerTest {
         json = tup._2;
         assertFalse(json.get("present").asBoolean());
         assertTrue(json.get("backup").isNull());
+
+
     }
 
+    @Test
+    public void testNamedBackup() throws Exception {
+        // start named backup
+        Tuple2<Integer, JsonNode> tup = fetchJson("/cluster/backup/start?name=name", true);
+        assertEquals(200, tup._1.intValue());
+        JsonNode json = tup._2;
 
+        assertTrue(json.has("started"));
+        assertTrue(json.get("started").asBoolean());
+
+        // status
+        tup = fetchJson("/cluster/backup/status", false);
+        assertEquals(200, tup._1.intValue());
+        json = tup._2;
+        assertTrue(json.get("running").asBoolean());
+        JsonNode status = json.get("backup");
+        assertEquals("name", status.get("backupName").asText());
+    }
 }

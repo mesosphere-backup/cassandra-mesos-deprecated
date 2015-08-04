@@ -736,7 +736,7 @@ public final class CassandraCluster {
         return startClusterTask(jobType, null);
     }
 
-    public boolean startClusterTask(@NotNull final ClusterJobType jobType, final String data) {
+    public boolean startClusterTask(@NotNull final ClusterJobType jobType, final String backupName) {
         if (jobsState.get().hasCurrentClusterJob()) {
             return false;
         }
@@ -745,7 +745,9 @@ public final class CassandraCluster {
                 .setJobType(jobType)
                 .setStartedTimestamp(clock.now().getMillis());
 
-        if (data != null) builder.setData(data);
+        if (backupName != null) {
+            builder.setBackupName(backupName);
+        }
 
         for (final CassandraNode cassandraNode : clusterState.nodes()) {
             if (cassandraNode.hasCassandraNodeExecutor()) {

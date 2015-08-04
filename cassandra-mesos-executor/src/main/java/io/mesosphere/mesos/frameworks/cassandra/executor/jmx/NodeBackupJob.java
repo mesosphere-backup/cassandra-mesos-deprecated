@@ -53,7 +53,7 @@ public class NodeBackupJob extends AbstractNodeJob {
             return false;
         }
 
-        LOGGER.info("Initiated repair job for keyspaces {}", getRemainingKeyspaces());
+        LOGGER.info("Initiated backup job for keyspaces {}", getRemainingKeyspaces());
 
         return true;
     }

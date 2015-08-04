@@ -602,7 +602,7 @@ IP: 127.0.0.2
             "remainingKeyspaces": []
         },
         "completedNodes": [],
-        "data": "backup-0"
+        "backupName": "backup-0"
     }
 }
 ```
@@ -659,7 +659,7 @@ IP: 127.0.0.2
                 "remainingKeyspaces": []
             }
         ],
-        "data": "backup-0"
+        "backupName": "backup-0"
     }
 }
 ```

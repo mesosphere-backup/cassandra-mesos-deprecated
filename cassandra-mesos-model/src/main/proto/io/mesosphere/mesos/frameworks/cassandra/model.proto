@@ -256,7 +256,6 @@ enum ClusterJobType {
     REPAIR = 2;
     RESTART = 3;
     BACKUP = 4;
-    RESTORE = 5;
 }
 
 /**
@@ -306,9 +305,9 @@ message ClusterJobStatus {
      */
     optional NodeJobStatus currentNode = 7;
     /**
-     * Job specific data
+     * Backup name
      */
-    optional string data = 8;
+    optional string backupName = 8;
 }
 /**
  * Per-node status of a cluster-wide job in ClusterJobStatus.
@@ -743,9 +742,9 @@ message NodeJobTask {
      */
     required ClusterJobType jobType = 1;
     /**
-     * Job specific data
+     * Backup name
      */
-    optional string data = 2;
+    optional string backupName = 2;
 }
 
 /**

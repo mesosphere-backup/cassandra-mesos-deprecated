@@ -19,8 +19,8 @@ public final class ClusterJobUtils {
         return startJob(cluster, factory, type, null);
     }
 
-    public static Response startJob(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory, @NotNull final ClusterJobType type, final String data) {
-        final boolean started = cluster.startClusterTask(type, data);
+    public static Response startJob(@NotNull final CassandraCluster cluster, @NotNull final JsonFactory factory, @NotNull final ClusterJobType type, final String backupName) {
+        final boolean started = cluster.startClusterTask(type, backupName);
         return JaxRsUtils.buildStreamingResponse(factory, new StreamingJsonResponse() {
             @Override
             public void write(final JsonGenerator json) throws IOException {

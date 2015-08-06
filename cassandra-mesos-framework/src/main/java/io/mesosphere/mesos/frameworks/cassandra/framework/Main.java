@@ -229,6 +229,7 @@ public final class Main {
                 new ClusterRepairController(cassandraCluster, factory),
                 new ClusterRollingRestartController(cassandraCluster, factory),
                 new ClusterBackupController(cassandraCluster, factory),
+                new ClusterRestoreController(cassandraCluster, factory),
                 new ConfigController(cassandraCluster, factory),
                 new LiveEndpointsController(cassandraCluster, factory),
                 new NodeController(cassandraCluster, factory),

@@ -114,6 +114,34 @@ The `/` endpoint returns a simple JSON object that lists all URLs the method to 
             "application/json"
         ],
         "method": "POST",
+        "url": "http://localhost:18080/cluster/restore/start?name=backup"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
+        "url": "http://localhost:18080/cluster/restore/abort"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/cluster/restore/status"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "GET",
+        "url": "http://localhost:18080/cluster/restore/last"
+    },
+    {
+        "contentType": [
+            "application/json"
+        ],
+        "method": "POST",
         "url": "http://localhost:18080/cluster/rolling-restart/start"
     },
     {
@@ -298,6 +326,10 @@ Endpoint | HTTP method | Content-Types| Description
 `/cluster/repair/abort`             | `POST` | `application/json` | Abort the cluster-wide repair
 `/cluster/repair/status`            | `GET`  | `application/json` | Inquire the current status.
 `/cluster/repair/last`              | `GET`  | `application/json` | Inquire the status of the last repair.
+`/cluster/restore/start?name=$name` | `POST` | `application/json` | Endpoints to start a cluster-wide restore
+`/cluster/restore/abort`            | `POST` | `application/json` | Abort the cluster-wide restore
+`/cluster/restore/status`           | `GET`  | `application/json` | Inquire the current restore status
+`/cluster/restore/last`             | `GET`  | `application/json` | Inquire the status of the last restore
 `/cluster/rolling-restart/start`    | `POST` | `application/json` | Endpoints to start a cluster-wide rolling-restart.
 `/cluster/rolling-restart/abort`    | `POST` | `application/json` | Abort the cluster-wide rolling-restart
 `/cluster/rolling-restart/status`   | `GET`  | `application/json` | Inquire the current status.
@@ -798,6 +830,100 @@ IP: 127.0.0.2
             "processedKeyspaces" : { },
             "remainingKeyspaces" : [ ]
         } ]
+    }
+}
+```
+
+## `/cluster/restore/start?name=backup`
+
+```json
+{
+     "started": true
+}
+```
+
+## `/cluster/restore/status`
+
+```json
+{
+    "running": true,
+    "restore": {
+        "type": "RESTORE",
+        "started": 1438854331835,
+        "finished": null,
+        "aborted": false,
+        "remainingNodes": [
+            "cassandra.dev-cluster.node.0.executor"
+        ],
+        "currentNode": {
+            "executorId": "cassandra.dev-cluster.node.1.executor",
+            "taskId": "cassandra.dev-cluster.node.1.executor.RESTORE",
+            "hostname": "master",
+            "ip": "192.168.3.5",
+            "startedTimestamp": 1438854332146,
+            "finishedTimestamp": null,
+            "processedKeyspaces": {},
+            "remainingKeyspaces": []
+        },
+        "completedNodes": [],
+        "backupName": "backup"
+    }
+}
+```
+
+## `/cluster/restore/abort`
+
+```json
+{
+    "aborted" : true
+}
+```
+
+## `/cluster/restore/last`
+
+```json
+{
+    "present": true,
+    "restore": {
+        "type": "RESTORE",
+        "started": 1438854331835,
+        "finished": 1438854345173,
+        "aborted": false,
+        "remainingNodes": [ ],
+        "currentNode": null,
+        "completedNodes": [
+            {
+                "executorId": "cassandra.dev-cluster.node.1.executor",
+                "taskId": "cassandra.dev-cluster.node.1.executor.RESTORE",
+                "hostname": "master",
+                "ip": "192.168.3.5",
+                "startedTimestamp": 1438854332227,
+                "finishedTimestamp": 1438854332234,
+                "processedKeyspaces": {
+                    "system_traces": {
+                        "status": "SUCCESS",
+                        "durationMillis": 0
+                    }
+                },
+                "remainingKeyspaces": [ ]
+            },
+            {
+                "executorId": "cassandra.dev-cluster.node.0.executor",
+                "taskId": "cassandra.dev-cluster.node.0.executor.RESTORE",
+                "hostname": "slave0",
+                "ip": "192.168.3.6",
+                "startedTimestamp": 1438854339221,
+                "finishedTimestamp": 1438854339226,
+                "processedKeyspaces": {
+                    "system_traces": {
+                        "status": "SUCCESS",
+                        "durationMillis": 0
+                    }
+                },
+                "remainingKeyspaces": [ ]
+            }
+        ],
+        "backupName": "backup"
     }
 }
 ```

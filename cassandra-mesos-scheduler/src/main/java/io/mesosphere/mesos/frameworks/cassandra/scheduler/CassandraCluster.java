@@ -158,6 +158,7 @@ public final class CassandraCluster {
         clusterJobHandlers.put(ClusterJobType.CLEANUP, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.REPAIR, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.BACKUP, new NodeTaskClusterJobHandler(this, jobsState));
+        clusterJobHandlers.put(ClusterJobType.RESTORE, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.RESTART, new RestartClusterJobHandler(this, jobsState));
     }
 

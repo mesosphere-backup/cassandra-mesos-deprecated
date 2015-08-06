@@ -134,8 +134,8 @@ public final class Main {
         final String    dataDirectory               =                       Env.option("CASSANDRA_DATA_DIRECTORY").or(DEFAULT_DATA_DIRECTORY);  // TODO: Temporary. Will be removed when MESOS-1554 is released
         final boolean   jmxLocal                    = Boolean.parseBoolean( Env.option("CASSANDRA_JMX_LOCAL").or("true"));
         final boolean   jmxNoAuthentication         = Boolean.parseBoolean( Env.option("CASSANDRA_JMX_NO_AUTHENTICATION").or("false"));
-        final String    defaultRack                 =                       Env.option("CASSANDRA_DEFAULT_RACK").or("RACK0");
-        final String    defaultDc                   =                       Env.option("CASSANDRA_DEFAULT_DC").or("DC0");
+        final String    defaultRack                 =                       Env.option("CASSANDRA_DEFAULT_RACK").or("RAC1");
+        final String    defaultDc                   =                       Env.option("CASSANDRA_DEFAULT_DC").or("DC1");
 
         final List<ExternalDc> externalDcs = getExternalDcs(Env.filterStartsWith("CASSANDRA_EXTERNAL_DC_", true));
         final Matcher matcher = validateZkUrl(zkUrl);

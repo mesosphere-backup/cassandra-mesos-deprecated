@@ -247,7 +247,8 @@ public final class CassandraCluster {
                 public CassandraNode.Builder apply(final CassandraNode.Builder input) {
                     if (input.hasCassandraNodeExecutor() && executorTaskId(input).equals(executorId)) {
                         return input
-                            .clearTasks();
+                            .clearTasks()
+                            .clearCassandraNodeExecutor();
                     }
                     return input;
                 }

@@ -170,6 +170,11 @@ message CassandraConfigRole {
     optional RackDc rackDc = 9;
 
     /**
+     * Directory to store backups
+     */
+    optional string backupDirectory = 10;
+
+    /**
      * A pre-defined data directory specifying where cassandra should write it's data.
      * NOTE:
      * This field will be removed once MESOS-1554 is released and the framework will

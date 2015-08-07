@@ -44,6 +44,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         final int executorCount,
         final int seedCount,
         @NotNull final String mesosRole,
+        @NotNull final String backupDirectory,
         @NotNull final String dataDirectory,
         final boolean jmxLocal,
         final boolean jmxNoAuthentication,
@@ -64,6 +65,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                             .setDiskMb(diskMb)
                             .setMemMb(memMb))
                         .setMesosRole(mesosRole)
+                        .setBackupDirectory(backupDirectory)
                         .setPreDefinedDataDirectory(dataDirectory)
                         .setTaskEnv(CassandraFrameworkProtos.TaskEnv.newBuilder()
                             .addVariables(CassandraFrameworkProtos.TaskEnv.Entry.newBuilder()

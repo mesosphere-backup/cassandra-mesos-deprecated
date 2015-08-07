@@ -71,6 +71,16 @@ public final class Main {
         }
     };
 
+    private static final Supplier<String> DEFAULT_BACKUP_DIRECTORY = new Supplier<String>() {
+        @Override
+        public String get() {
+            LOGGER.warn("--------------------------------------------------------------------------------");
+            LOGGER.warn("| WARNING: Cassandra is configured to write backup data into the mesos sandbox");
+            LOGGER.warn("--------------------------------------------------------------------------------");
+            return "./backup";
+        }
+    };
+
     @Language("RegExp")
     private static final String userAndPass     = "[^/@]+";
     @Language("RegExp")
@@ -132,6 +142,7 @@ public final class Main {
         final long      failoverTimeout             = Long.parseLong(       Env.option("CASSANDRA_FAILOVER_TIMEOUT_SECONDS").or(String.valueOf(Period.days(7).toStandardSeconds().getSeconds())));
         final String    mesosRole                   =                       Env.option("CASSANDRA_FRAMEWORK_MESOS_ROLE").or("*");
         final String    dataDirectory               =                       Env.option("CASSANDRA_DATA_DIRECTORY").or(DEFAULT_DATA_DIRECTORY);  // TODO: Temporary. Will be removed when MESOS-1554 is released
+        final String    backupDirectory             =                       Env.option("CASSANDRA_BACKUP_DIRECTORY").or(DEFAULT_BACKUP_DIRECTORY);
         final boolean   jmxLocal                    = Boolean.parseBoolean( Env.option("CASSANDRA_JMX_LOCAL").or("true"));
         final boolean   jmxNoAuthentication         = Boolean.parseBoolean( Env.option("CASSANDRA_JMX_NO_AUTHENTICATION").or("false"));
         final String    defaultRack                 =                       Env.option("CASSANDRA_DEFAULT_RACK").or("RACK0");
@@ -164,6 +175,7 @@ public final class Main {
             executorCount,
             seedCount,
             mesosRole,
+            backupDirectory,
             dataDirectory,
             jmxLocal,
             jmxNoAuthentication,

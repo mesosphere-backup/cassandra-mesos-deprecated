@@ -32,12 +32,20 @@ public class NodeBackupJob extends AbstractNodeJob {
     @NotNull
     private final ExecutorService executorService;
     @NotNull
+    private final String backupDir;
+    @NotNull
     private final String backupName;
 
     private Future<?> backupFuture;
 
-    public NodeBackupJob(@NotNull final Protos.TaskID taskId, @NotNull final String backupName, @NotNull final ExecutorService executorService) {
+    public NodeBackupJob(
+            @NotNull final Protos.TaskID taskId,
+            @NotNull final String backupDir,
+            @NotNull final String backupName,
+            @NotNull final ExecutorService executorService)
+    {
         super(taskId);
+        this.backupDir = backupDir;
         this.backupName = backupName;
         this.executorService = executorService;
     }
@@ -53,7 +61,7 @@ public class NodeBackupJob extends AbstractNodeJob {
             return false;
         }
 
-        LOGGER.info("Initiated backup job for keyspaces {}", getRemainingKeyspaces());
+        LOGGER.info("Initiated backup '{}' into '{}' for keyspaces {}", backupName, backupDir, getRemainingKeyspaces());
 
         return true;
     }

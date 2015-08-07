@@ -751,6 +751,10 @@ message NodeJobTask {
      * Backup name
      */
     optional string backupName = 2;
+    /**
+     * Backup directory
+     */
+    optional string backupDir = 3;
 }
 
 /**

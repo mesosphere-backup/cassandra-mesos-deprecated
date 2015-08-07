@@ -22,7 +22,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.ClusterJobType;
 
 public class NodeTaskClusterJobHandler extends ClusterJobHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(NodeTaskClusterJobHandler.class);
@@ -80,8 +83,9 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
             }
 
             final CassandraFrameworkProtos.NodeJobTask.Builder nodeJobTaskBuilder = CassandraFrameworkProtos.NodeJobTask.newBuilder().setJobType(currentJob.getJobType());
-            if (currentJob.hasBackupName()) {
+            if (Arrays.asList(ClusterJobType.BACKUP, ClusterJobType.RESTORE).contains(currentJob.getJobType())) {
                 nodeJobTaskBuilder.setBackupName(currentJob.getBackupName());
+                nodeJobTaskBuilder.setBackupDir(cluster.getConfiguration().getDefaultConfigRole().getBackupDirectory());
             }
 
             final CassandraFrameworkProtos.TaskDetails taskDetails = CassandraFrameworkProtos.TaskDetails.newBuilder()

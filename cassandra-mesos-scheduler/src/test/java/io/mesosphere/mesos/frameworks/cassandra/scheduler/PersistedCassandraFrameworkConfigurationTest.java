@@ -30,14 +30,14 @@ public class PersistedCassandraFrameworkConfigurationTest {
                 "",
                 false,
                 true,
-                "RACK1",
-                "DC1",
+                "RACK5",
+                "DC5",
                 Lists.<CassandraFrameworkProtos.ExternalDc>newArrayList()
         );
 
         CassandraFrameworkProtos.RackDc rackDc = config.getDefaultRackDc();
-        assertEquals("RACK1", rackDc.getRack());
-        assertEquals("DC1", rackDc.getDc());
+        assertEquals("RACK5", rackDc.getRack());
+        assertEquals("DC5", rackDc.getDc());
 
         // backward compatibility: if rackDc is not defined - use defaults
         CassandraFrameworkConfiguration.Builder builder = CassandraFrameworkConfiguration.newBuilder(config.get());
@@ -45,7 +45,7 @@ public class PersistedCassandraFrameworkConfigurationTest {
         config.setValue(builder.build());
 
         rackDc = config.getDefaultRackDc();
-        assertEquals("RACK0", rackDc.getRack());
-        assertEquals("DC0", rackDc.getDc());
+        assertEquals("RAC1", rackDc.getRack());
+        assertEquals("DC1", rackDc.getDc());
     }
 }

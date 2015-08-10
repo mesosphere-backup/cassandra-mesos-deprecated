@@ -5,7 +5,7 @@ title: FAQ
 ------------
 
 **DISCLAIMER**
-_This is a very early version of Cassandra-on-Mesos framework. This document, code behavior, and anything else may change without notice and/or break older installations._
+_This is a very early version of Cassandra-Mesos framework. This document, code behavior, and anything else may change without notice and/or break older installations._
 
 ------------
 
@@ -14,7 +14,7 @@ _This is a very early version of Cassandra-on-Mesos framework. This document, co
 
 ### **Troubleshooting when no Cassandra process is started**
 
-  The Cassandra-on-Mesos framework first allocates executors for all seed nodes. It starts the Cassandra processes after the initially configured number of seed nodes have been allocated.
+  The Cassandra-Mesos framework first allocates executors for all seed nodes. It starts the Cassandra processes after the initially configured number of seed nodes have been allocated.
 
   _Example:_ If you have configured 3 seed nodes, but only 2 executors are allocated, no Cassandra process
   is started. After the 3rd executor is allocated, all Cassandra processes are started in the normal fashion.
@@ -27,7 +27,7 @@ Yes! However, if you run Mesos on Amazon EC2 or Google Compute Engine, make sure
 
 ### **Cassandra processes have started but it takes a long time until the whole cluster is running**
 
-  Here are the defined Cassandra-on-Mesos
+  Here are the defined Cassandra-Mesos
   limitations before a Cassandra process can be started:
 
   1. A minimum of one Cassandra seed node must be running and in operation-mode `NORMAL`.
@@ -50,7 +50,7 @@ Yes! However, if you run Mesos on Amazon EC2 or Google Compute Engine, make sure
 ### **JMX port of Apache Cassandra**
 
   A possible security risk in Apache has been closed in versions 2.0.14 and 2.1.4. This had impact to the
-  current development of the Cassandra-on-Mesos framework. Since 2.0.14 and 2.1.4 Apache Cassandra only opens the JMX port (usually 7199) on the loopback address (`127.0.0.1`). If you wish to open it **and know that you introduce a possible security risk**, you can pass the environment variables CASSANDRA_JMX_LOCAL=false` and `CASSANDRA_JMX_NO_AUTHENTICATION=true` to the framework upon **initial** invocation (i.e. when the framework first registers).
+  current development of the Cassandra-Mesos framework. Since 2.0.14 and 2.1.4 Apache Cassandra only opens the JMX port (usually 7199) on the loopback address (`127.0.0.1`). If you wish to open it **and know that you introduce a possible security risk**, you can pass the environment variables CASSANDRA_JMX_LOCAL=false` and `CASSANDRA_JMX_NO_AUTHENTICATION=true` to the framework upon **initial** invocation (i.e. when the framework first registers).
 
   [CASSANDRA-9089](https://issues.apache.org/jira/browse/CASSANDRA-9089) is meant to let JMX listen to a
   specific IP address, but is is not included in Cassandra 2.1.4.
@@ -64,7 +64,7 @@ Yes! However, if you run Mesos on Amazon EC2 or Google Compute Engine, make sure
 
 ### **Which versions of Apache Cassandra are supported?**
 
-  All Apache Cassandra versions from 2.1 forward work with this version of the Cassandra-on-Mesos framework.
+  All Apache Cassandra versions from 2.1 forward work with this version of the Cassandra-Mesos framework.
   **Note** Currently there is no official mechanism to upgrade from one version to another.
 
 ### **Cassandra nodetool complains with strange exceptions**

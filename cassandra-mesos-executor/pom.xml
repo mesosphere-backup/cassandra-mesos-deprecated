@@ -12,7 +12,7 @@
     <artifactId>cassandra-mesos-executor</artifactId>
 
     <description>
-        The Cassandra-on-Mesos framework to deploy Apache Cassandra to Apache Mesos.
+        The Cassandra-Mesos framework to deploy Apache Cassandra to Apache Mesos.
         This artifact contains the Mesos executor.
     </description>
 

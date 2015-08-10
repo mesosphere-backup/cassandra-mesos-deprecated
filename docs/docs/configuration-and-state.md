@@ -5,18 +5,18 @@ title: Configuration and State
 ------------
 
 **DISCLAIMER**
-_This is a very early version of Cassandra-on-Mesos framework. This document, code behavior, and anything else may change without notice and/or break older installations._
+_This is a very early version of Cassandra-Mesos framework. This document, code behavior, and anything else may change without notice and/or break older installations._
 
 ------------
 
 # Configuration and State
 
-This document is a technical description about what happens inside Cassandra-on-Mesos framework -
+This document is a technical description about what happens inside Cassandra-Mesos framework -
 more precisely: inside the scheduler.
 
-Reminder: the single instance of the Cassandra-on-Mesos _scheduler_ submits tasks (and status requests) to  its Cassandra-on-Mesos _executors_. Configuration and status information is stored as state objects
+Reminder: the single instance of the Cassandra-Mesos _scheduler_ submits tasks (and status requests) to its Cassandra-Mesos _executors_. Configuration and status information is stored as state objects
 in ZooKeeper - and the _scheduler_ is the only process that is updates that information.
-Cassandra-on-Mesos _executors_ are relatively dumb processes that just do what the _scheduler_ wants them to do.
+Cassandra-Mesos _executors_ are relatively dumb processes that just do what the _scheduler_ wants them to do.
 
 This document assumes that the reader is familiar with Apache Mesos and (to some extent) with
 Apache Cassandra.
@@ -37,22 +37,22 @@ There are some objects stored directly beneath the _ZooKeeper base URL_. All of 
 * `CassandraClusterHealthCheckHistory` Contains a history of the last health-checks that were received from all nodes.
 * `CassandraClusterJobs` Contains the current cluster-wide job and the last job status (one per job type).
 
-These objects are initially persisted when you start a Cassandra-on-Mesos framework for the first time.
+These objects are initially persisted when you start a Cassandra-Mesos framework for the first time.
 
 # General procedure
 
-Mesos periodically offers the Cassandra-on-Mesos scheduler available resources via a call to `Scheduler.resourceOffers`. Within this call, the Cassandra-on-Mesos framework checks whether nodes need to be "occupied" as a Cassandra node or tasks have to be submitted against already acquired nodes.
+Mesos periodically offers the Cassandra-Mesos scheduler available resources via a call to `Scheduler.resourceOffers`. Within this call, the Cassandra-Mesos framework checks whether nodes need to be "occupied" as a Cassandra node or tasks have to be submitted against already acquired nodes.
 
 The framework currently only allows one Cassandra instance per node (based on IP address).
 
 ## Offer handling in the scheduler
 
 If `CassandraClusterState.nodesToAcquire` is greater than 0 and an offer is received for a node that does not
-already host a Cassandra instance, a Cassandra-on-Mesos executor is launched on that node.
+already host a Cassandra instance, a Cassandra-Mesos executor is launched on that node.
 
 If `CassandraClusterState.seedsToAcquire` is also greater than 0, the new Cassandra instance will be a seed node.
 
-If an offer for a node already containing an Cassandra-on-Mesos executor is received, offer handling checks whether tasks need to be launched via that executor, or a health check or a status report for a cluster-wide
+If an offer for a node already containing an Cassandra-Mesos executor is received, offer handling checks whether tasks need to be launched via that executor, or a health check or a status report for a cluster-wide
 job is required.
 
 Tasks are launched via `SchedulerDriver.launchTasks()`. Such tasks can be:
@@ -91,7 +91,7 @@ it is set to `TERMINATE`.
 
 ## Cluster jobs
 
-Cassandra-on-Mesos framework uses so called _cluster jobs_ to ensure that certain tasks like
+Cassandra-Mesos framework uses so called _cluster jobs_ to ensure that certain tasks like
 _repair_, _cleanup_ and _restart_ are never executed on/against more than one node. Some job types
 (_repair_ and _cleanup_) involve activity performed against the actual Cassandra process. Other job types
 (_restart_) are just a kind of synchonization object.
@@ -131,7 +131,7 @@ The lifecycle of a task is communicated via the standard Mesos messages.
 
 The scheduler requests status information from executors periodically via so called Mesos framework messages. Framework messages are not guaranteed to arrive in order or to even be delivered at all.
 
-Cassandra-on-Mesos uses two kinds of status request/response framework messages:
+Cassandra-Mesos uses two kinds of status request/response framework messages:
 
 * `HEALTH_CHECK_DETAILS` to get information about the status of the Cassandra process.
 * `NODE_JOB_STATUS` to get information about the status and progress of a node's part of a cluster-wide
@@ -153,7 +153,7 @@ is considered "live", when all the following criteria match (in `CassandraCluste
 
 ## Cassandra process startup restrictions
 
-The Cassandra-on-Mesos framework currently defines the following limitations before a Cassandra process can be started:
+The Cassandra-Mesos framework currently defines the following limitations before a Cassandra process can be started:
 
 1. At least one Cassandra seed node must be running and must be in operation-mode `NORMAL.
    Otherwise new nodes would never successfully join the cluster.
@@ -167,4 +167,4 @@ The inital state (`CassandraClusterState`) is basically empty and has the fields
 configured number of nodes and `seedsToAcquire` set to the number of seeds.
 
 At first, the scheduler just acquires the number of seed nodes by allocating the required resources and
-launching the Cassandra-on-Mesos executor. No Cassandra process will be started until there are enough seed nodes to fulfil the initially configured number of seeds (via `CassandraFrameworkConfiguration.defaultConfigRole.numberOfSeeds`).
+launching the Cassandra-Mesos executor. No Cassandra process will be started until there are enough seed nodes to fulfil the initially configured number of seeds (via `CassandraFrameworkConfiguration.defaultConfigRole.numberOfSeeds`).

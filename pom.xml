@@ -7,7 +7,7 @@
     <packaging>pom</packaging>
 
     <description>
-        The Cassandra-on-Mesos framework to deploy Apache Cassandra to Apache Mesos.
+        An Apache Mesos framework to deploy Apache Cassandra onto a Mesos cluster.
     </description>
 
     <licenses>

@@ -30,7 +30,7 @@ message CassandraFrameworkConfiguration {
     optional string frameworkId = 1;
     /**
      * Name of the framework - must be unique for each framework instance.
-     * This is different from cluster since if you have setup multiple Cassandra-on-Mesos
+     * This is different from cluster since if you have setup multiple Cassandra-Mesos
      * frameworks for each logical data center (with different frameworkName and frameworkId) you
      * still have the same Cassandra cluster name.
      */

@@ -5,7 +5,7 @@ title: Introduction to Cassandra-Meso
 ------------
 
 **DISCLAIMER**
-_This is a very early version of Cassandra-on-Mesos framework. This document, code behavior, and anything else may change without notice and/or break older installations._
+_This is a very early version of Cassandra-Mesos framework. This document, code behavior, and anything else may change without notice and/or break older installations._
 
 ------------
 
@@ -25,9 +25,9 @@ For common Mesos terminology, see the [Mesosphere Glossary](http://mesosphere.co
 
 The standard way of installing Cassandra involves installing and configuring the operating system, JVM and Cassandra manually on each node in your cluster.
 
-# Initial Cassandra-on-Mesos setup
+# Initial Cassandra-Mesos setup
 
-If you want to try Cassandra-on-Mesos on a single development machine, see the [Getting Started]({{ site.baseurl }}/docs/) page.
+If you want to try Cassandra-Mesos on a single development machine, see the [Getting Started]({{ site.baseurl }}/docs/) page.
 
 # Prerequisites
 
@@ -37,7 +37,7 @@ If you want to try Cassandra-on-Mesos on a single development machine, see the [
 
 # Configuration
 
-The Cassandra-on-Mesos framework requires these things before you get started:
+The Cassandra-Mesos framework requires these things before you get started:
 
 * Number of Cassandra nodes
 * Number of seed nodes
@@ -59,11 +59,11 @@ behavior when using databases (Cassandra is a database), Mesos 0.22 introduces t
 multiple permanent disk locations (*not* ephemeral) that can be reused when the executor restarts.
 
 Apache Mesos is not aware of the different data centers or racks on its own like Apache Cassandra. Currently, 
-Cassandra-on-Mesos does not support multiple datacenters or racks. To enable this feature in  a future release of
-Cassandra-on-Mesos, we've chosen to use the `GossipingPropertyFileSnitch` by default and to make datacenter and
+Cassandra-Mesos does not support multiple datacenters or racks. To enable this feature in  a future release of
+Cassandra-Mesos, we've chosen to use the `GossipingPropertyFileSnitch` by default and to make datacenter and
 rack name configurable.
 
-In summary, the Cassandra-on-Mesos framework performs the following tasks:
+In summary, the Cassandra-Mesos framework performs the following tasks:
 
 * Deploys JRE to nodes. However, you must provide the framework a location where you provide a copy of the Oracle
   JRE due to legal/licensing restrictions.
@@ -78,7 +78,7 @@ Apache Cassandra ships with the useful tools `cqlsh`, `nodetool`, and `cassandra
 to pass in the nodes that you want to connect to. This becomes a bit complicated with Mesos because Cassandra nodes might
 be running on a node with an arbitrary IP address.
 
-Cassandra-on-Mesos provides two features to solve this problem:
+Cassandra-Mesos provides two features to solve this problem:
 
 * REST API endpoints to discover live Cassandra nodes
 * Shell scripts that use this API
@@ -86,7 +86,7 @@ Cassandra-on-Mesos provides two features to solve this problem:
 To use these features, you need these tools:
  
 * An unpacked copy of Apache Cassandra
-* The set of Cassandra-on-Mesos shell scripts
+* The set of Cassandra-Mesos shell scripts
 * The IP/hostname of the host running the scheduler (Mesos-DNS makes this task easier)
 
 To run the above tools do the following:
@@ -104,11 +104,11 @@ against a specific node, you must find that node's IP address and use `nodetool`
 
 Running Cassandra tools like the many `sstable*` tools in `bin` and `tools/bin` is currently more difficult.
 You must log onto a slave node, `cd` to the sandbox directory and execute the tools there.
-You can retrieve the sandbox directory for a slave node from the Cassandra-on-Mesos REST API or from the Mesos web UI.
+You can retrieve the sandbox directory for a slave node from the Cassandra-Mesos REST API or from the Mesos web UI.
 
 ## QA report collection
 
-Cassandra-on-Mesos provides a tool to collect and download information from all of your Cassandra nodes into 
+Cassandra-Mesos provides a tool to collect and download information from all of your Cassandra nodes into 
 a single directory. `com-qa-report` downloads the log files from the executor (`executor.log`), Cassandra
 (`system.log`), and the results of `nodetool version`/`info`/`status`/`tpstats` of each node into a single
 directory.
@@ -119,7 +119,7 @@ Note, that it `com-qa-report` requires the JMX port to be accessible from the ho
 
 # REST API features
 
-This list highlights some administrative features that are performed by Cassandra-on-Mesos.
+This list highlights some administrative features that are performed by Cassandra-Mesos.
 
 * Cluster-wide repair. Performs a `nodetool repair` *WITHOUT* 
   `--partitioner-range --full --in-local-dc --sequential` options. A maximum of one node will perform a repair at any
@@ -141,7 +141,7 @@ To use the Cassandra cluster in your application, an extension to the [DataStax 
 developed.
 
 ```java
-// Place the base-URI of the Cassandra-on-Mesos REST API here.
+// Place the base-URI of the Cassandra-Mesos REST API here.
 // It usually looks like this:     http://1.2.3.4:18080/
 String httpServerBaseUri = "http://1.2.3.4:18080/";
 // Specify how many live nodes you want to provide to the Cluster.Builder instance.

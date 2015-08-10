@@ -6,7 +6,7 @@ Cassandra Mesos Framework
 ------------
 
 **DISCLAIMER**
-_This is a very early version of Cassandra-on-Mesos framework. This
+_This is a very early version of Cassandra-Mesos framework. This
 document, code behavior, and anything else may change without notice and/or break older installations._
 
 ------------
@@ -281,8 +281,8 @@ line options must be specified directly after the command name.
 Environment variables:
 
 * `CASSANDRA_HOME` path to where your local unpacked Apache Cassandra distribution lives. Defaults to `.`
-* `API_HOST` host name where the Cassandra-on-Mesos scheduler is running. Defaults to `127.0.0.1`
-* `API_PORT` port on which the Cassandra-on-Mesos scheduler is listening. Defaults to `18080`
+* `API_HOST` host name where the Cassandra-Mesos scheduler is running. Defaults to `127.0.0.1`
+* `API_PORT` port on which the Cassandra-Mesos scheduler is listening. Defaults to `18080`
 
 Command line options:
 * `--limit N` the number of live nodes to use. Has no effect for cqlsh or nodetool.
@@ -292,7 +292,7 @@ Command line options:
 CVE-2015-0225 describes a security vulnerability in Cassandra, which allows an attacker to execute arbitrary code via
 JMX/RMI.
 
-Some non-critical tools of Cassandra-on-Mesos framework rely on some functionality via JMX to be available remotely.
+Some non-critical tools of Cassandra-Mesos framework rely on some functionality via JMX to be available remotely.
 
 1. `com-nodetool` (as `nodetool` itself) requires the JMX port to be open from outside. 
 1. `com-qa-report` uses `com-nodetool` for some functionality, means, it requires the JMX port to be open from outside.

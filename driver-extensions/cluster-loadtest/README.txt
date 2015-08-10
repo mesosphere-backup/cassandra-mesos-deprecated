@@ -1,7 +1,7 @@
-Cassandra-on-Mesos Cluster Loadtest
-===================================
+Cassandra-Mesos Cluster Loadtest
+================================
 
-The scripted tool cluster-loadtest.sh is meant to add some load to a Cassandra-on-Mesos cluster to see whether
+The scripted tool cluster-loadtest.sh is meant to add some load to a Cassandra-Mesos cluster to see whether
 it works. It's not meant to get any valueable performance numbers. To get valid performance numbers,
 add your own stress profile that matches your individual application.
 

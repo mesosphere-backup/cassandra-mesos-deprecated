@@ -378,10 +378,10 @@ message ClusterJobKeyspaceStatus {
  */
 message RackDc {
     /** Rack identifier */
-    optional string rack = 1 [default = "RACK0"];
+    optional string rack = 1 [default = "RAC1"];
 
     /** DataCenter identifier */
-    optional string dc = 2  [default = "DC0"];
+    optional string dc = 2  [default = "DC1"];
 }
 
 /**

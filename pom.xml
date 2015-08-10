@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
     <artifactId>cassandra-mesos-parent</artifactId>
-    <version>0.1.1-SNAPSHOT</version>
+    <version>0.2.0</version>
     <packaging>pom</packaging>
 
     <description>
@@ -92,34 +92,34 @@
             <dependency>
                 <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
                 <artifactId>cassandra-mesos-scheduler</artifactId>
-                <version>0.1.1-SNAPSHOT</version>
+                <version>0.2.0</version>
             </dependency>
             <dependency>
                 <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
                 <artifactId>cassandra-mesos-model</artifactId>
-                <version>0.1.1-SNAPSHOT</version>
+                <version>0.2.0</version>
             </dependency>
             <dependency>
                 <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
                 <artifactId>cassandra-mesos-executor</artifactId>
-                <version>0.1.1-SNAPSHOT</version>
+                <version>0.2.0</version>
             </dependency>
             <dependency>
                 <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
                 <artifactId>cassandra-mesos-executor</artifactId>
                 <classifier>jar-with-dependencies</classifier>
-                <version>0.1.1-SNAPSHOT</version>
+                <version>0.2.0</version>
             </dependency>
             <dependency>
                 <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
                 <artifactId>cassandra-mesos-framework</artifactId>
-                <version>0.1.1-SNAPSHOT</version>
+                <version>0.2.0</version>
             </dependency>
             <dependency>
                 <groupId>io.mesosphere.mesos.frameworks.cassandra</groupId>
                 <artifactId>cassandra-mesos-framework</artifactId>
                 <classifier>jar-with-dependencies</classifier>
-                <version>0.1.1-SNAPSHOT</version>
+                <version>0.2.0</version>
             </dependency>
 
             <dependency>

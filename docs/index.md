@@ -94,7 +94,7 @@ The Custom Mesos Executor will be responsible for providing a high-fidelity mean
 #### Nodes
 1. Static Port configuration for all ports listed in [10](#resources) below
 
-## Out of Scope for Version 0.1.0
+## Out of Scope for Version 0.2.0
 
 * Support for reducing the size of a ring
 * Data backup
@@ -102,7 +102,6 @@ The Custom Mesos Executor will be responsible for providing a high-fidelity mean
 * Auto-scaling
 * Performance Optimizations
 * Dynamic Ports
-* Multi-DataCenter support
 * Support vertically scaling nodes (increase RAM or CPU resources for a node)
   * Depends on MESOS-1279 [[6]](#resources)
 * Automatically scheduled `nodetool cleanup`

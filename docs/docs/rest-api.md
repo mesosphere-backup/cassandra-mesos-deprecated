@@ -318,7 +318,7 @@ Endpoint | HTTP method | Content-Types| Description
 `/live-nodes/nodetool`              | `GET`  | `text/x-cassandra-nodetool` | Special live-nodes endpoints that produce command line options for the Cassandra tool nodetool.
 `/live-nodes/stress`                | `GET`  | `text/x-cassandra-stress` | Special live-nodes endpoints that produce command line options for the Cassandra tool stress.
 `/qa/report/resources`              | `GET`  | `application/json`, `text/plain` | Retrieve a JSON response with relevant information to create a QA report.
-`/scale/nodes?nodeCount={count}`    | `GET`  | `application/json` | Set the desired number of nodes for the cluster (Currently only supports increasing number of nodes).
+`/scale/nodes?nodeCount={count}`    | `POST` | `application/json` | Set the desired number of nodes for the cluster (Currently only supports increasing number of nodes).
 `/health/process`                   | `GET`  | `application/json` | Simple health check to make sure the framework scheduler process is running (Used by Marathon to determine if process is healthy)
 `/health/cluster`                   | `GET`  | `application/json` | Health check that can be ran by marathon to exposed the health of the Cassandra Cluster (200 if health 500 if not health)
 `/health/cluster/report`            | `GET`  | `application/json` | Health check report that provides visibility into what is evaluated when `/health/cluster` is accessed.

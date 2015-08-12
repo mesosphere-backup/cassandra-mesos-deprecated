@@ -24,6 +24,8 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 public class NodeRestoreJob extends AbstractNodeJob {
     private static final Logger LOGGER = LoggerFactory.getLogger(NodeRestoreJob.class);
 
@@ -78,7 +80,9 @@ public class NodeRestoreJob extends AbstractNodeJob {
                     LOGGER.info("Starting restore on keyspace {}", keyspace);
                     keyspaceStarted();
 
-                    // start restore here
+                    final BackupManager backupManager = new BackupManager(checkNotNull(jmxConnect), backupDir);
+                    backupManager.restore(keyspace, backupName);
+
                     keyspaceFinished("SUCCESS", keyspace);
                 } catch (final Exception e) {
                     LOGGER.error("Failed to restore keyspace " + keyspace, e);

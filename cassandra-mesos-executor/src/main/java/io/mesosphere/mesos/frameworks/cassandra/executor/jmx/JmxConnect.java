@@ -15,6 +15,7 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
+import org.apache.cassandra.db.ColumnFamilyStoreMBean;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
 import org.apache.cassandra.service.*;
 import org.jetbrains.annotations.NotNull;
@@ -39,6 +40,9 @@ public interface JmxConnect extends Closeable {
 
     @NotNull
     EndpointSnitchInfoMBean getEndpointSnitchInfoProxy();
+
+    @NotNull
+    ColumnFamilyStoreMBean getColumnFamilyStoreProxy(@NotNull String keyspace, @NotNull String table);
 
     @NotNull
     List<String> getColumnFamilyNames(@NotNull String keyspace);

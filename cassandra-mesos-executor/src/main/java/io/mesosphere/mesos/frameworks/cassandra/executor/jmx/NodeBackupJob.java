@@ -16,17 +16,11 @@
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
-import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -85,16 +79,9 @@ public class NodeBackupJob extends AbstractNodeJob {
                 try {
                     LOGGER.info("Starting backup on keyspace {}", keyspace);
                     keyspaceStarted();
-                    final StorageServiceMBean storageServiceProxy = checkNotNull(jmxConnect).getStorageServiceProxy();
 
-                    LOGGER.info("Creating snapshot of keyspace {}", keyspace);
-                    storageServiceProxy.takeSnapshot(backupName, keyspace);
-
-                    LOGGER.info("Copying snapshot of keyspace {}", keyspace);
-                    copyKeyspaceSnapshot(keyspace);
-
-                    LOGGER.info("Clearing snapshot of keyspace {}", keyspace);
-                    storageServiceProxy.clearSnapshot(backupName, keyspace);
+                    final BackupManager backupManager = new BackupManager(checkNotNull(jmxConnect), backupDir);
+                    backupManager.backup(keyspace, backupName);
 
                     keyspaceFinished("SUCCESS", keyspace);
                 } catch (final Exception e) {
@@ -107,48 +94,6 @@ public class NodeBackupJob extends AbstractNodeJob {
         });
 
         LOGGER.info("Submitted backup for keyspace {}", keyspace);
-    }
-
-    private void copyKeyspaceSnapshot(final String keyspace) throws IOException {
-        final List<String> tables = jmxConnect.getColumnFamilyNames(keyspace);
-        for (final String table : tables)
-            copyTableSnapshot(keyspace, table);
-    }
-
-    private void copyTableSnapshot(final String keyspace, final String table) throws IOException {
-        final File srcDir = findTableSnapshotDir(keyspace, table, backupName);
-        final File destDir = new File(backupDir, backupName + "/" + keyspace + "/" + table);
-
-        destDir.mkdirs();
-
-        for (final File file : srcDir.listFiles()) {
-            if (file.isFile()) {
-                Files.copy(file.toPath(), new File(destDir, file.getName()).toPath(), StandardCopyOption.REPLACE_EXISTING);
-            }
-        }
-    }
-
-    private File findTableSnapshotDir(final String keyspace, final String table, final String backupName) {
-        final File dataDir = new File(jmxConnect.getStorageServiceProxy().getAllDataFileLocations()[0]);
-        final File keySpaceDir = new File(dataDir, keyspace);
-
-        final File tableDir = findTableDir(keySpaceDir, table);
-        final File snapshotDir = new File(tableDir, "/snapshots/" + backupName);
-        if (!snapshotDir.exists()) throw new IllegalStateException("Snapshot dir does not exist: " + snapshotDir);
-
-        return snapshotDir;
-    }
-
-    private File findTableDir(final File keyspaceDir, final String table) {
-        final File[] files = keyspaceDir.listFiles();
-        if (files != null)
-            for (final File file : files) {
-                if (file.isDirectory() && file.getName().startsWith(table + "-")) {
-                    return file;
-                }
-            }
-
-        throw new IllegalStateException("Failed to found table dir for table " + table + " in keyspace " + keyspaceDir);
     }
 
     @Override

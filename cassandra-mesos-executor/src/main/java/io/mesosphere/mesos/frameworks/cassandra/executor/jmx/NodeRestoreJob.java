@@ -33,20 +33,20 @@ public class NodeRestoreJob extends AbstractNodeJob {
     private final ExecutorService executorService;
     @NotNull
     private final String backupDir;
-    @NotNull
-    private final String backupName;
+
+    private final boolean truncateTables;
 
     private Future<?> restoreFeature;
 
     public NodeRestoreJob(
             @NotNull final Protos.TaskID taskId,
             @NotNull final String backupDir,
-            @NotNull final String backupName,
+            final boolean truncateTables,
             @NotNull final ExecutorService executorService)
     {
         super(taskId);
         this.backupDir = backupDir;
-        this.backupName = backupName;
+        this.truncateTables = truncateTables;
         this.executorService = executorService;
     }
 
@@ -61,7 +61,7 @@ public class NodeRestoreJob extends AbstractNodeJob {
             return false;
         }
 
-        LOGGER.info("Initiated restore '{}' from '{}' for keyspaces {}", backupName, backupDir, getRemainingKeyspaces());
+        LOGGER.info("Initiated restore from '{}' for keyspaces {}", backupDir, getRemainingKeyspaces());
 
         return true;
     }
@@ -81,7 +81,7 @@ public class NodeRestoreJob extends AbstractNodeJob {
                     keyspaceStarted();
 
                     final BackupManager backupManager = new BackupManager(checkNotNull(jmxConnect), backupDir);
-                    backupManager.restore(keyspace, backupName);
+                    backupManager.restore(keyspace, truncateTables);
 
                     keyspaceFinished("SUCCESS", keyspace);
                 } catch (final Exception e) {

@@ -748,13 +748,13 @@ message NodeJobTask {
      */
     required ClusterJobType jobType = 1;
     /**
-     * Backup name
-     */
-    optional string backupName = 2;
-    /**
      * Backup directory
      */
     optional string backupDir = 3;
+    /**
+     * Determine if this is the first node participating in job
+     */
+    optional bool firstNodeInJob = 4;
 }
 
 /**

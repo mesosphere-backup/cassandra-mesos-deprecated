@@ -33,20 +33,16 @@ public class NodeBackupJob extends AbstractNodeJob {
     private final ExecutorService executorService;
     @NotNull
     private final String backupDir;
-    @NotNull
-    private final String backupName;
 
     private Future<?> backupFuture;
 
     public NodeBackupJob(
             @NotNull final Protos.TaskID taskId,
             @NotNull final String backupDir,
-            @NotNull final String backupName,
             @NotNull final ExecutorService executorService)
     {
         super(taskId);
         this.backupDir = backupDir;
-        this.backupName = backupName;
         this.executorService = executorService;
     }
 
@@ -61,7 +57,7 @@ public class NodeBackupJob extends AbstractNodeJob {
             return false;
         }
 
-        LOGGER.info("Initiated backup '{}' into '{}' for keyspaces {}", backupName, backupDir, getRemainingKeyspaces());
+        LOGGER.info("Initiated backup into '{}' for keyspaces {}", backupDir, getRemainingKeyspaces());
 
         return true;
     }
@@ -81,7 +77,7 @@ public class NodeBackupJob extends AbstractNodeJob {
                     keyspaceStarted();
 
                     final BackupManager backupManager = new BackupManager(checkNotNull(jmxConnect), backupDir);
-                    backupManager.backup(keyspace, backupName);
+                    backupManager.backup(keyspace);
 
                     keyspaceFinished("SUCCESS", keyspace);
                 } catch (final Exception e) {

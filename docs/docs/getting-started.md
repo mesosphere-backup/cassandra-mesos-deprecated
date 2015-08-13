@@ -5,7 +5,7 @@ title: Setting Up and Running Cassandra-Mesos
 ------------
 
 **DISCLAIMER**
-_This is a very early version of Cassandra-on-Mesos framework. This
+_This is a very early version of Cassandra-Mesos framework. This
 document, code behavior, and anything else may change without notice and/or break older installations._
 
 ------------
@@ -47,14 +47,14 @@ For more information about the DCOS, see the [Mesosphere docs](http://docs.mesos
 
 ## <a name="local-setup"></a>Local Setup
 
-Cassandra-on-Mesos setup is simple on a Linux machine or Mac. Windows is not currently supported.
+Cassandra-Mesos setup is simple on a Linux machine or Mac. Windows is not currently supported.
 
 ### Requirements
 
 * [Apache ZooKeeper] version 3.4.6 or newer
 * [Apache Mesos] version 0.22 or newer
 * [Apache Cassandra] version 2.1.x
-* [Cassandra-on-Mesos] checkout the `master` branch (`git clone https://github.com/mesosphere/cassandra-mesos.git`)
+* [Cassandra-Mesos] checkout the `master` branch (`git clone https://github.com/mesosphere/cassandra-mesos.git`)
 * Oracle JDK 1.7.0u76 or newer
 
 ### Note for Mac users
@@ -70,8 +70,8 @@ sudo ifconfig lo0 alias 127.0.0.4 up
 
 ### Configuring and starting
 
-This document assumes that you have created a directory `mkdir ~/cassandra-on-mesos` and your
-working directory is `cd ~/cassandra-on-mesos`.
+This document assumes that you have created a directory `mkdir ~/cassandra-mesos` and your
+working directory is `cd ~/cassandra-mesos`.
 
 #### ZooKeeper
 
@@ -81,7 +81,7 @@ working directory is `cd ~/cassandra-on-mesos`.
 1. Verify that the directory structure now looks like this:
 
    ```bash
-   ~/cassandra-on-mesos/zookeeper$ ls -1
+   ~/cassandra-mesos/zookeeper$ ls -1
    zookeeper-3.4.6/
    data/
    ```
@@ -96,8 +96,8 @@ working directory is `cd ~/cassandra-on-mesos`.
 1. Start ZooKeeper
 
    ```bash
-   ~/cassandra-on-mesos/zookeeper$ cd zookeeper-3.4.6
-   ~/cassandra-on-mesos/zookeeper/zookeeper-3.4.6$ bin/zkServer.sh start
+   ~/cassandra-mesos/zookeeper$ cd zookeeper-3.4.6
+   ~/cassandra-mesos/zookeeper/zookeeper-3.4.6$ bin/zkServer.sh start
    ```
 
 #### Mesos
@@ -120,14 +120,14 @@ working directory is `cd ~/cassandra-on-mesos`.
    ```
 1. Verify that Mesos is running by opening `http://127.0.0.1:5050/` in your browser.
 
-#### Cassandra-on-Mesos
+#### Cassandra-Mesos
 
-##### Cassandra-on-Mesos from a shell prompt
+##### Cassandra-Mesos from a shell prompt
 
 1. Open the file `dev-run.bash` and update the variables as necessary.
 1. Execute `dev-run.bash`.
 
-##### Cassandra-on-Mesos from an IDE
+##### Cassandra-Mesos from an IDE
 
 1. Run  `git clone https://github.com/mesosphere/cassandra-mesos.git`.
 1. Open your IDE, create a project and import it using the Maven model.
@@ -147,7 +147,7 @@ working directory is `cd ~/cassandra-on-mesos`.
    PORT0=18080
    # Absolute path of libmesos 
    MESOS_NATIVE_JAVA_LIBRARY=.../libmesos.dylib
-   # Absolute path where of the Cassandra-on-Mesos executor
+   # Absolute path where of the Cassandra-Mesos executor
    EXECUTOR_FILE_PATH=.../cassandra-executor-0.2.0-jar-with-dependencies.jar
    # Absolute path to the JRE you downloaded
    JRE_FILE_PATH=...jre-7u76-macosx-x64.tar.gz
@@ -160,10 +160,10 @@ working directory is `cd ~/cassandra-on-mesos`.
 1. Kill all Java processes (make sure you don't accidentally kill your IDE's processes).
 1. Kill all Mesos processes, scrub the base working directory.
 1. Stop ZooKeeper, scrub the data directory.
-1. Start ZooKeeper, Mesos master, Mesos slaves, and Cassandra-on-Mesos framework.
+1. Start ZooKeeper, Mesos master, Mesos slaves, and Cassandra-Mesos framework.
 
 
 [Apache Cassandra]: http://cassandra.apache.org/
 [Apache Mesos]: http://mesos.apache.org/
 [Apache ZooKeeper]: http://zookeeper.apache.org/
-[Cassandra-on-Mesos]: https://github.com/mesosphere/cassandra-mesos/
+[Cassandra-Mesos]: https://github.com/mesosphere/cassandra-mesos/

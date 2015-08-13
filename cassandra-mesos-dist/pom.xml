@@ -13,7 +13,7 @@
     <artifactId>cassandra-mesos-dist</artifactId>
 
     <description>
-        The Cassandra-on-Mesos framework to deploy Apache Cassandra to Apache Mesos.
+        The Cassandra-Mesos framework to deploy Apache Cassandra to Apache Mesos.
         This artifact contains a distributable tarball.
     </description>
 

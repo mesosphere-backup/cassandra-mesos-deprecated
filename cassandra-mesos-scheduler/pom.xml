@@ -12,8 +12,8 @@
     <artifactId>cassandra-mesos-scheduler</artifactId>
 
     <description>
-        The Cassandra-on-Mesos framework to deploy Apache Cassandra to Apache Mesos.
-        This artifact contains the Mesos scheduler for the Cassandra-on-Mesos framework.
+        The Cassandra-Mesos framework to deploy Apache Cassandra to Apache Mesos.
+        This artifact contains the Mesos scheduler for the Cassandra-Mesos framework.
     </description>
 
     <licenses>

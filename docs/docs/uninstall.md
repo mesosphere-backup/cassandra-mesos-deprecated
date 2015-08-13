@@ -8,7 +8,7 @@ Manual Uninstall
 ------------
 
 **DISCLAIMER**
-_This is a very early version of Cassandra-on-Mesos framework. This document, code behavior, and anything else may change without notice and/or break older installations._
+_This is a very early version of Cassandra-Mesos framework. This document, code behavior, and anything else may change without notice and/or break older installations._
 
 ------------
 
@@ -28,9 +28,9 @@ To uninstall the Cassandra DCOS Service complete the following actions:
     
 ## Manual Uninstall on Mesos
 
-_Following the instructions will completely uninstall the Cassandra-on-Mesos framework -- data and all, no recovery will be possible._
+_Following the instructions will completely uninstall the Cassandra-Mesos framework -- data and all, no recovery will be possible._
 
-To uninstall the Cassandra Mesos Framework complete the following actions:
+To uninstall the Cassandra-Mesos Framework complete the following actions:
 
 1. Delete Marathon app
 2. Shutdown framework

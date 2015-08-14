@@ -1,5 +1,6 @@
-package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
+package io.mesosphere.mesos.frameworks.cassandra.executor;
 
+import io.mesosphere.mesos.frameworks.cassandra.executor.jmx.JmxConnect;
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -27,17 +28,20 @@ public class BackupManager {
     }
 
     public void backup(@NotNull final String keyspace) throws IOException {
+        backup(keyspace, "s-" + System.currentTimeMillis());
+    }
+
+    public void backup(@NotNull final String keyspace, @NotNull final String snapshot) throws IOException {
         final StorageServiceMBean storageServiceProxy = jmxConnect.getStorageServiceProxy();
-        final String snapshotName = "s-" + System.currentTimeMillis();
 
         LOGGER.info("Creating snapshot of keyspace {}", keyspace);
-        storageServiceProxy.takeSnapshot(snapshotName, keyspace);
+        storageServiceProxy.takeSnapshot(snapshot, keyspace);
 
         LOGGER.info("Copying backup of keyspace {}", keyspace);
-        copyKeyspaceSnapshot(snapshotName, keyspace);
+        copyKeyspaceSnapshot(snapshot, keyspace);
 
         LOGGER.info("Clearing snapshot of keyspace {}", keyspace);
-        storageServiceProxy.clearSnapshot(snapshotName, keyspace);
+        storageServiceProxy.clearSnapshot(snapshot, keyspace);
     }
 
     private void copyKeyspaceSnapshot(final String snapshot, final String keyspace) throws IOException {

@@ -16,6 +16,7 @@
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
+import io.mesosphere.mesos.frameworks.cassandra.executor.BackupManager;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;

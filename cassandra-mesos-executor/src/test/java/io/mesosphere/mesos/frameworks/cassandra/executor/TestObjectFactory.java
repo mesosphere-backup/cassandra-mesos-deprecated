@@ -17,6 +17,7 @@ package io.mesosphere.mesos.frameworks.cassandra.executor;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.frameworks.cassandra.executor.jmx.JmxConnect;
+import org.apache.cassandra.db.ColumnFamilyStoreMBean;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
 import org.jetbrains.annotations.NotNull;
@@ -28,12 +29,15 @@ import javax.management.MBeanNotificationInfo;
 import javax.management.Notification;
 import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
+import javax.management.openmbean.CompositeData;
+import javax.management.openmbean.OpenDataException;
 import javax.management.openmbean.TabularData;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 /**
  * This implementation allows to mock Cassandra for executor's use case.
@@ -42,6 +46,7 @@ class TestObjectFactory implements ObjectFactory {
     final String hostId = UUID.randomUUID().toString();
     final MockStorageService storageServiceProxy = new MockStorageService();
     final MockEndpointSnitchInfo endpointSnitchInfo = new MockEndpointSnitchInfo();
+    final MockColumnFamilyStore columnFamilyStore = new MockColumnFamilyStore();
     TestWrappedProcess process;
 
     @NotNull
@@ -110,6 +115,12 @@ class TestObjectFactory implements ObjectFactory {
         @Override
         public RuntimeMXBean getRuntimeProxy() {
             return ManagementFactory.getRuntimeMXBean();
+        }
+
+        @NotNull
+        @Override
+        public ColumnFamilyStoreMBean getColumnFamilyStoreProxy(@NotNull String keyspace, @NotNull String table) {
+            return columnFamilyStore;
         }
 
         @Override
@@ -678,6 +689,322 @@ class TestObjectFactory implements ObjectFactory {
         @Override
         public String getSnitchName() {
             return "mock-snitch";
+        }
+    }
+
+    static final class MockColumnFamilyStore implements ColumnFamilyStoreMBean {
+        @Override
+        public String getColumnFamilyName() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getMemtableDataSize() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getMemtableColumnsCount() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int getMemtableSwitchCount() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long[] getRecentSSTablesPerReadHistogram() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long[] getSSTablesPerReadHistogram() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getReadCount() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getTotalReadLatencyMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long[] getLifetimeReadLatencyHistogramMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long[] getRecentReadLatencyHistogramMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public double getRecentReadLatencyMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getWriteCount() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getTotalWriteLatencyMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long[] getLifetimeWriteLatencyHistogramMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long[] getRecentWriteLatencyHistogramMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public double getRecentWriteLatencyMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getRangeCount() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getTotalRangeLatencyMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long[] getLifetimeRangeLatencyHistogramMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long[] getRecentRangeLatencyHistogramMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public double getRecentRangeLatencyMicros() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int getPendingTasks() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int getLiveSSTableCount() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getLiveDiskSpaceUsed() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getTotalDiskSpaceUsed() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void forceMajorCompaction() throws ExecutionException, InterruptedException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getMinRowSize() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getMaxRowSize() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getMeanRowSize() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getBloomFilterFalsePositives() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getRecentBloomFilterFalsePositives() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public double getBloomFilterFalseRatio() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public double getRecentBloomFilterFalseRatio() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getBloomFilterDiskSpaceUsed() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getBloomFilterOffHeapMemoryUsed() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getIndexSummaryOffHeapMemoryUsed() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getCompressionMetadataOffHeapMemoryUsed() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int getMinimumCompactionThreshold() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setMinimumCompactionThreshold(int threshold) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int getMaximumCompactionThreshold() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setCompactionThresholds(int minThreshold, int maxThreshold) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setMaximumCompactionThreshold(int threshold) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setCompactionStrategyClass(String className) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public String getCompactionStrategyClass() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Map<String, String> getCompressionParameters() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setCompressionParameters(Map<String, String> opts) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setCrcCheckChance(double crcCheckChance) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean isAutoCompactionDisabled() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public double getTombstonesPerSlice() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public double getLiveCellsPerSlice() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long estimateKeys() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long[] getEstimatedRowSizeHistogram() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long[] getEstimatedColumnCountHistogram() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public double getCompressionRatio() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<String> getBuiltIndexes() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<String> getSSTablesForKey(String key) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void loadNewSSTables() {
+        }
+
+        @Override
+        public int getUnleveledSSTables() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int[] getSSTableCountPerLevel() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public double getDroppableTombstoneRatio() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long trueSnapshotsSize() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void beginLocalSampling(String sampler, int capacity) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public CompositeData finishLocalSampling(String sampler, int count) throws OpenDataException {
+            throw new UnsupportedOperationException();
         }
     }
 }

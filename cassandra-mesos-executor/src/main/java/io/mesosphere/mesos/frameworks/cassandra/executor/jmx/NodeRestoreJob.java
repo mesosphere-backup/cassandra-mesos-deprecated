@@ -27,30 +27,34 @@ import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class NodeBackupJob extends AbstractNodeJob {
-    private static final Logger LOGGER = LoggerFactory.getLogger(NodeBackupJob.class);
+public class NodeRestoreJob extends AbstractNodeJob {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NodeRestoreJob.class);
 
     @NotNull
     private final ExecutorService executorService;
     @NotNull
     private final String backupDir;
 
-    private Future<?> backupFuture;
+    private final boolean truncateTables;
 
-    public NodeBackupJob(
+    private Future<?> restoreFeature;
+
+    public NodeRestoreJob(
             @NotNull final Protos.TaskID taskId,
             @NotNull final String backupDir,
+            final boolean truncateTables,
             @NotNull final ExecutorService executorService)
     {
         super(taskId);
         this.backupDir = backupDir;
+        this.truncateTables = truncateTables;
         this.executorService = executorService;
     }
 
     @NotNull
     @Override
     public CassandraFrameworkProtos.ClusterJobType getType() {
-        return CassandraFrameworkProtos.ClusterJobType.BACKUP;
+        return CassandraFrameworkProtos.ClusterJobType.RESTORE;
     }
 
     public boolean start(@NotNull final JmxConnect jmxConnect) {
@@ -58,7 +62,7 @@ public class NodeBackupJob extends AbstractNodeJob {
             return false;
         }
 
-        LOGGER.info("Initiated backup into '{}' for keyspaces {}", backupDir, getRemainingKeyspaces());
+        LOGGER.info("Initiated restore from '{}' for keyspaces {}", backupDir, getRemainingKeyspaces());
 
         return true;
     }
@@ -70,19 +74,19 @@ public class NodeBackupJob extends AbstractNodeJob {
             return;
         }
 
-        backupFuture = executorService.submit(new Runnable() {
+        restoreFeature = executorService.submit(new Runnable() {
             @Override
             public void run() {
                 try {
-                    LOGGER.info("Starting backup on keyspace {}", keyspace);
+                    LOGGER.info("Starting restore on keyspace {}", keyspace);
                     keyspaceStarted();
 
                     final BackupManager backupManager = new BackupManager(checkNotNull(jmxConnect), backupDir);
-                    backupManager.backup(keyspace);
+                    backupManager.restore(keyspace, truncateTables);
 
                     keyspaceFinished("SUCCESS", keyspace);
                 } catch (final Exception e) {
-                    LOGGER.error("Failed to backup keyspace " + keyspace, e);
+                    LOGGER.error("Failed to restore keyspace " + keyspace, e);
                     keyspaceFinished("FAILURE", keyspace);
                 } finally {
                     startNextKeyspace();
@@ -90,14 +94,14 @@ public class NodeBackupJob extends AbstractNodeJob {
             }
         });
 
-        LOGGER.info("Submitted backup for keyspace {}", keyspace);
+        LOGGER.info("Submitted restore for keyspace {}", keyspace);
     }
 
     @Override
     public void close() {
-        if (backupFuture != null) {
-            backupFuture.cancel(true);
-            backupFuture = null;
+        if (restoreFeature != null) {
+            restoreFeature.cancel(true);
+            restoreFeature = null;
         }
 
         super.close();

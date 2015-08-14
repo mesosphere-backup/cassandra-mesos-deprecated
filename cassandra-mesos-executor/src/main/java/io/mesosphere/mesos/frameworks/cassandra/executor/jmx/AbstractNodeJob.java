@@ -76,6 +76,7 @@ public abstract class AbstractNodeJob implements Closeable {
 
         remainingKeyspaces = new CopyOnWriteArrayList<>(jmxConnect.getStorageServiceProxy().getKeyspaces());
         remainingKeyspaces.remove("system");
+        remainingKeyspaces.remove("system_traces");
 
         return true;
     }

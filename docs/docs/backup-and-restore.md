@@ -4,16 +4,16 @@ title: Backup and Restore
 
 # Backup and Restore
 
-Cassandra on Mesos supports backup and restore operation. The API for those operation is exposed through REST.
+Cassandra-Mesos supports backup and restore operation. These operations are exposed through a REST API.
 
 # Configuration
 
-Configuration is provided via environment variable `CASSANDRA_BACKUP_DIRECTORY`. This directory specifies there
-to store named backups. Default values is `backup` directory inside slave's sandbox.
+Configuration is provided via the environment variable `CASSANDRA_BACKUP_DIRECTORY`. This directory specifies where
+to store named backups. The default directory is `backup` inside the task's sandbox.
 
 # Example
 
-Suppose we have started Cassandra on Mesos cluster having 2+ nodes.
+Suppose we have started Cassandra-Mesos cluster having 2+ nodes.
 
 Let's create keyspace `t` with table `test` having some data:
 ```
@@ -84,7 +84,7 @@ Backup and Restore procedures are not atomic. If DB is actively modified during 
 produce inconsistent (from the user's perspective) data sets. So it is recommended to create a backup (and restore from
 a backup) during DB inactivity time.
 
-## Executor id preservation
-Backup and Restore uses directory structure that contains $executorId component. That means, that if Cassandra on Mesos
+## Executor ID preservation
+Backup and Restore uses directory structure that contains $executorId component. That means, that if Cassandra-Mesos
 is restarted using new Executor, it would be not possible to restore from the old backup. Manual directory renaming should
 be done to make directory structure match new $executorId.

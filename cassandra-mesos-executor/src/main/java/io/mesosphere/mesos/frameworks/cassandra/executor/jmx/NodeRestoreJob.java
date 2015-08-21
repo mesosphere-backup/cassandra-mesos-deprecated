@@ -30,12 +30,20 @@ public class NodeRestoreJob extends AbstractNodeJob {
     @NotNull
     private final ExecutorService executorService;
     @NotNull
+    private final String backupDir;
+    @NotNull
     private final String backupName;
 
     private Future<?> restoreFeature;
 
-    public NodeRestoreJob(@NotNull final Protos.TaskID taskId, @NotNull final String backupName, @NotNull final ExecutorService executorService) {
+    public NodeRestoreJob(
+            @NotNull final Protos.TaskID taskId,
+            @NotNull final String backupDir,
+            @NotNull final String backupName,
+            @NotNull final ExecutorService executorService)
+    {
         super(taskId);
+        this.backupDir = backupDir;
         this.backupName = backupName;
         this.executorService = executorService;
     }
@@ -51,7 +59,7 @@ public class NodeRestoreJob extends AbstractNodeJob {
             return false;
         }
 
-        LOGGER.info("Initiated restore job for keyspaces {}", getRemainingKeyspaces());
+        LOGGER.info("Initiated restore '{}' from '{}' for keyspaces {}", backupName, backupDir, getRemainingKeyspaces());
 
         return true;
     }

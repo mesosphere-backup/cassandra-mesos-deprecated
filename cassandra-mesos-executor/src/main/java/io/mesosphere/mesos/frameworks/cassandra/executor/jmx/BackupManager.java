@@ -9,13 +9,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 public class BackupManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(BackupManager.class);
-    private static final List<String> IGNORED_KEYSPACES = Arrays.asList("system", "system_traces");
 
     @NotNull
     private final JmxConnect jmxConnect;
@@ -28,30 +26,30 @@ public class BackupManager {
         this.backupDir = backupDir;
     }
 
-    public void backup(@NotNull final String keyspace, @NotNull final String backupName) throws IOException {
-        if (IGNORED_KEYSPACES.contains(keyspace)) return;
+    public void backup(@NotNull final String keyspace) throws IOException {
         final StorageServiceMBean storageServiceProxy = jmxConnect.getStorageServiceProxy();
+        final String snapshotName = "s-" + System.currentTimeMillis();
 
         LOGGER.info("Creating snapshot of keyspace {}", keyspace);
-        storageServiceProxy.takeSnapshot(backupName, keyspace);
+        storageServiceProxy.takeSnapshot(snapshotName, keyspace);
 
         LOGGER.info("Copying backup of keyspace {}", keyspace);
-        copyKeyspaceSnapshot(backupName, keyspace);
+        copyKeyspaceSnapshot(snapshotName, keyspace);
 
         LOGGER.info("Clearing snapshot of keyspace {}", keyspace);
-        storageServiceProxy.clearSnapshot(backupName, keyspace);
+        storageServiceProxy.clearSnapshot(snapshotName, keyspace);
     }
 
-    private void copyKeyspaceSnapshot(final String backupName, final String keyspace) throws IOException {
+    private void copyKeyspaceSnapshot(final String snapshot, final String keyspace) throws IOException {
         final List<String> tables = jmxConnect.getColumnFamilyNames(keyspace);
         for (final String table : tables)
-            copyTableSnapshot(backupName, keyspace, table);
+            copyTableSnapshot(snapshot, keyspace, table);
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    private void copyTableSnapshot(final String backupName, final String keyspace, final String table) throws IOException {
-        final File srcDir = findTableSnapshotDir(keyspace, table, backupName);
-        final File destDir = new File(backupDir, backupName + "/" + keyspace + "/" + table);
+    private void copyTableSnapshot(final String snapshot, final String keyspace, final String table) throws IOException {
+        final File srcDir = findTableSnapshotDir(keyspace, table, snapshot);
+        final File destDir = new File(backupDir, keyspace + "/" + table);
         destDir.mkdirs();
 
         final File[] files = srcDir.listFiles();
@@ -64,12 +62,12 @@ public class BackupManager {
         }
     }
 
-    private File findTableSnapshotDir(final String keyspace, final String table, final String backupName) {
+    private File findTableSnapshotDir(final String keyspace, final String table, final String snapshot) {
         final File dataDir = new File(jmxConnect.getStorageServiceProxy().getAllDataFileLocations()[0]);
         final File keyspaceDir = new File(dataDir, keyspace);
 
         final File tableDir = findTableDir(keyspaceDir, table);
-        final File snapshotDir = new File(tableDir, "/snapshots/" + backupName);
+        final File snapshotDir = new File(tableDir, "/snapshots/" + snapshot);
         if (!snapshotDir.exists()) throw new IllegalStateException("Snapshot dir does not exist: " + snapshotDir);
 
         return snapshotDir;
@@ -87,16 +85,17 @@ public class BackupManager {
         throw new IllegalStateException("Failed to found table dir for table " + table + " in keyspace " + keyspaceDir);
     }
 
-    public void restore(@NotNull final String keyspace, @NotNull final String backupName) throws IOException, TimeoutException {
-        if (IGNORED_KEYSPACES.contains(keyspace)) return;
+    public void restore(@NotNull final String keyspace, final boolean truncateTables) throws IOException, TimeoutException {
         final List<String> tables = jmxConnect.getColumnFamilyNames(keyspace);
 
         for (final String table : tables) {
-            LOGGER.info("Truncating {}/{}", keyspace, table);
-            jmxConnect.getStorageServiceProxy().truncate(keyspace, table);
+            if (truncateTables) {
+                LOGGER.info("Truncating {}/{}", keyspace, table);
+                jmxConnect.getStorageServiceProxy().truncate(keyspace, table);
+            }
 
             LOGGER.info("Restoring backup of {}/{}", keyspace, table);
-            restoreTableSnapshot(backupName, keyspace, table);
+            restoreTableSnapshot(keyspace, table);
 
             LOGGER.info("Reloading SSTables for {}/{}", keyspace, table);
             jmxConnect.getColumnFamilyStoreProxy(keyspace, table).loadNewSSTables();
@@ -104,11 +103,11 @@ public class BackupManager {
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    private void restoreTableSnapshot(final String backupName, final String keyspace, final String table) throws IOException {
+    private void restoreTableSnapshot(final String keyspace, final String table) throws IOException {
         final File dataDir = new File(jmxConnect.getStorageServiceProxy().getAllDataFileLocations()[0]);
         final File keyspaceDir = new File(dataDir, keyspace);
 
-        final File srcDir = new File(backupDir, backupName + "/" + keyspace + "/" + table);
+        final File srcDir = new File(backupDir, keyspace + "/" + table);
         final File destDir = findTableDir(keyspaceDir, table);
         destDir.mkdirs();
 

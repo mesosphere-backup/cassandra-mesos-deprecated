@@ -84,10 +84,14 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
 
             final CassandraFrameworkProtos.NodeJobTask.Builder nodeJobTaskBuilder = CassandraFrameworkProtos.NodeJobTask.newBuilder().setJobType(currentJob.getJobType());
             if (Arrays.asList(ClusterJobType.BACKUP, ClusterJobType.RESTORE).contains(currentJob.getJobType())) {
-                nodeJobTaskBuilder.setBackupName(currentJob.getBackupName());
+                nodeJobTaskBuilder.setFirstNodeInJob(currentJob.getCompletedNodesCount() == 0);
 
                 final PersistedCassandraFrameworkConfiguration configuration = cluster.getConfiguration();
-                final String backupDir = configuration.getDefaultConfigRole().getBackupDirectory() + "/" + configuration.get().getFrameworkName() + "/" + node.getHostname();
+                final String backupDir = configuration.getDefaultConfigRole().getBackupDirectory()
+                        + "/" + configuration.get().getFrameworkName()
+                        + "/" + node.getCassandraNodeExecutor().getExecutorId()
+                        + "/" + currentJob.getBackupName();
+
                 nodeJobTaskBuilder.setBackupDir(backupDir);
             }
 

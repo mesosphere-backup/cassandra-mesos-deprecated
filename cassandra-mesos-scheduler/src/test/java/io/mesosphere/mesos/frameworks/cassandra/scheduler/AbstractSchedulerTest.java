@@ -60,6 +60,7 @@ public abstract class AbstractSchedulerTest {
             2, 4096, 4096, 0,
             3, 2,
             mesosRole,
+            "./backup",
             ".",
             true,
             false,

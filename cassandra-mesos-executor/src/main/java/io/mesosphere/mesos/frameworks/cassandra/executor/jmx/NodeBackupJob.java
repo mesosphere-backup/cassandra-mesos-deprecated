@@ -80,10 +80,10 @@ public class NodeBackupJob extends AbstractNodeJob {
                     final BackupManager backupManager = new BackupManager(checkNotNull(jmxConnect), backupDir);
                     backupManager.backup(keyspace);
 
-                    keyspaceFinished("SUCCESS", keyspace);
+                    keyspaceFinished(SUCCESS, keyspace);
                 } catch (final Exception e) {
                     LOGGER.error("Failed to backup keyspace " + keyspace, e);
-                    keyspaceFinished("FAILURE", keyspace);
+                    keyspaceFinished(FAILURE, keyspace);
                 } finally {
                     startNextKeyspace();
                 }

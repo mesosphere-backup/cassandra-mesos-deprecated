@@ -80,10 +80,10 @@ public class NodeCleanupJob extends AbstractNodeJob {
                         }
                         LOGGER.info("Cleanup of {}.{} returned with {}", keyspace, cfName, s);
                     }
-                    keyspaceFinished("SUCCESS", keyspace);
+                    keyspaceFinished(SUCCESS, keyspace);
                 } catch (final Exception e) {
                     LOGGER.error("Failed to cleanup keyspace " + keyspace, e);
-                    keyspaceFinished("FAILURE", keyspace);
+                    keyspaceFinished(FAILURE, keyspace);
                 } finally {
                     startNextKeyspace();
                 }

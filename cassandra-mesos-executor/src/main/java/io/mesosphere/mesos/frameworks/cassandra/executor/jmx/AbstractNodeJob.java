@@ -39,6 +39,9 @@ public abstract class AbstractNodeJob implements Closeable {
 
     private static final Joiner JOINER = Joiner.on("},{");
 
+    public static final String SUCCESS = "SUCCESS";
+    public static final String FAILURE = "FAILURE";
+
     protected final long startTimestamp = System.currentTimeMillis();
 
     @NotNull

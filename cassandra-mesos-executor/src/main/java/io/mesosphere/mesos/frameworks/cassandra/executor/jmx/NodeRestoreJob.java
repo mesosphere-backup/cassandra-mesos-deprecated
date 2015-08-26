@@ -84,10 +84,10 @@ public class NodeRestoreJob extends AbstractNodeJob {
                     final BackupManager backupManager = new BackupManager(checkNotNull(jmxConnect), backupDir);
                     backupManager.restore(keyspace, truncateTables);
 
-                    keyspaceFinished("SUCCESS", keyspace);
+                    keyspaceFinished(SUCCESS, keyspace);
                 } catch (final Exception e) {
                     LOGGER.error("Failed to restore keyspace " + keyspace, e);
-                    keyspaceFinished("FAILURE", keyspace);
+                    keyspaceFinished(FAILURE, keyspace);
                 } finally {
                     startNextKeyspace();
                 }

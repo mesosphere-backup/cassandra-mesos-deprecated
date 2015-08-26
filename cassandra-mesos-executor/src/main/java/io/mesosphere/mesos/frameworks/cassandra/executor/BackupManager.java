@@ -44,14 +44,14 @@ public class BackupManager {
         storageServiceProxy.clearSnapshot(snapshot, keyspace);
     }
 
-    private void copyKeyspaceSnapshot(final String snapshot, final String keyspace) throws IOException {
+    private void copyKeyspaceSnapshot(@NotNull final String snapshot, @NotNull final String keyspace) throws IOException {
         final List<String> tables = jmxConnect.getColumnFamilyNames(keyspace);
         for (final String table : tables)
             copyTableSnapshot(snapshot, keyspace, table);
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    private void copyTableSnapshot(final String snapshot, final String keyspace, final String table) throws IOException {
+    private void copyTableSnapshot(@NotNull final String snapshot, @NotNull final String keyspace, @NotNull final String table) throws IOException {
         final File srcDir = findTableSnapshotDir(keyspace, table, snapshot);
         final File destDir = new File(backupDir, keyspace + "/" + table);
         destDir.mkdirs();
@@ -66,7 +66,7 @@ public class BackupManager {
         }
     }
 
-    private File findTableSnapshotDir(final String keyspace, final String table, final String snapshot) {
+    private File findTableSnapshotDir(@NotNull final String keyspace, @NotNull final String table, @NotNull final String snapshot) {
         final File dataDir = new File(jmxConnect.getStorageServiceProxy().getAllDataFileLocations()[0]);
         final File keyspaceDir = new File(dataDir, keyspace);
 
@@ -77,7 +77,7 @@ public class BackupManager {
         return snapshotDir;
     }
 
-    private File findTableDir(final File keyspaceDir, final String table) {
+    private File findTableDir(@NotNull final File keyspaceDir, @NotNull final String table) {
         final File[] files = keyspaceDir.listFiles();
         if (files != null)
             for (final File file : files) {
@@ -107,7 +107,7 @@ public class BackupManager {
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    private void restoreTableSnapshot(final String keyspace, final String table) throws IOException {
+    private void restoreTableSnapshot(@NotNull final String keyspace, @NotNull final String table) throws IOException {
         final File dataDir = new File(jmxConnect.getStorageServiceProxy().getAllDataFileLocations()[0]);
         final File keyspaceDir = new File(dataDir, keyspace);
 

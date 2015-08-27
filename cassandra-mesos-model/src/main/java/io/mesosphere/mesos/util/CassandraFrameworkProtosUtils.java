@@ -188,7 +188,8 @@ public final class CassandraFrameworkProtosUtils {
         return ResourceToPortSet.INSTANCE;
     }
 
-    public static Predicate<Resource> containsPort(@NotNull long port) {
+    @NotNull
+    public static Predicate<Resource> containsPort(long port) {
         return new ContainsPort(port);
     }
 
@@ -242,6 +243,16 @@ public final class CassandraFrameworkProtosUtils {
         } else {
             return "*";
         }
+    }
+
+    public static String attributeValue(@NotNull final Protos.Offer offer, @NotNull final String name) {
+        for (final Protos.Attribute attribute : offer.getAttributesList()) {
+            if (name.equals(attribute.getName())) {
+                return attribute.hasText() ? attribute.getText().getValue() : null;
+            }
+        }
+
+        return null;
     }
 
     public static Function<Map.Entry<String, Collection<Long>>, Resource> roleAndPortsToResource() {

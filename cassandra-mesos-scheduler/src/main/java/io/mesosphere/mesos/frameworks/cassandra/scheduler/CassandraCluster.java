@@ -84,6 +84,9 @@ public final class CassandraCluster {
     public static final String PORT_RPC = "rpc_port";
     public static final String PORT_JMX = "jmx_port";
 
+    public static final String RACK_ATTRIBUTE = "CASSANDRA_RACK";
+    public static final String DC_ATTRIBUTE = "CASSANDRA_DC";
+
     // see: http://www.datastax.com/documentation/cassandra/2.1/cassandra/security/secureFireWall_r.html
     private static final Map<String, Long> defaultPortMappings = unmodifiableHashMap(
         tuple2(PORT_STORAGE, 7000L),
@@ -422,7 +425,7 @@ public final class CassandraCluster {
             builder.setReplacementForIp(replacementForIp);
         }
 
-        builder.setRackDc(configuration.getDefaultRackDc());
+        builder.setRackDc(getRackDc(offer));
 
         try {
             final InetAddress ia = InetAddress.getByName(offer.getHostname());
@@ -446,6 +449,18 @@ public final class CassandraCluster {
         } catch (final UnknownHostException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @NotNull
+    private RackDc getRackDc(@NotNull final Protos.Offer offer) {
+        final String rack = attributeValue(offer, RACK_ATTRIBUTE);
+        final String dc = attributeValue(offer, DC_ATTRIBUTE);
+
+        final RackDc.Builder builder = RackDc.newBuilder(configuration.getDefaultRackDc());
+        if (rack != null) builder.setRack(rack);
+        if (dc != null) builder.setDc(dc);
+
+        return builder.build();
     }
 
     private int getPortMapping(@NotNull final String name) {

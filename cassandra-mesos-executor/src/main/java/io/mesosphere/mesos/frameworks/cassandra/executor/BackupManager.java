@@ -28,7 +28,7 @@ public class BackupManager {
     }
 
     public void backup(@NotNull final String keyspace) throws IOException {
-        backup(keyspace, "s-" + System.currentTimeMillis());
+        backup(keyspace, "snapshot-" + System.currentTimeMillis());
     }
 
     public void backup(@NotNull final String keyspace, @NotNull final String snapshot) throws IOException {

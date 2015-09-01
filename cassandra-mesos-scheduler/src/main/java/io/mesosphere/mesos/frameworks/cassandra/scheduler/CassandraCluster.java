@@ -453,11 +453,12 @@ public final class CassandraCluster {
 
     @NotNull
     private RackDc getRackDc(@NotNull final Protos.Offer offer) {
-        final String rack = attributeValue(offer, RACK_ATTRIBUTE);
-        final String dc = attributeValue(offer, DC_ATTRIBUTE);
-
         final RackDc.Builder builder = RackDc.newBuilder(configuration.getDefaultRackDc());
+
+        // override default rack/dc with attribute values, if defined
+        final String rack = attributeValue(offer, RACK_ATTRIBUTE);
         if (rack != null) builder.setRack(rack);
+        final String dc = attributeValue(offer, DC_ATTRIBUTE);
         if (dc != null) builder.setDc(dc);
 
         return builder.build();

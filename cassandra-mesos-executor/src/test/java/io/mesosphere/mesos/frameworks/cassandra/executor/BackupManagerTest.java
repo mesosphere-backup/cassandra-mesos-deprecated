@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 import static junit.framework.Assert.assertEquals;
+import static junit.framework.TestCase.fail;
 import static org.junit.Assert.assertTrue;
 
 public class BackupManagerTest {
@@ -52,8 +53,47 @@ public class BackupManagerTest {
     }
 
     @Test
+    public void testFindTableDir() throws IOException {
+        File keyspaceDir = new File(dataDir, KEYSPACE);
+        File tableDir = new File(keyspaceDir, TABLE + "-123");
+
+        try { backupManager.findTableDir(keyspaceDir, TABLE); fail(); }
+        catch (IllegalStateException e) {}
+
+        Files.createDirectories(keyspaceDir.toPath());
+        try { backupManager.findTableDir(keyspaceDir, TABLE); fail(); }
+        catch (IllegalStateException e) {}
+
+        Files.createDirectories(tableDir.toPath());
+        File dir = backupManager.findTableDir(keyspaceDir, TABLE);
+        assertEquals(tableDir, dir);
+    }
+
+    @Test
+    public void testFindTableSnapshotDir() throws IOException {
+        File dataDir = new File(jmxConnect.getStorageServiceProxy().getAllDataFileLocations()[0]);
+
+        try { backupManager.findTableSnapshotDir(KEYSPACE, TABLE, SNAPSHOT); fail(); }
+        catch (IllegalStateException e) {}
+
+        File snapshotDir = new File(dataDir, KEYSPACE + "/" + TABLE + "-123/snapshots/" + SNAPSHOT);
+        Files.createDirectories(snapshotDir.toPath());
+
+        File dir = backupManager.findTableSnapshotDir(KEYSPACE, TABLE, SNAPSHOT);
+        assertEquals(snapshotDir, dir);
+    }
+
+    @Test
+    public void copyTableSnapshot() throws IOException {
+        createCassandraDirs(KEYSPACE, TABLE, SNAPSHOT, true);
+        backupManager.copyTableSnapshot(SNAPSHOT, KEYSPACE, TABLE);
+        assertTrue(new File(backupDir, KEYSPACE + "/" + TABLE + "/data.db").exists());
+        assertTrue(new File(backupDir, KEYSPACE + "/" + TABLE + "/index.db").exists());
+    }
+
+    @Test
     public void testBackup() throws IOException {
-        createCassandraDirs(KEYSPACE, TABLE, SNAPSHOT);
+        createCassandraDirs(KEYSPACE, TABLE, SNAPSHOT, true);
 
         backupManager.backup(KEYSPACE, SNAPSHOT);
         assertEquals(Arrays.asList("takeSnapshot", "clearSnapshot"), jmxConnect.getInvocations());
@@ -61,30 +101,48 @@ public class BackupManagerTest {
         assertTrue(new File(backupDir, KEYSPACE).isDirectory());
         assertTrue(new File(backupDir, KEYSPACE + "/" + TABLE).isDirectory());
         assertTrue(new File(backupDir, KEYSPACE + "/" + TABLE + "/data.db").isFile());
+        assertTrue(new File(backupDir, KEYSPACE + "/" + TABLE + "/index.db").isFile());
+    }
+
+    @Test
+    public void testRestoreTableSnapshot() throws IOException {
+        createCassandraDirs(KEYSPACE, TABLE, SNAPSHOT, false);
+        createBackupDirs(KEYSPACE, TABLE);
+
+        backupManager.restoreTableSnapshot(KEYSPACE, TABLE);
+        assertEquals(Arrays.<String>asList(), jmxConnect.getInvocations());
+        assertTrue(new File(dataDir, KEYSPACE + "/" + TABLE + "-0/data.db").isFile());
+        assertTrue(new File(dataDir, KEYSPACE + "/" + TABLE + "-0/index.db").isFile());
     }
 
     @Test
     public void testRestore() throws IOException, TimeoutException {
-        createCassandraDirs(KEYSPACE, TABLE, SNAPSHOT);
+        createCassandraDirs(KEYSPACE, TABLE, SNAPSHOT, false);
         createBackupDirs(KEYSPACE, TABLE);
 
         backupManager.restore(KEYSPACE, true);
         assertEquals(Arrays.asList("truncate", "loadNewSSTables"), jmxConnect.getInvocations());
-        assertTrue(new File(backupDir, KEYSPACE + "/" + TABLE + "/data.db").isFile());
+        assertTrue(new File(dataDir, KEYSPACE + "/" + TABLE + "-0/data.db").isFile());
+        assertTrue(new File(dataDir, KEYSPACE + "/" + TABLE + "-0/index.db").isFile());
     }
 
-    private void createCassandraDirs(String keyspace, String table, String snapshot) throws IOException {
+    private void createCassandraDirs(String keyspace, String table, String snapshot, boolean createFiles) throws IOException {
         File tableDir = new File(dataDir, keyspace + "/" + table + "-0");
         File snapshotDir = new File(tableDir, "snapshots/" + snapshot);
         assertTrue(snapshotDir.mkdirs());
 
-        Files.createFile(new File(snapshotDir, "data.db").toPath());
+        if (createFiles) {
+            Files.createFile(new File(snapshotDir, "data.db").toPath());
+            Files.createFile(new File(snapshotDir, "index.db").toPath());
+        }
     }
 
     private void createBackupDirs(String keyspace, String table) throws IOException {
         File tableDir = new File(backupDir, keyspace + "/" + table);
         assertTrue(tableDir.mkdirs());
+
         Files.createFile(new File(tableDir, "data.db").toPath());
+        Files.createFile(new File(tableDir, "index.db").toPath());
     }
 
     private void delete(File file) {
@@ -103,7 +161,7 @@ public class BackupManagerTest {
 
     class TestJmxConnect implements JmxConnect {
         private String dataDir;
-        private List<String> invocations = new ArrayList<String>();
+        private List<String> invocations = new ArrayList<>();
 
         TestJmxConnect(String dataDir) {
             this.dataDir = dataDir;

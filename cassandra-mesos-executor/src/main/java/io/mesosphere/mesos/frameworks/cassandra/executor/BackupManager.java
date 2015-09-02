@@ -50,11 +50,10 @@ public class BackupManager {
             copyTableSnapshot(snapshot, keyspace, table);
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
     private void copyTableSnapshot(@NotNull final String snapshot, @NotNull final String keyspace, @NotNull final String table) throws IOException {
         final File srcDir = findTableSnapshotDir(keyspace, table, snapshot);
         final File destDir = new File(backupDir, keyspace + "/" + table);
-        destDir.mkdirs();
+        Files.createDirectories(destDir.toPath());
 
         final File[] files = srcDir.listFiles();
         if (files != null) {
@@ -106,14 +105,13 @@ public class BackupManager {
         }
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
     private void restoreTableSnapshot(@NotNull final String keyspace, @NotNull final String table) throws IOException {
         final File dataDir = new File(jmxConnect.getStorageServiceProxy().getAllDataFileLocations()[0]);
         final File keyspaceDir = new File(dataDir, keyspace);
 
         final File srcDir = new File(backupDir, keyspace + "/" + table);
         final File destDir = findTableDir(keyspaceDir, table);
-        destDir.mkdirs();
+        Files.createDirectories(destDir.toPath());
 
         final File[] files = srcDir.listFiles();
         if (files != null) {

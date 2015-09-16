@@ -75,7 +75,7 @@ Backup is created in following way (for each keyspace):
 3. Snapshot is cleared;
 
 Restore procedure works in the opposite way (for each keyspace):
-1. Truncate is executed for each table (only once for specific table);
+1. Truncate is executed once for each table;
 2. Data is restored from saved backup;
 3. Data is reloaded (using loadNewSSTables JMX call);
 

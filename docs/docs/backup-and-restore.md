@@ -57,6 +57,8 @@ Let's perform a restore:
 1. start restore using `/cluster/restore/start?name=backup-0` method;
 2. wait until restore is finished polling `/cluster/restore/status` method;
 
+Please refer to the REST API documentation for the details of the particular method.
+
 After restore is finished data in `test` should be exactly the same as before modifications,
 containing all ids from 1 to 10 inclusive.
 

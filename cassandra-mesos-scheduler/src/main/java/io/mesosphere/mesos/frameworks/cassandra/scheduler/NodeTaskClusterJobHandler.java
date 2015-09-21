@@ -82,10 +82,13 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
                 return;
             }
 
-            final CassandraFrameworkProtos.NodeJobTask.Builder nodeJobTaskBuilder = CassandraFrameworkProtos.NodeJobTask.newBuilder().setJobType(currentJob.getJobType());
-            if (Arrays.asList(ClusterJobType.BACKUP, ClusterJobType.RESTORE).contains(currentJob.getJobType())) {
-                nodeJobTaskBuilder.setFirstNodeInJob(currentJob.getCompletedNodesCount() == 0);
+            final boolean truncateJob = currentJob.getJobType() == ClusterJobType.RESTORE && currentJob.getCompletedNodesCount() == 0;
+            final ClusterJobType jobType = truncateJob ? ClusterJobType.TRUNCATE : currentJob.getJobType();
 
+            final CassandraFrameworkProtos.NodeJobTask.Builder nodeJobTaskBuilder = CassandraFrameworkProtos.NodeJobTask.newBuilder()
+                    .setJobType(jobType);
+
+            if (Arrays.asList(ClusterJobType.BACKUP, ClusterJobType.RESTORE).contains(jobType)) {
                 final PersistedCassandraFrameworkConfiguration configuration = cluster.getConfiguration();
                 final String backupDir = configuration.getDefaultConfigRole().getBackupDirectory()
                         + "/" + configuration.get().getFrameworkName()
@@ -101,7 +104,7 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
                 .build();
             final CassandraFrameworkProtos.CassandraNodeTask cassandraNodeTask = CassandraFrameworkProtos.CassandraNodeTask.newBuilder()
                 .setType(CassandraFrameworkProtos.CassandraNodeTask.NodeTaskType.CLUSTER_JOB)
-                .setTaskId(executorId + '.' + currentJob.getJobType().name())
+                .setTaskId(executorId + '.' + jobType.name())
                 .setResources(CassandraFrameworkProtos.TaskResources.newBuilder()
                     .setCpuCores(0.1)
                     .setMemMb(16)
@@ -113,12 +116,12 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
             final CassandraFrameworkProtos.NodeJobStatus currentNode = CassandraFrameworkProtos.NodeJobStatus.newBuilder()
                 .setExecutorId(node.getCassandraNodeExecutor().getExecutorId())
                 .setTaskId(cassandraNodeTask.getTaskId())
-                .setJobType(currentJob.getJobType())
+                .setJobType(jobType)
                 .setStartedTimestamp(System.currentTimeMillis())
                 .build();
             jobsState.updateJobCurrentNode(currentJob, currentNode);
 
-            LOGGER.info("Starting cluster job {} on {}/{}", currentJob.getJobType().name(), node.getIp(),
+            LOGGER.info("Starting cluster job {} on {}/{}", jobType.name(), node.getIp(),
                 node.getHostname());
         }
     }
@@ -143,7 +146,25 @@ public class NodeTaskClusterJobHandler extends ClusterJobHandler {
                     .build());
             } else {
                 nodeFinished(nodeJobStatus, currentJob);
+
+                if (nodeJobStatus.getJobType() == ClusterJobType.TRUNCATE) {
+                    pushBackNode(nodeJobStatus);
+                }
             }
         }
+    }
+
+    private void pushBackNode(CassandraFrameworkProtos.NodeJobStatus nodeJobStatus) {
+        final CassandraFrameworkProtos.ClusterJobStatus currentJob = jobsState.get().getCurrentClusterJob();
+
+        final List<String> remainingNodes = new ArrayList<>(currentJob.getRemainingNodesList());
+        if (!remainingNodes.contains(nodeJobStatus.getExecutorId())) {
+            remainingNodes.add(0, nodeJobStatus.getExecutorId());
+        }
+
+        final CassandraFrameworkProtos.ClusterJobStatus.Builder builder = CassandraFrameworkProtos.ClusterJobStatus.newBuilder(currentJob);
+        builder.clearRemainingNodes().addAllRemainingNodes(remainingNodes);
+
+        jobsState.setCurrentJob(builder.build());
     }
 }

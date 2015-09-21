@@ -159,6 +159,7 @@ public final class CassandraCluster {
         clusterJobHandlers.put(ClusterJobType.REPAIR, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.BACKUP, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.RESTORE, new NodeTaskClusterJobHandler(this, jobsState));
+        clusterJobHandlers.put(ClusterJobType.TRUNCATE, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.RESTART, new RestartClusterJobHandler(this, jobsState));
     }
 
@@ -726,8 +727,8 @@ public final class CassandraCluster {
 
         final NodeJobStatus nodeJobStatus = statusDetails.getNodeJobStatus();
 
-        if (currentJob.getJobType() != nodeJobStatus.getJobType()) {
-            // oops - status message of other type...  ignore for now
+        if (currentJob.getJobType() != nodeJobStatus.getJobType() && nodeJobStatus.getJobType() != ClusterJobType.TRUNCATE) {
+            // oops - status message of other type...  ignore for now, TRUNCATE - special case as a part of RESTORE job
             LOGGER.warn("Got node job status of tye {} - but expected {}", nodeJobStatus.getJobType(), currentJob.getJobType());
             return;
         }

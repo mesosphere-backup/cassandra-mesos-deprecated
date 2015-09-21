@@ -120,8 +120,8 @@ public class BackupManagerTest {
         createCassandraDirs(KEYSPACE, TABLE, SNAPSHOT, false);
         createBackupDirs(KEYSPACE, TABLE);
 
-        backupManager.restore(KEYSPACE, true);
-        assertEquals(Arrays.asList("truncate", "loadNewSSTables"), jmxConnect.getInvocations());
+        backupManager.restore(KEYSPACE);
+        assertEquals(Arrays.asList("loadNewSSTables"), jmxConnect.getInvocations());
         assertTrue(new File(dataDir, KEYSPACE + "/" + TABLE + "-0/data.db").isFile());
         assertTrue(new File(dataDir, KEYSPACE + "/" + TABLE + "-0/index.db").isFile());
     }
@@ -214,9 +214,6 @@ public class BackupManagerTest {
                                     return null;
                                 case "clearSnapshot":
                                     invocations.add("clearSnapshot");
-                                    return null;
-                                case "truncate":
-                                    invocations.add("truncate");
                                     return null;
                                 case "getAllDataFileLocations":
                                     return new String[]{dataDir};

@@ -224,7 +224,10 @@ public final class CassandraExecutor implements Executor {
                 job = new NodeBackupJob(task.getTaskId(), nodeJob.getBackupDir(), executorService);
                 break;
             case RESTORE:
-                job = new NodeRestoreJob(task.getTaskId(), nodeJob.getBackupDir(), nodeJob.getFirstNodeInJob(), executorService);
+                job = new NodeRestoreJob(task.getTaskId(), nodeJob.getBackupDir(), executorService);
+                break;
+            case TRUNCATE:
+                job = new NodeTruncateJob(task.getTaskId(), executorService);
                 break;
             default:
                 return;

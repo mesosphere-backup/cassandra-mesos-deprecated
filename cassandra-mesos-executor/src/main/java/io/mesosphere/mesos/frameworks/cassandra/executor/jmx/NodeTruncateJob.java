@@ -16,41 +16,36 @@
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
-import io.mesosphere.mesos.frameworks.cassandra.executor.BackupManager;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class NodeRestoreJob extends AbstractNodeJob {
-    private static final Logger LOGGER = LoggerFactory.getLogger(NodeRestoreJob.class);
+public class NodeTruncateJob extends AbstractNodeJob {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NodeTruncateJob.class);
 
     @NotNull
     private final ExecutorService executorService;
-    @NotNull
-    private final String backupDir;
+    private Future<?> truncateFeature;
 
-    private Future<?> restoreFeature;
-
-    public NodeRestoreJob(
+    public NodeTruncateJob(
             @NotNull final Protos.TaskID taskId,
-            @NotNull final String backupDir,
             @NotNull final ExecutorService executorService)
     {
         super(taskId);
-        this.backupDir = backupDir;
         this.executorService = executorService;
     }
 
     @NotNull
     @Override
     public CassandraFrameworkProtos.ClusterJobType getType() {
-        return CassandraFrameworkProtos.ClusterJobType.RESTORE;
+        return CassandraFrameworkProtos.ClusterJobType.TRUNCATE;
     }
 
     public boolean start(@NotNull final JmxConnect jmxConnect) {
@@ -58,8 +53,7 @@ public class NodeRestoreJob extends AbstractNodeJob {
             return false;
         }
 
-        LOGGER.info("Initiated restore from '{}' for keyspaces {}", backupDir, getRemainingKeyspaces());
-
+        LOGGER.info("Initiated truncate for keyspaces {}", getRemainingKeyspaces());
         return true;
     }
 
@@ -70,19 +64,23 @@ public class NodeRestoreJob extends AbstractNodeJob {
             return;
         }
 
-        restoreFeature = executorService.submit(new Runnable() {
+        truncateFeature = executorService.submit(new Runnable() {
             @Override
             public void run() {
                 try {
-                    LOGGER.info("Starting restore on keyspace {}", keyspace);
+                    LOGGER.info("Starting truncate on keyspace {}", keyspace);
                     keyspaceStarted();
 
-                    final BackupManager backupManager = new BackupManager(checkNotNull(jmxConnect), backupDir);
-                    backupManager.restore(keyspace);
+                    final List<String> tables = checkNotNull(jmxConnect).getColumnFamilyNames(keyspace);
+
+                    for (final String table : tables) {
+                        LOGGER.info("Truncating {}/{}", keyspace, table);
+                        checkNotNull(jmxConnect).getStorageServiceProxy().truncate(keyspace, table);
+                    }
 
                     keyspaceFinished(SUCCESS, keyspace);
                 } catch (final Exception e) {
-                    LOGGER.error("Failed to restore keyspace " + keyspace, e);
+                    LOGGER.error("Failed to truncate keyspace " + keyspace, e);
                     keyspaceFinished(FAILURE, keyspace);
                 } finally {
                     startNextKeyspace();
@@ -90,14 +88,14 @@ public class NodeRestoreJob extends AbstractNodeJob {
             }
         });
 
-        LOGGER.info("Submitted restore for keyspace {}", keyspace);
+        LOGGER.info("Submitted truncate for keyspace {}", keyspace);
     }
 
     @Override
     public void close() {
-        if (restoreFeature != null) {
-            restoreFeature.cancel(true);
-            restoreFeature = null;
+        if (truncateFeature != null) {
+            truncateFeature.cancel(true);
+            truncateFeature = null;
         }
 
         super.close();

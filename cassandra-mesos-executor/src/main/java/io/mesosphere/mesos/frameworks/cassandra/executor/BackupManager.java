@@ -88,15 +88,10 @@ public class BackupManager {
         throw new IllegalStateException("Failed to found table dir for table " + table + " in keyspace " + keyspaceDir);
     }
 
-    public void restore(@NotNull final String keyspace, final boolean truncateTables) throws IOException, TimeoutException {
+    public void restore(@NotNull final String keyspace) throws IOException, TimeoutException {
         final List<String> tables = jmxConnect.getColumnFamilyNames(keyspace);
 
         for (final String table : tables) {
-            if (truncateTables) {
-                LOGGER.info("Truncating {}/{}", keyspace, table);
-                jmxConnect.getStorageServiceProxy().truncate(keyspace, table);
-            }
-
             LOGGER.info("Restoring backup of {}/{}", keyspace, table);
             restoreTableSnapshot(keyspace, table);
 

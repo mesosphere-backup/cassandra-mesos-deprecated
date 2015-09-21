@@ -4,87 +4,54 @@ title: Backup and Restore
 
 # Backup and Restore
 
-Cassandra-Mesos supports backup and restore operation. These operations are exposed through a REST API.
+Cassandra-Mesos supports backup and restore operations. These operations are exposed through a REST API.
 
-# Configuration
+## Configuration
 
-Configuration is provided via the environment variable `CASSANDRA_BACKUP_DIRECTORY`. This directory specifies where
-to store named backups. The default directory is `backup` inside the task's sandbox.
+You can configure the directory where backups are stored via the environment variable `CASSANDRA_BACKUP_DIRECTORY`. The default directory is `backup` inside the task's sandbox.
 
-# Example
+## Usage
 
-Suppose we have started Cassandra-Mesos cluster having 2+ nodes.
+***Warning:*** If your Cassandra database is active when you perform a backup or restore, there is a high risk of inconsistent data. See the "Limitations" section below for details.
 
-Let's create keyspace `t` with table `test` having some data:
-```
-CREATE KEYSPACE t WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 2 };
-USE t;
-CREATE TABLE test (id int PRIMARY KEY, s varchar);
+### Backup
 
-INSERT INTO test (id, s) VALUES (1, '1');
-INSERT INTO test (id, s) VALUES (2, '2');
-INSERT INTO test (id, s) VALUES (3, '3');
-INSERT INTO test (id, s) VALUES (4, '4');
-INSERT INTO test (id, s) VALUES (5, '5');
-INSERT INTO test (id, s) VALUES (6, '6');
-INSERT INTO test (id, s) VALUES (7, '7');
-INSERT INTO test (id, s) VALUES (8, '8');
-INSERT INTO test (id, s) VALUES (9, '9');
-INSERT INTO test (id, s) VALUES (10, '10');
-```
+Start a backup using the `/cluster/backup/start?name=BackupName` method, where `BackupName` is the desired name of your backup. You can determine the status of the backup by polling the `/cluster/backup/status` method. Refer to [the REST API documentation](http://mesosphere.github.io/cassandra-mesos/docs/rest-api.html) for details.
 
-After that table `test` should contain rows with ids from 1 to 10 inclusive.
+A backup is created in $backupDir/$clusterName/$executorId/$backupName/$keyspace/$table for each keyspace and table, where:
+- $backupDir - The value of CASSANDRA_BACKUP_DIRECTORY environment variable
+- $clusterName - The name of the cluster.
+- $executorId - The identifier of the executor that is used to run the Cassandra node.
+- $backupName - The name of the backup.
+- $keyspace - The name of the keyspace.
+- $table - The name of the table.
 
-Let's do following steps:
-1. start backup using `/cluster/backup/start?name=backup-0` method;
-2. wait until backup is finished polling `/cluster/backup/status` method;
+### Restore
 
-Backup is created in $backupDir/$clusterName/$executorId/$backupName/$keyspace/$table for each keyspace and table, where:
-- $backupDir - value of CASSANDRA_BACKUP_DIRECTORY option;
-- $clusterName - name of the cluster;
-- $executorId - identifier of executor used to run Cassandra node;
-- $backupName - name of the backup;
-- $keyspace - name of the keyspace;
-- $table - name of the table;
+Start a restore using the `/cluster/restore/start?name=BackupName` method, where `BackupName` is the name of the backup that you wish to restore. You can determine the status of your restore by polling the `/cluster/restore/status` method. Refer to [the REST API documentation](http://mesosphere.github.io/cassandra-mesos/docs/rest-api.html) for details.
 
-Now let's make some modifications to `t.test` data:
-```
-delete from test where id in (1,5,7,10);
-```
-Data is deleted and table `test` is missing rows with the above ids.
 
-Let's perform a restore:
-1. start restore using `/cluster/restore/start?name=backup-0` method;
-2. wait until restore is finished polling `/cluster/restore/status` method;
+## How It Works
 
-Please refer to the REST API documentation for the details of the particular method.
+The backup procedure uses Cassandra's snapshot mechanism and stores copies of each table of each keyspace except "system" and "system_traces" keyspaces.
 
-After restore is finished data in `test` should be exactly the same as before modifications,
-containing all ids from 1 to 10 inclusive.
+Backup and restore are executed on every Cassandra node sequentially, one at a time.
 
-# How it works
+Backups are created in the following way for each keyspace:
+1. Snapshot is created.
+2. Snapshot is copied to $backupDir/$clusterName/$executorId/$backupName/$keyspace directory.
+3. Snapshot is cleared.
 
-Backup stores copies of each table of each keyspace except "system" and "system_traces" keyspaces.
-Backup procedure internally uses Cassandra snapshots mechanism.
+The restore procedure works in the opposite way. For each keyspace:
+1. Truncate is executed once for each table.
+2. Data is restored from the specified saved backup.
+3. Data is reloaded using the loadNewSSTables JMX call.
 
-Both procedures are executed sequentially one-by-one on every Cassandra node.
+## Handling errors
 
-Backup is created in following way (for each keyspace):
-1. Snapshot is created;
-2. Snapshot is copied to $backupDir/$clusterName/$executorId/$backupName/$keyspace directory;
-3. Snapshot is cleared;
+To troubleshoot a failed backup or restore, check the `/cluster/backup/last` and `/cluster/restore/last` methods.
 
-Restore procedure works in the opposite way (for each keyspace):
-1. Truncate is executed once for each table;
-2. Data is restored from saved backup;
-3. Data is reloaded (using loadNewSSTables JMX call);
-
-# Handling errors
-
-It is possible that for some reason backup or restore operation could fail.
-That situation can be tracked using `/cluster/backup/last` and `/cluster/restore/last` methods.
-
-Below is the example of the failure returned by `/cluster/restore/last`:
+Below is an example of a failure returned by `/cluster/restore/last`:
 ```
 {
   "present": true,
@@ -131,23 +98,18 @@ Below is the example of the failure returned by `/cluster/restore/last`:
   }
 }
 ```
-Here restore operation failed on `t.test` table on the second node.
-Cause of the problem could be examined in the Executor's log.
+In this example, the restore operation failed on the `t.test` table on the second node. The cause of the problem can be examined in the executor's log. In the event of an error, fix the problem and re-run the backup or restore.
 
-If such situation happens procedure should be rerun after fixing the problem.
+It is strongly recommended that you verify whether your backup and restore procedures completed successfully after their execution.
 
-It is highly recommended to check the details of backup and restore
-operations after their execution completes.
+## Limitations
 
-# Limitations
+### No atomicity.
+Backup and restore procedures are not atomic. If the database is modified during backup or restore, the resulting backed up or restored data may contain inconsistent data sets. For example, if several rows in a table are being updated while the table is being backed up, the backup may contain some updated rows and some non-updated rows.
+ 
+ ***It is strongly recommended that you back up or restore your database only when there are no modifications being made to the data.***
 
-## No atomicity.
-Backup and Restore procedures are not atomic. If DB is actively modified during backup or restore both procedures could
-produce inconsistent (from the user's perspective) data sets. So it is recommended to create a backup (and restore from
-a backup) during DB inactivity time.
+### Restoring Using a Different Executor ID
+Backup and restore use a directory structure that contains the $executorId component. If Cassandra-Mesos is restarted using a new executor, manually rename the backup directory to match the new $executorId.
 
-## Executor ID preservation
-Backup and Restore uses directory structure that contains $executorId component. That means, that if Cassandra-Mesos
-is restarted using new Executor, it would be not possible to restore from the old backup. Manual directory renaming should
-be done to make directory structure match new $executorId.
-
+***Warning: When a task is restarted with a new executor, the sandbox from the previous executor may be removed without warning. Exercise caution with the storage of your backups.***

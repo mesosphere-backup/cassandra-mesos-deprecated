@@ -32,7 +32,7 @@ public class NodeTruncateJob extends AbstractNodeJob {
 
     @NotNull
     private final ExecutorService executorService;
-    private Future<?> truncateFeature;
+    private Future<?> truncateFuture;
 
     public NodeTruncateJob(
             @NotNull final Protos.TaskID taskId,
@@ -64,7 +64,7 @@ public class NodeTruncateJob extends AbstractNodeJob {
             return;
         }
 
-        truncateFeature = executorService.submit(new Runnable() {
+        truncateFuture = executorService.submit(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -93,9 +93,9 @@ public class NodeTruncateJob extends AbstractNodeJob {
 
     @Override
     public void close() {
-        if (truncateFeature != null) {
-            truncateFeature.cancel(true);
-            truncateFeature = null;
+        if (truncateFuture != null) {
+            truncateFuture.cancel(true);
+            truncateFuture = null;
         }
 
         super.close();

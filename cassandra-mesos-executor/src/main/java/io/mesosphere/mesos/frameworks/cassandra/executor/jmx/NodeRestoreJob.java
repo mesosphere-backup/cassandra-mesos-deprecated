@@ -16,34 +16,41 @@
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
-import org.apache.cassandra.db.compaction.CompactionManager;
+import io.mesosphere.mesos.frameworks.cassandra.executor.BackupManager;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class NodeCleanupJob extends AbstractNodeJob {
-    private static final Logger LOGGER = LoggerFactory.getLogger(NodeCleanupJob.class);
+public class NodeRestoreJob extends AbstractNodeJob {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NodeRestoreJob.class);
+
     @NotNull
     private final ExecutorService executorService;
-    private Future<?> cleanupFuture;
+    @NotNull
+    private final String backupDir;
 
-    public NodeCleanupJob(@NotNull final Protos.TaskID taskId, @NotNull final ExecutorService executorService) {
+    private Future<?> restoreFeature;
+
+    public NodeRestoreJob(
+            @NotNull final Protos.TaskID taskId,
+            @NotNull final String backupDir,
+            @NotNull final ExecutorService executorService)
+    {
         super(taskId);
-
+        this.backupDir = backupDir;
         this.executorService = executorService;
     }
 
     @NotNull
     @Override
     public CassandraFrameworkProtos.ClusterJobType getType() {
-        return CassandraFrameworkProtos.ClusterJobType.CLEANUP;
+        return CassandraFrameworkProtos.ClusterJobType.RESTORE;
     }
 
     public boolean start(@NotNull final JmxConnect jmxConnect) {
@@ -51,7 +58,7 @@ public class NodeCleanupJob extends AbstractNodeJob {
             return false;
         }
 
-        LOGGER.info("Initiated cleanup job for keyspaces {}", getRemainingKeyspaces());
+        LOGGER.info("Initiated restore from '{}' for keyspaces {}", backupDir, getRemainingKeyspaces());
 
         return true;
     }
@@ -63,26 +70,19 @@ public class NodeCleanupJob extends AbstractNodeJob {
             return;
         }
 
-        cleanupFuture = executorService.submit(new Runnable() {
+        restoreFeature = executorService.submit(new Runnable() {
             @Override
             public void run() {
                 try {
-                    LOGGER.info("Starting cleanup on keyspace {}", keyspace);
+                    LOGGER.info("Starting restore on keyspace {}", keyspace);
                     keyspaceStarted();
-                    final List<String> cfNames = checkNotNull(jmxConnect).getColumnFamilyNames(keyspace);
-                    for (final String cfName : cfNames) {
-                        final int status = jmxConnect.getStorageServiceProxy().forceKeyspaceCleanup(keyspace, cfName);
-                        CompactionManager.AllSSTableOpStatus s = CompactionManager.AllSSTableOpStatus.SUCCESSFUL;
-                        for (final CompactionManager.AllSSTableOpStatus st : CompactionManager.AllSSTableOpStatus.values()) {
-                            if (st.statusCode == status) {
-                                s = st;
-                            }
-                        }
-                        LOGGER.info("Cleanup of {}.{} returned with {}", keyspace, cfName, s);
-                    }
+
+                    final BackupManager backupManager = new BackupManager(checkNotNull(jmxConnect), backupDir);
+                    backupManager.restore(keyspace);
+
                     keyspaceFinished(SUCCESS, keyspace);
                 } catch (final Exception e) {
-                    LOGGER.error("Failed to cleanup keyspace " + keyspace, e);
+                    LOGGER.error("Failed to restore keyspace " + keyspace, e);
                     keyspaceFinished(FAILURE, keyspace);
                 } finally {
                     startNextKeyspace();
@@ -90,17 +90,16 @@ public class NodeCleanupJob extends AbstractNodeJob {
             }
         });
 
-        LOGGER.info("Submitted cleanup for keyspace {}", keyspace);
+        LOGGER.info("Submitted restore for keyspace {}", keyspace);
     }
 
     @Override
     public void close() {
-        if (cleanupFuture != null) {
-            cleanupFuture.cancel(true);
-            cleanupFuture = null;
+        if (restoreFeature != null) {
+            restoreFeature.cancel(true);
+            restoreFeature = null;
         }
 
         super.close();
     }
-
 }

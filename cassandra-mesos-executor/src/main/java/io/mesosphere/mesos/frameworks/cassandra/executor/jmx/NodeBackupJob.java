@@ -16,6 +16,7 @@
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
+import io.mesosphere.mesos.frameworks.cassandra.executor.BackupManager;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -32,13 +33,17 @@ public class NodeBackupJob extends AbstractNodeJob {
     @NotNull
     private final ExecutorService executorService;
     @NotNull
-    private final String backupName;
+    private final String backupDir;
 
     private Future<?> backupFuture;
 
-    public NodeBackupJob(@NotNull final Protos.TaskID taskId, @NotNull final String backupName, @NotNull final ExecutorService executorService) {
+    public NodeBackupJob(
+            @NotNull final Protos.TaskID taskId,
+            @NotNull final String backupDir,
+            @NotNull final ExecutorService executorService)
+    {
         super(taskId);
-        this.backupName = backupName;
+        this.backupDir = backupDir;
         this.executorService = executorService;
     }
 
@@ -53,7 +58,7 @@ public class NodeBackupJob extends AbstractNodeJob {
             return false;
         }
 
-        LOGGER.info("Initiated backup job for keyspaces {}", getRemainingKeyspaces());
+        LOGGER.info("Initiated backup into '{}' for keyspaces {}", backupDir, getRemainingKeyspaces());
 
         return true;
     }
@@ -72,11 +77,13 @@ public class NodeBackupJob extends AbstractNodeJob {
                     LOGGER.info("Starting backup on keyspace {}", keyspace);
                     keyspaceStarted();
 
-                    checkNotNull(jmxConnect).getStorageServiceProxy().takeSnapshot(backupName, keyspace);
-                    keyspaceFinished("SUCCESS", keyspace);
+                    final BackupManager backupManager = new BackupManager(checkNotNull(jmxConnect), backupDir);
+                    backupManager.backup(keyspace);
+
+                    keyspaceFinished(SUCCESS, keyspace);
                 } catch (final Exception e) {
                     LOGGER.error("Failed to backup keyspace " + keyspace, e);
-                    keyspaceFinished("FAILURE", keyspace);
+                    keyspaceFinished(FAILURE, keyspace);
                 } finally {
                     startNextKeyspace();
                 }

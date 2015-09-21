@@ -16,7 +16,6 @@
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
-import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -28,22 +27,25 @@ import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class NodeCleanupJob extends AbstractNodeJob {
-    private static final Logger LOGGER = LoggerFactory.getLogger(NodeCleanupJob.class);
+public class NodeTruncateJob extends AbstractNodeJob {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NodeTruncateJob.class);
+
     @NotNull
     private final ExecutorService executorService;
-    private Future<?> cleanupFuture;
+    private Future<?> truncateFuture;
 
-    public NodeCleanupJob(@NotNull final Protos.TaskID taskId, @NotNull final ExecutorService executorService) {
+    public NodeTruncateJob(
+            @NotNull final Protos.TaskID taskId,
+            @NotNull final ExecutorService executorService)
+    {
         super(taskId);
-
         this.executorService = executorService;
     }
 
     @NotNull
     @Override
     public CassandraFrameworkProtos.ClusterJobType getType() {
-        return CassandraFrameworkProtos.ClusterJobType.CLEANUP;
+        return CassandraFrameworkProtos.ClusterJobType.TRUNCATE;
     }
 
     public boolean start(@NotNull final JmxConnect jmxConnect) {
@@ -51,8 +53,7 @@ public class NodeCleanupJob extends AbstractNodeJob {
             return false;
         }
 
-        LOGGER.info("Initiated cleanup job for keyspaces {}", getRemainingKeyspaces());
-
+        LOGGER.info("Initiated truncate for keyspaces {}", getRemainingKeyspaces());
         return true;
     }
 
@@ -63,26 +64,23 @@ public class NodeCleanupJob extends AbstractNodeJob {
             return;
         }
 
-        cleanupFuture = executorService.submit(new Runnable() {
+        truncateFuture = executorService.submit(new Runnable() {
             @Override
             public void run() {
                 try {
-                    LOGGER.info("Starting cleanup on keyspace {}", keyspace);
+                    LOGGER.info("Starting truncate on keyspace {}", keyspace);
                     keyspaceStarted();
-                    final List<String> cfNames = checkNotNull(jmxConnect).getColumnFamilyNames(keyspace);
-                    for (final String cfName : cfNames) {
-                        final int status = jmxConnect.getStorageServiceProxy().forceKeyspaceCleanup(keyspace, cfName);
-                        CompactionManager.AllSSTableOpStatus s = CompactionManager.AllSSTableOpStatus.SUCCESSFUL;
-                        for (final CompactionManager.AllSSTableOpStatus st : CompactionManager.AllSSTableOpStatus.values()) {
-                            if (st.statusCode == status) {
-                                s = st;
-                            }
-                        }
-                        LOGGER.info("Cleanup of {}.{} returned with {}", keyspace, cfName, s);
+
+                    final List<String> tables = checkNotNull(jmxConnect).getColumnFamilyNames(keyspace);
+
+                    for (final String table : tables) {
+                        LOGGER.info("Truncating {}/{}", keyspace, table);
+                        checkNotNull(jmxConnect).getStorageServiceProxy().truncate(keyspace, table);
                     }
+
                     keyspaceFinished(SUCCESS, keyspace);
                 } catch (final Exception e) {
-                    LOGGER.error("Failed to cleanup keyspace " + keyspace, e);
+                    LOGGER.error("Failed to truncate keyspace " + keyspace, e);
                     keyspaceFinished(FAILURE, keyspace);
                 } finally {
                     startNextKeyspace();
@@ -90,17 +88,16 @@ public class NodeCleanupJob extends AbstractNodeJob {
             }
         });
 
-        LOGGER.info("Submitted cleanup for keyspace {}", keyspace);
+        LOGGER.info("Submitted truncate for keyspace {}", keyspace);
     }
 
     @Override
     public void close() {
-        if (cleanupFuture != null) {
-            cleanupFuture.cancel(true);
-            cleanupFuture = null;
+        if (truncateFuture != null) {
+            truncateFuture.cancel(true);
+            truncateFuture = null;
         }
 
         super.close();
     }
-
 }

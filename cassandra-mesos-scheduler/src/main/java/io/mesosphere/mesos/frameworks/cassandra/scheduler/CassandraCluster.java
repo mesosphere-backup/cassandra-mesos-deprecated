@@ -588,7 +588,7 @@ public final class CassandraCluster {
         @NotNull final TaskEnv taskEnv
     ) {
         final TaskConfig.Builder taskConfig = TaskConfig.newBuilder(configRole.getCassandraYamlConfig());
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("cluster_name", config.getFrameworkName()));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("cluster_name", config.getClusterName()));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("broadcast_address", metadata.getIp()));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("rpc_address", metadata.getIp()));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("listen_address", metadata.getIp()));

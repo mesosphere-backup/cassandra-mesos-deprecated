@@ -50,7 +50,8 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         final boolean jmxNoAuthentication,
         @NotNull final String defaultRack,
         @NotNull final String defaultDc,
-        @NotNull final List<ExternalDc> externalDcs
+        @NotNull final List<ExternalDc> externalDcs,
+        @NotNull final String clusterName
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -86,6 +87,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setTargetNumberOfNodes(executorCount)
                         .setTargetNumberOfSeeds(seedCount)
                         .addAllExternalDcs(externalDcs)
+                        .setClusterName(clusterName)
                         .build();
                 }
             },
@@ -93,7 +95,15 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                 @Override
                 public CassandraFrameworkConfiguration apply(final byte[] input) {
                     try {
-                        return CassandraFrameworkConfiguration.parseFrom(input);
+                        final CassandraFrameworkConfiguration.Builder builder =
+                            CassandraFrameworkConfiguration.newBuilder(CassandraFrameworkConfiguration.parseFrom(input));
+                        // The following statement is to support "updating" the framework for old clusters that used
+                        // Framework name as cluster name
+                        // TODO: Move into "update"/"upgrade" functionality when it exists
+                        if (!builder.hasClusterName()) {
+                            builder.setClusterName(builder.getFrameworkName());
+                        }
+                        return builder.build();
                     } catch (final InvalidProtocolBufferException e) {
                         throw new ProtoUtils.RuntimeInvalidProtocolBufferException(e);
                     }
@@ -191,6 +201,11 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     @NotNull
     public String frameworkName() {
         return get().getFrameworkName();
+    }
+
+    @NotNull
+    public String clusterName() {
+        return get().getClusterName();
     }
 
     @NotNull

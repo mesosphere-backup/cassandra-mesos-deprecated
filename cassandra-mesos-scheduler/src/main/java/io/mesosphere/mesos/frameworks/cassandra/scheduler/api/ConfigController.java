@@ -85,7 +85,7 @@ public final class ConfigController {
 
                 json.writeStringField("frameworkName", config.getFrameworkName());
                 json.writeStringField("frameworkId", config.getFrameworkId());
-                json.writeStringField("clusterName", config.getFrameworkName());
+                json.writeStringField("clusterName", config.getClusterName());
                 json.writeNumberField("targetNumberOfNodes", config.getTargetNumberOfNodes());
                 json.writeNumberField("targetNumberOfSeeds", config.getTargetNumberOfSeeds());
 

@@ -50,7 +50,8 @@ public class SeedManagerTest {
                 Arrays.asList(ExternalDc.newBuilder()
                         .setName("dc")
                         .setUrl("http://dc")
-                        .build())
+                        .build()),
+                "name"
         );
 
         seedManager = new SeedManager(config, new ObjectMapper(), new SystemClock()) {

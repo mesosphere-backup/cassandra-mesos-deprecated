@@ -60,12 +60,14 @@ public abstract class AbstractSchedulerTest {
             2, 4096, 4096, 0,
             3, 2,
             mesosRole,
+            "./backup",
             ".",
             true,
             false,
             "RACK0",
             "DC0",
-            Lists.<CassandraFrameworkProtos.ExternalDc>newArrayList()
+            Lists.<CassandraFrameworkProtos.ExternalDc>newArrayList(),
+            "test-cluster"
         );
 
         healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);

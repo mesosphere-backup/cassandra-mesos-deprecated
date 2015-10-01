@@ -87,8 +87,8 @@ public class CassandraClusterTest {
         final PersistedCassandraClusterHealthCheckHistory healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);
         final PersistedCassandraClusterJobs jobsState = new PersistedCassandraClusterJobs(state);
         final PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
-            state, "cassandra.unit-test", 15, 15, "2.1.4", 1.0, 64, 64, 32, 1, 1, "*", ".", true, false,
-            "rack0", "dc0", Collections.<CassandraFrameworkProtos.ExternalDc>emptyList()
+            state, "cassandra.unit-test", 15, 15, "2.1.4", 1.0, 64, 64, 32, 1, 1, "*", "./backup", ".", true, false,
+            "rack0", "dc0", Collections.<CassandraFrameworkProtos.ExternalDc>emptyList(), "cassandra.unit-test"
         );
         final CassandraCluster cluster1 = new CassandraCluster(
             clock,

@@ -161,6 +161,8 @@ public final class CassandraCluster {
         clusterJobHandlers.put(ClusterJobType.CLEANUP, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.REPAIR, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.BACKUP, new NodeTaskClusterJobHandler(this, jobsState));
+        clusterJobHandlers.put(ClusterJobType.RESTORE, new NodeTaskClusterJobHandler(this, jobsState));
+        clusterJobHandlers.put(ClusterJobType.TRUNCATE, new NodeTaskClusterJobHandler(this, jobsState));
         clusterJobHandlers.put(ClusterJobType.RESTART, new RestartClusterJobHandler(this, jobsState));
     }
 
@@ -586,7 +588,7 @@ public final class CassandraCluster {
         @NotNull final TaskEnv taskEnv
     ) {
         final TaskConfig.Builder taskConfig = TaskConfig.newBuilder(configRole.getCassandraYamlConfig());
-        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("cluster_name", config.getFrameworkName()));
+        CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("cluster_name", config.getClusterName()));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("broadcast_address", metadata.getIp()));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("rpc_address", metadata.getIp()));
         CassandraFrameworkProtosUtils.setTaskConfig(taskConfig, configValue("listen_address", metadata.getIp()));
@@ -741,8 +743,8 @@ public final class CassandraCluster {
 
         final NodeJobStatus nodeJobStatus = statusDetails.getNodeJobStatus();
 
-        if (currentJob.getJobType() != nodeJobStatus.getJobType()) {
-            // oops - status message of other type...  ignore for now
+        if (currentJob.getJobType() != nodeJobStatus.getJobType() && nodeJobStatus.getJobType() != ClusterJobType.TRUNCATE) {
+            // oops - status message of other type...  ignore for now, TRUNCATE - special case as a part of RESTORE job
             LOGGER.warn("Got node job status of tye {} - but expected {}", nodeJobStatus.getJobType(), currentJob.getJobType());
             return;
         }

@@ -41,7 +41,8 @@ public class SeedManagerTest {
                 1,
                 1,
                 "role",
-                "",
+                "./backup",
+                ".",
                 false,
                 true,
                 "RACK1",
@@ -49,7 +50,8 @@ public class SeedManagerTest {
                 Arrays.asList(ExternalDc.newBuilder()
                         .setName("dc")
                         .setUrl("http://dc")
-                        .build())
+                        .build()),
+                "name"
         );
 
         seedManager = new SeedManager(config, new ObjectMapper(), new SystemClock()) {

@@ -44,12 +44,14 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         final int executorCount,
         final int seedCount,
         @NotNull final String mesosRole,
+        @NotNull final String backupDirectory,
         @NotNull final String dataDirectory,
         final boolean jmxLocal,
         final boolean jmxNoAuthentication,
         @NotNull final String defaultRack,
         @NotNull final String defaultDc,
         @NotNull final List<ExternalDc> externalDcs,
+        @NotNull final String clusterName,
         final boolean reserve
     ) {
         super(
@@ -65,6 +67,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                             .setDiskMb(diskMb)
                             .setMemMb(memMb))
                         .setMesosRole(mesosRole)
+                        .setBackupDirectory(backupDirectory)
                         .setPreDefinedDataDirectory(dataDirectory)
                         .setTaskEnv(CassandraFrameworkProtos.TaskEnv.newBuilder()
                             .addVariables(CassandraFrameworkProtos.TaskEnv.Entry.newBuilder()
@@ -77,7 +80,6 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                     if (javeHeapMb > 0) {
                         configRole.setMemJavaHeapMb(javeHeapMb);
                     }
-
                     return CassandraFrameworkConfiguration.newBuilder()
                         .setFrameworkName(frameworkName)
                         .setDefaultConfigRole(fillConfigRoleGaps(configRole))
@@ -87,6 +89,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setTargetNumberOfSeeds(seedCount)
                         .addAllExternalDcs(externalDcs)
                         .setReserve(reserve)
+                        .setClusterName(clusterName)
                         .build();
                 }
             },
@@ -94,7 +97,15 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                 @Override
                 public CassandraFrameworkConfiguration apply(final byte[] input) {
                     try {
-                        return CassandraFrameworkConfiguration.parseFrom(input);
+                        final CassandraFrameworkConfiguration.Builder builder =
+                            CassandraFrameworkConfiguration.newBuilder(CassandraFrameworkConfiguration.parseFrom(input));
+                        // The following statement is to support "updating" the framework for old clusters that used
+                        // Framework name as cluster name
+                        // TODO: Move into "update"/"upgrade" functionality when it exists
+                        if (!builder.hasClusterName()) {
+                            builder.setClusterName(builder.getFrameworkName());
+                        }
+                        return builder.build();
                     } catch (final InvalidProtocolBufferException e) {
                         throw new ProtoUtils.RuntimeInvalidProtocolBufferException(e);
                     }
@@ -192,6 +203,11 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     @NotNull
     public String frameworkName() {
         return get().getFrameworkName();
+    }
+
+    @NotNull
+    public String clusterName() {
+        return get().getClusterName();
     }
 
     @NotNull

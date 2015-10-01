@@ -16,6 +16,7 @@
 package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
+import org.apache.cassandra.db.ColumnFamilyStoreMBean;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.jetbrains.annotations.NotNull;
@@ -173,6 +174,12 @@ public class ProdJmxConnect implements JmxConnect {
             snitchProxy = newProxy(ENDPOINT_SNITCH_INFO_NAME, EndpointSnitchInfoMBean.class);
         }
         return snitchProxy;
+    }
+
+    @NotNull
+    public ColumnFamilyStoreMBean getColumnFamilyStoreProxy(@NotNull final String keyspace, @NotNull final String table) {
+        final String beanName = "org.apache.cassandra.db:type=ColumnFamilies,keyspace=" + keyspace  + ",columnfamily=" + table;
+        return newProxy(beanName, ColumnFamilyStoreMBean.class);
     }
 
     @NotNull

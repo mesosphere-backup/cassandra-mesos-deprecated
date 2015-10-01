@@ -71,7 +71,13 @@ message CassandraFrameworkConfiguration {
     /** List of external DCs running other rings of this cluster */
     repeated ExternalDc externalDcs = 10;
 
-    optional bool reserve = 11;
+    /**
+     * The name of the cassandra cluster. Corresponds to cluster_name in cassandra.yaml
+     */
+    optional string clusterName = 11;
+
+    /* Whether or not to use dynamic reservation */
+    optional bool reserve = 12;
 }
 
 /**
@@ -172,6 +178,11 @@ message CassandraConfigRole {
     optional RackDc rackDc = 9;
 
     /**
+     * Directory to store backups
+     */
+    optional string backupDirectory = 10;
+
+    /**
      * A pre-defined data directory specifying where cassandra should write it's data.
      * NOTE:
      * This field will be removed once MESOS-1554 is released and the framework will
@@ -262,6 +273,8 @@ enum ClusterJobType {
     REPAIR = 2;
     RESTART = 3;
     BACKUP = 4;
+    RESTORE = 5;
+    TRUNCATE = 6;
 }
 
 /**
@@ -748,9 +761,9 @@ message NodeJobTask {
      */
     required ClusterJobType jobType = 1;
     /**
-     * Backup name
+     * Backup directory
      */
-    optional string backupName = 2;
+    optional string backupDir = 3;
 }
 
 /**

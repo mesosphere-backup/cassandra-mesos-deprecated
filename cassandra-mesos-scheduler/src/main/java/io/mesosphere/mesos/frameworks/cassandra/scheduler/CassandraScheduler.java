@@ -15,6 +15,8 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -24,10 +26,15 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ListMultimap;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.util.Clock;
+import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
+import org.glassfish.jersey.client.JerseyClient;
+import org.glassfish.jersey.client.JerseyClientBuilder;
+import org.glassfish.jersey.client.JerseyWebTarget;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -35,9 +42,10 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import javax.ws.rs.core.Response;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
@@ -58,6 +66,8 @@ public final class CassandraScheduler implements Scheduler {
         }
     };
 
+    private static final Pattern mesosVersionPattern = Pattern.compile("^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)");
+
     @NotNull
     private final PersistedCassandraFrameworkConfiguration configuration;
     @NotNull
@@ -65,18 +75,43 @@ public final class CassandraScheduler implements Scheduler {
     @NotNull
     private final Clock clock;
 
+    private boolean reservationSupported;
+
+    private JerseyClient httpClient;
+
     public CassandraScheduler(
         @NotNull final PersistedCassandraFrameworkConfiguration configuration,
         @NotNull final CassandraCluster cassandraCluster,
-        @NotNull final Clock clock
+        @NotNull final Clock clock,
+        @NotNull final JacksonJaxbJsonProvider provider
     ) {
         this.configuration = configuration;
         this.cassandraCluster = cassandraCluster;
         this.clock = clock;
+        this.httpClient = JerseyClientBuilder.createClient();
+        this.httpClient.register(provider);
     }
 
     @Override
     public void registered(final SchedulerDriver driver, final FrameworkID frameworkId, final MasterInfo masterInfo) {
+        final String mesosStateUrl = String.format("http://%s:%d/state.json", masterInfo.getHostname(), masterInfo.getPort());
+        final JerseyWebTarget target = httpClient.target(mesosStateUrl);
+        final Response response = target.request().buildGet().invoke();
+        if (response.getStatus() == 200) {
+            final MesosVersion mesosVersion = response.readEntity(MesosVersion.class);
+            final Matcher matcher = mesosVersionPattern.matcher(mesosVersion.getVersion());
+            if (matcher.find()) {
+                int majorVersion = Integer.parseInt(matcher.group("major"));
+                int minorVersion = Integer.parseInt(matcher.group("minor"));
+                reservationSupported = majorVersion > 0 || (majorVersion == 0 && minorVersion >= 24);
+            } else {
+                reservationSupported = false;
+            }
+            LOGGER.info(String.format("Dynamic reservations support: %b", this.reservationSupported));
+        } else {
+            reservationSupported = false;
+        }
+
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("> registered(driver : {}, frameworkId : {}, masterInfo : {})", driver, protoToString(frameworkId), protoToString(masterInfo));
         }
@@ -98,6 +133,45 @@ public final class CassandraScheduler implements Scheduler {
     public void resourceOffers(final SchedulerDriver driver, final List<Offer> offers) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("> resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
+        }
+
+        if (reservationSupported && configuration.isReserveRequired() && !configuration.hasReservedResources()) {
+            for (Offer offer : offers) {
+                Collection<Offer.Operation> operations = new ArrayList<>();
+                final Marker marker = MarkerFactory.getMarker("offerId:" + offer.getId().getValue() + ",hostname:" + offer.getHostname());
+                final TasksForOffer tasksForOffer = cassandraCluster.getTasksForOffer(offer);
+                if (tasksForOffer == null || !tasksForOffer.hasAnyTask()) {
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug(marker, "< evaluateOffer(driver : {}, offer : {}) = nothing to do", protoToString(offer));
+                    }
+                    LOGGER.trace(marker, "Declining Offer: {}", offer.getId().getValue());
+                    driver.declineOffer(offer.getId());
+                } else {
+                    for (CassandraFrameworkProtos.CassandraNodeTask task : tasksForOffer.getLaunchTasks()) {
+                        final List<Resource> resources = Arrays.asList(
+                            reserveCpu(task.getResources().getCpuCores() * configuration.getCpuFactor(), configuration.mesosRole(),
+                                "cassandra-framework"),
+                            reserveMem(task.getResources().getMemMb() * configuration.getMemFactor(), configuration.mesosRole(),
+                                "cassandra-framework"),
+                            reserveDisk(task.getResources().getDiskMb() * configuration.getDiskFactor(), configuration.mesosRole(),
+                                "cassandra-framework")
+                        );
+                        final Offer.Operation.Reserve reserve = Offer.Operation.Reserve.newBuilder()
+                            .addAllResources(resources).build();
+                        final Offer.Operation operation = Offer.Operation.newBuilder()
+                            .setType(Offer.Operation.Type.RESERVE)
+                            .setReserve(reserve).build();
+                        LOGGER.debug(marker, "Reserve operation: {}", protoToString(operation));
+
+                        operations.add(operation);
+                    }
+                    driver.acceptOffers(Arrays.asList(offer.getId()), operations, Filters.getDefaultInstance());
+                }
+                LOGGER.debug(marker, "Accepted offer: {}", protoToString(offer));
+            }
+            configuration.hasReservedResources(true);
+
+            return;
         }
 
         for (final Offer offer : offers) {
@@ -255,7 +329,8 @@ public final class CassandraScheduler implements Scheduler {
 
     @Override
     public void executorLost(final SchedulerDriver driver, final ExecutorID executorId, final SlaveID slaveId, final int status) {
-        final Marker executorIdMarker = MarkerFactory.getMarker("executorId:" + executorId.getValue());
+        final Marker executorIdMarker = MarkerFactory.getMarker(
+            "executorId:" + executorId.getValue());
         // this method will never be called by mesos until MESOS-313 is fixed
         // https://issues.apache.org/jira/browse/MESOS-313
         if (LOGGER.isDebugEnabled()) {
@@ -418,5 +493,18 @@ public final class CassandraScheduler implements Scheduler {
             );
         }
         return builder.build();
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class MesosVersion {
+        private String version;
+
+        public String getVersion() {
+            return version;
+        }
+
+        public void setVersion(String version) {
+            this.version = version;
+        }
     }
 }

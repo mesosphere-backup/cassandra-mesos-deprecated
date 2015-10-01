@@ -19,6 +19,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.*;
 import org.jetbrains.annotations.NotNull;
 
@@ -59,17 +60,29 @@ public final class ProtoUtils {
 
     @NotNull
     public static Resource cpu(final double value, @NotNull final String role) {
-        return scalarResource("cpus", value, role);
+        return scalarResource("cpus", value, role, false, null);
+    }
+
+    public static Resource reserveCpu(final double value, @NotNull final String role, @NotNull final String principal) {
+        return scalarResource("cpus", value, role, true, principal);
     }
 
     @NotNull
     public static Resource mem(final double value, @NotNull final String role) {
-        return scalarResource("mem", value, role);
+        return scalarResource("mem", value, role, false, null);
+    }
+
+    public static Resource reserveMem(final double value, @NotNull final String role, @NotNull final String principal) {
+        return scalarResource("mem", value, role, true, principal);
     }
 
     @NotNull
     public static Resource disk(final double value, @NotNull final String role) {
-        return scalarResource("disk", value, role);
+        return scalarResource("disk", value, role, false, null);
+    }
+
+    public static Resource reserveDisk(final double value, @NotNull final String role, @NotNull final String principal) {
+        return scalarResource("disk", value, role, true, principal);
     }
 
     @NotNull
@@ -88,8 +101,9 @@ public final class ProtoUtils {
     }
 
     @NotNull
-    public static Resource scalarResource(@NotNull final String name, final double value, @NotNull final String role) {
-        return Resource.newBuilder()
+    public static Resource scalarResource(@NotNull final String name, final double value,
+        @NotNull final String role, boolean reserve, String principal) {
+        final Resource.Builder resourceBuilder = Resource.newBuilder()
             .setName(name)
             .setType(Value.Type.SCALAR)
             .setRole(role)
@@ -97,8 +111,15 @@ public final class ProtoUtils {
                 Value.Scalar.newBuilder()
                     .setValue(value)
                     .build()
-            )
-            .build();
+            );
+
+        if (reserve) {
+            final Resource.ReservationInfo reservationInfo = Resource.ReservationInfo.newBuilder()
+                .setPrincipal(principal).build();
+            resourceBuilder.setReservation(reservationInfo);
+        }
+
+        return resourceBuilder.build();
     }
 
     @NotNull

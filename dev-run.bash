@@ -17,7 +17,7 @@
 set -o errexit -o nounset -o pipefail
 
 function maven {(
-    mvn clean package
+    mvn -Dmaven.test.skip=true clean package
 )}
 
 function download {(
@@ -25,19 +25,25 @@ function download {(
 )}
 
 function execute {(
+    export HOST=10.1.13.227
     export PORT0=18080
     export CASSANDRA_CLUSTER_NAME=dev-cluster
-    export MESOS_ZK=zk://localhost:2181/mesos
-    export CASSANDRA_ZK=zk://localhost:2181/cassandra-mesos
+    export MESOS_ZK=zk://10.1.13.227:2181/mesos
+    export CASSANDRA_ZK=zk://10.1.13.227:2181/cassandra-mesos
     export EXECUTOR_FILE_PATH=$(ls $(pwd)/cassandra-mesos-dist/target/tarball/cassandra-mesos-executor.jar)
     export JRE_FILE_PATH=$(pwd)/cassandra-mesos-dist/target/tarball/jre.tar.gz
     export CASSANDRA_FILE_PATH=$(ls $(pwd)/cassandra-mesos-dist/target/tarball/apache-cassandra-*.tar.gz)
-    export CASSANDRA_NODE_COUNT=3
+    export CASSANDRA_NODE_COUNT=2
     export CASSANDRA_RESOURCE_CPU_CORES=1
-    export CASSANDRA_RESOURCE_MEM_MB=512
+    export CASSANDRA_RESOURCE_MEM_MB=1024
     export CASSANDRA_RESOURCE_DISK_MB=1024
     export CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS=60
     export CASSANDRA_ZK_TIMEOUT_MS=10000
+    export CASSANDRA_RESERVE=true
+    export CASSANDRA_RESERVE_CPU_FACTOR=1
+    export CASSANDRA_RESERVE_MEM_FACTOR=1
+    export CASSANDRA_RESERVE_DISK_FACTOR=1
+    export CASSANDRA_FRAMEWORK_MESOS_ROLE=cassandra
 
     java -cp $(pwd)/cassandra-mesos-dist/target/tarball/cassandra-mesos-framework.jar io.mesosphere.mesos.frameworks.cassandra.framework.Main
 )}

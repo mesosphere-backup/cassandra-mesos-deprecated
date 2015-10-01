@@ -70,6 +70,25 @@ message CassandraFrameworkConfiguration {
 
     /** List of external DCs running other rings of this cluster */
     repeated ExternalDc externalDcs = 10;
+
+    optional Reservation reservation = 11;
+}
+
+message Reservation {
+    /* Reserve resources before starting to accept offers */
+    optional bool reserve = 1 [default = false];
+
+    /* CPU reserve factor */
+    optional int32 cpuFactor = 2 [default = 1];
+
+    /* Memory reserve factor */
+    optional int32 memFactor = 3 [default = 1];
+
+    /* Disk reserve factor */
+    optional int32 diskFactor = 4 [default = 1];
+
+    /* Are resources already reserved */
+    optional bool isAlreadyReserved = 5 [default = true];
 }
 
 /**

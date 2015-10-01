@@ -67,7 +67,7 @@
         <version.jetbrains.javac2>7.0.3</version.jetbrains.javac2>
         <version.junit>4.12</version.junit>
         <version.logback-classic>1.1.2</version.logback-classic>
-        <version.mesos>0.22.0</version.mesos>
+        <version.mesos>0.24.0</version.mesos>
         <version.slf4j>1.7.10</version.slf4j>
         <version.joda>2.7</version.joda>
         <version.grizzly>2.16</version.grizzly>

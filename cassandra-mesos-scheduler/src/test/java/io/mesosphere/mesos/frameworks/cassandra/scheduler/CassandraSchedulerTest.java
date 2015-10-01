@@ -16,6 +16,7 @@
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -28,6 +29,7 @@ import io.mesosphere.mesos.util.ProtoUtils;
 import io.mesosphere.mesos.util.SystemClock;
 import org.apache.mesos.Protos;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.util.*;
 
@@ -67,7 +69,8 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
             new SeedManager(configuration, new ObjectMapper(), new SystemClock())
         );
         clusterState = cluster.getClusterState();
-        scheduler = new CassandraScheduler(configuration, cluster, clock);
+        scheduler = new CassandraScheduler(configuration, cluster, clock, Mockito.mock(
+            JacksonJaxbJsonProvider.class), "cassandra-framework");
         driver = new MockSchedulerDriver(scheduler);
 
         driver.callReRegistered();

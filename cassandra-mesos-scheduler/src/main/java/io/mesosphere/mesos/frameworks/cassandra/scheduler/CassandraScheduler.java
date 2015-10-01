@@ -97,21 +97,27 @@ public final class CassandraScheduler implements Scheduler {
     @Override
     public void registered(final SchedulerDriver driver, final FrameworkID frameworkId, final MasterInfo masterInfo) {
         final String mesosStateUrl = String.format("http://%s:%d/state.json", masterInfo.getHostname(), masterInfo.getPort());
-        final JerseyWebTarget target = httpClient.target(mesosStateUrl);
-        final Response response = target.request().buildGet().invoke();
-        if (response.getStatus() == 200) {
-            final MesosVersion mesosVersion = response.readEntity(MesosVersion.class);
-            final Matcher matcher = mesosVersionPattern.matcher(mesosVersion.getVersion());
-            if (matcher.find()) {
-                int majorVersion = Integer.parseInt(matcher.group("major"));
-                int minorVersion = Integer.parseInt(matcher.group("minor"));
-                reservationSupported = majorVersion > 0 || (majorVersion == 0 && minorVersion >= 24);
+        try {
+            final JerseyWebTarget target = httpClient.target(mesosStateUrl);
+            final Response response = target.request().buildGet().invoke();
+            if (response.getStatus() == 200) {
+                final MesosVersion mesosVersion = response.readEntity(MesosVersion.class);
+                final Matcher matcher = mesosVersionPattern.matcher(mesosVersion.getVersion());
+                if (matcher.find()) {
+                    int majorVersion = Integer.parseInt(matcher.group("major"));
+                    int minorVersion = Integer.parseInt(matcher.group("minor"));
+                    reservationSupported =
+                        majorVersion > 0 || (majorVersion == 0 && minorVersion >= 24);
+                } else {
+                    reservationSupported = false;
+                }
+                LOGGER.info(
+                    String.format("Dynamic reservations support: %b", this.reservationSupported));
             } else {
                 reservationSupported = false;
             }
-            LOGGER.info(String.format("Dynamic reservations support: %b", this.reservationSupported));
-        } else {
-            reservationSupported = false;
+        } catch(Exception e) {
+            LOGGER.error(e.getMessage());
         }
 
         if (LOGGER.isDebugEnabled()) {

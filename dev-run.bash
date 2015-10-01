@@ -17,7 +17,7 @@
 set -o errexit -o nounset -o pipefail
 
 function maven {(
-    mvn -Dmaven.test.skip=true clean package
+    mvn clean package
 )}
 
 function download {(

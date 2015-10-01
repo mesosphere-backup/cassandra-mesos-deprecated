@@ -50,10 +50,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         @NotNull final String defaultRack,
         @NotNull final String defaultDc,
         @NotNull final List<ExternalDc> externalDcs,
-        final boolean reserve,
-        final int cpuFactor,
-        final int memFactor,
-        final int diskFactor
+        final boolean reserve
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -80,30 +77,17 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                     if (javeHeapMb > 0) {
                         configRole.setMemJavaHeapMb(javeHeapMb);
                     }
-                    CassandraFrameworkProtos.CassandraFrameworkConfiguration.Builder configurationBuilder =
-                        CassandraFrameworkConfiguration.newBuilder()
+
+                    return CassandraFrameworkConfiguration.newBuilder()
                         .setFrameworkName(frameworkName)
                         .setDefaultConfigRole(fillConfigRoleGaps(configRole))
                         .setHealthCheckIntervalSeconds(healthCheckIntervalSeconds)
                         .setBootstrapGraceTimeSeconds(bootstrapGraceTimeSec)
                         .setTargetNumberOfNodes(executorCount)
                         .setTargetNumberOfSeeds(seedCount)
-                        .addAllExternalDcs(externalDcs);
-
-                    if (reserve) {
-                        configurationBuilder.setReservation(
-                            CassandraFrameworkProtos.Reservation.newBuilder()
-                                .setCpuFactor(cpuFactor)
-                                .setMemFactor(memFactor)
-                                .setDiskFactor(diskFactor)
-                                .setIsAlreadyReserved(false)
-                                .setReserve(true));
-                    } else {
-                        configurationBuilder.setReservation(
-                            CassandraFrameworkProtos.Reservation.getDefaultInstance());
-                    }
-
-                    return configurationBuilder.build();
+                        .addAllExternalDcs(externalDcs)
+                        .setReserve(reserve)
+                        .build();
                 }
             },
             new Function<byte[], CassandraFrameworkConfiguration>() {
@@ -232,33 +216,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
     }
 
     public boolean isReserveRequired() {
-        return get().getReservation().getReserve();
-    }
-
-    public boolean hasReservedResources() {
-        return get().getReservation().getIsAlreadyReserved();
-    }
-
-    public int getCpuFactor() {
-        return get().getReservation().getCpuFactor();
-    }
-
-    public int getMemFactor() {
-        return get().getReservation().getMemFactor();
-    }
-
-    public int getDiskFactor() {
-        return get().getReservation().getDiskFactor();
-    }
-
-    public void hasReservedResources(boolean reserved) {
-        final CassandraFrameworkProtos.Reservation reservation = CassandraFrameworkProtos.Reservation
-            .newBuilder(get().getReservation()).setIsAlreadyReserved(reserved).build();
-        setValue(
-            CassandraFrameworkConfiguration.newBuilder(get())
-                .setReservation(reservation)
-                .build()
-        );
+        return get().getReserve();
     }
 
     public void targetNumberOfSeeds(final int newSeedCount) {

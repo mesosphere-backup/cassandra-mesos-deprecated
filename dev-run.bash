@@ -25,11 +25,11 @@ function download {(
 )}
 
 function execute {(
-    export HOST=10.1.13.227
+    export HOST=localhost
     export PORT0=18080
     export CASSANDRA_CLUSTER_NAME=dev-cluster
-    export MESOS_ZK=zk://10.1.13.227:2181/mesos
-    export CASSANDRA_ZK=zk://10.1.13.227:2181/cassandra-mesos
+    export MESOS_ZK=zk://localhost:2181/mesos
+    export CASSANDRA_ZK=zk://localhost:2181/cassandra-mesos
     export EXECUTOR_FILE_PATH=$(ls $(pwd)/cassandra-mesos-dist/target/tarball/cassandra-mesos-executor.jar)
     export JRE_FILE_PATH=$(pwd)/cassandra-mesos-dist/target/tarball/jre.tar.gz
     export CASSANDRA_FILE_PATH=$(ls $(pwd)/cassandra-mesos-dist/target/tarball/apache-cassandra-*.tar.gz)
@@ -40,9 +40,6 @@ function execute {(
     export CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS=60
     export CASSANDRA_ZK_TIMEOUT_MS=10000
     export CASSANDRA_RESERVE=true
-    export CASSANDRA_RESERVE_CPU_FACTOR=1
-    export CASSANDRA_RESERVE_MEM_FACTOR=1
-    export CASSANDRA_RESERVE_DISK_FACTOR=1
     export CASSANDRA_FRAMEWORK_MESOS_ROLE=cassandra
 
     java -cp $(pwd)/cassandra-mesos-dist/target/tarball/cassandra-mesos-framework.jar io.mesosphere.mesos.frameworks.cassandra.framework.Main

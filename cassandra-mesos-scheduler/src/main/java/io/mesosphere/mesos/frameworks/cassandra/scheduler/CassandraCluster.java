@@ -74,7 +74,7 @@ import static io.mesosphere.mesos.util.Tuple2.tuple2;
 public final class CassandraCluster {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraCluster.class);
 
-    private static final Joiner JOINER = Joiner.on("','");
+    static final Joiner JOINER = Joiner.on("','");
     private static final Joiner SEEDS_FORMAT_JOINER = Joiner.on(',');
     private static final Pattern URL_FOR_RESOURCE_REPLACE = Pattern.compile("(?<!:)/+");
 
@@ -469,7 +469,7 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private static Map<String, Long> portMappings(@NotNull final CassandraFrameworkConfiguration config) {
+    static Map<String, Long> portMappings(@NotNull final CassandraFrameworkConfiguration config) {
         final Map<String, Long> r = new HashMap<>();
         for (final String name : defaultPortMappings.keySet()) {
             r.put(name, (long) getPortMapping(config, name));

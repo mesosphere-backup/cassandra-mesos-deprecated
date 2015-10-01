@@ -115,32 +115,45 @@ public final class Main {
         final int port0 = Integer.parseInt(portOption.get());
         final String host = Env.option("HOST").or("localhost");
 
-        final int       executorCount               = Integer.parseInt(     Env.option("CASSANDRA_NODE_COUNT").or("3"));
-        final int       seedCount                   = Integer.parseInt(     Env.option("CASSANDRA_SEED_COUNT").or("2"));
-        final double    resourceCpuCores            = Double.parseDouble(   Env.option("CASSANDRA_RESOURCE_CPU_CORES").or("2.0"));
+        final int       executorCount               = Integer.parseInt(
+            Env.option("CASSANDRA_NODE_COUNT").or("3"));
+        final int       seedCount                   = Integer.parseInt(
+            Env.option("CASSANDRA_SEED_COUNT").or("2"));
+        final double    resourceCpuCores            = Double.parseDouble(
+            Env.option("CASSANDRA_RESOURCE_CPU_CORES").or("2.0"));
         final long      resourceMemoryMegabytes     = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_MEM_MB").or("2048"));
         final long      resourceDiskMegabytes       = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_DISK_MB").or("2048"));
         final long      javaHeapMb                  = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_HEAP_MB").or("0"));
         final long      healthCheckIntervalSec      = Long.parseLong(       Env.option("CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS").or("60"));
         final long      bootstrapGraceTimeSec       = Long.parseLong(       Env.option("CASSANDRA_BOOTSTRAP_GRACE_TIME_SECONDS").or("120"));
         final String    cassandraVersion            =                       "2.1.4";
-        final String    frameworkName               = frameworkName(        Env.option("CASSANDRA_CLUSTER_NAME"));
-        final String    zkUrl                       =                       Env.option("CASSANDRA_ZK").or("zk://localhost:2181/cassandra-mesos");
-        final long      zkTimeoutMs                 = Long.parseLong(       Env.option("CASSANDRA_ZK_TIMEOUT_MS").or("10000"));
-        final String    mesosMasterZkUrl            =                       Env.option("MESOS_ZK").or("zk://localhost:2181/mesos");
-        final String    mesosUser                   =                       Env.option("MESOS_USER").or("");
-        final long      failoverTimeout             = Long.parseLong(       Env.option("CASSANDRA_FAILOVER_TIMEOUT_SECONDS").or(
-            String.valueOf(Period.days(7).toStandardSeconds().getSeconds())));
-        final String    mesosRole                   =                       Env.option("CASSANDRA_FRAMEWORK_MESOS_ROLE").or("*");
-        final String    dataDirectory               =                       Env.option("CASSANDRA_DATA_DIRECTORY").or(DEFAULT_DATA_DIRECTORY);  // TODO: Temporary. Will be removed when MESOS-1554 is released
-        final boolean   jmxLocal                    = Boolean.parseBoolean( Env.option("CASSANDRA_JMX_LOCAL").or("true"));
-        final boolean   jmxNoAuthentication         = Boolean.parseBoolean( Env.option("CASSANDRA_JMX_NO_AUTHENTICATION").or("false"));
-        final String    defaultRack                 =                       Env.option("CASSANDRA_DEFAULT_RACK").or("RAC1");
-        final String    defaultDc                   =                       Env.option("CASSANDRA_DEFAULT_DC").or("DC1");
-        final boolean   reserve                     = Boolean.parseBoolean( Env.option("CASSANDRA_RESERVE").or("false"));
-        final int       reserveCpuFactor            = Integer.parseInt(     Env.option("CASSANDRA_RESERVE_CPU_FACTOR").or("1"));
-        final int       reserveMemFactor            = Integer.parseInt(     Env.option("CASSANDRA_RESERVE_MEM_FACTOR").or("1"));
-        final int       reserveDiskFactor           = Integer.parseInt(     Env.option("CASSANDRA_RESERVE_DISK_FACTOR").or("1"));
+        final String    frameworkName               = frameworkName(
+            Env.option("CASSANDRA_CLUSTER_NAME"));
+        final String    zkUrl                       =                       Env.option("CASSANDRA_ZK").or(
+            "zk://localhost:2181/cassandra-mesos");
+        final long      zkTimeoutMs                 = Long.parseLong(
+            Env.option("CASSANDRA_ZK_TIMEOUT_MS").or("10000"));
+        final String    mesosMasterZkUrl            =                       Env.option("MESOS_ZK").or(
+            "zk://localhost:2181/mesos");
+        final String    mesosUser                   =                       Env.option("MESOS_USER").or(
+            "");
+        final long      failoverTimeout             = Long.parseLong(
+            Env.option("CASSANDRA_FAILOVER_TIMEOUT_SECONDS").or(
+                String.valueOf(Period.days(7).toStandardSeconds().getSeconds())));
+        final String    mesosRole                   =                       Env.option("CASSANDRA_FRAMEWORK_MESOS_ROLE").or(
+            "*");
+        final String    dataDirectory               =                       Env.option("CASSANDRA_DATA_DIRECTORY").or(
+            DEFAULT_DATA_DIRECTORY);  // TODO: Temporary. Will be removed when MESOS-1554 is released
+        final boolean   jmxLocal                    = Boolean.parseBoolean(
+            Env.option("CASSANDRA_JMX_LOCAL").or("true"));
+        final boolean   jmxNoAuthentication         = Boolean.parseBoolean(
+            Env.option("CASSANDRA_JMX_NO_AUTHENTICATION").or("false"));
+        final String    defaultRack                 =                       Env.option("CASSANDRA_DEFAULT_RACK").or(
+            "RAC1");
+        final String    defaultDc                   =                       Env.option("CASSANDRA_DEFAULT_DC").or(
+            "DC1");
+        final boolean   reserve                     = Boolean.parseBoolean(
+            Env.option("CASSANDRA_RESERVE").or("false"));
 
         final List<ExternalDc> externalDcs = getExternalDcs(Env.filterStartsWith("CASSANDRA_EXTERNAL_DC_", true));
         final Matcher matcher = validateZkUrl(zkUrl);
@@ -175,11 +188,7 @@ public final class Main {
             defaultRack,
             defaultDc,
             externalDcs,
-            reserve,
-            reserveCpuFactor,
-            reserveMemFactor,
-            reserveDiskFactor);
-
+            reserve);
 
         final FrameworkInfo.Builder frameworkBuilder =
             FrameworkInfo.newBuilder()
@@ -225,13 +234,6 @@ public final class Main {
         JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
         provider.setMapper(objectMapper);
 
-        final Scheduler scheduler = new CassandraScheduler(
-            configuration,
-            cassandraCluster,
-            clock,
-            provider
-        );
-
         final ResourceConfig rc = new ResourceConfig()
             .registerInstances(
                 new FileResourceController(cassandraVersion),
@@ -254,10 +256,22 @@ public final class Main {
         final Optional<Credential> credentials = getCredential();
         if (credentials.isPresent()) {
             frameworkBuilder.setPrincipal(credentials.get().getPrincipal());
-            driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), mesosMasterZkUrl, credentials.get());
+            driver = new MesosSchedulerDriver(new CassandraScheduler(
+                configuration,
+                cassandraCluster,
+                clock,
+                provider,
+                credentials.get().getPrincipal()
+            ), frameworkBuilder.build(), mesosMasterZkUrl, credentials.get());
         } else {
             frameworkBuilder.setPrincipal("cassandra-framework");
-            driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), mesosMasterZkUrl);
+            driver = new MesosSchedulerDriver(new CassandraScheduler(
+                configuration,
+                cassandraCluster,
+                clock,
+                provider,
+                "cassandra-framework"
+            ), frameworkBuilder.build(), mesosMasterZkUrl);
         }
 
         seedManager.startSyncingSeeds(60);

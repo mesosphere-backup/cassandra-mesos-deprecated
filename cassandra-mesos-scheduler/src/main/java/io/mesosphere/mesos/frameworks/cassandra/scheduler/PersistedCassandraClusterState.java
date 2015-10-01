@@ -181,6 +181,18 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
         );
     }
 
+    public int nodesReserved() {
+        return get().getReservedCount();
+    }
+
+    public void incrementNodesReserved() {
+        setValue(
+            CassandraFrameworkProtos.CassandraClusterState.newBuilder(get())
+                .setReservedCount(get().getReservedCount() + 1)
+                .build()
+        );
+    }
+
     @Nullable
     public String nextReplacementIp() {
         final List<String> list = get().getReplaceNodeIpsList();

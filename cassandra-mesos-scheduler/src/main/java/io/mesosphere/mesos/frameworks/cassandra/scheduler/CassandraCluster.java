@@ -674,10 +674,12 @@ public final class CassandraCluster {
         @NotNull final Protos.Offer offer,
         @NotNull final TaskResources taskResources,
         @NotNull final Map<String, Long> portMapping,
-        @NotNull final String mesosRole
-    ) {
+        @NotNull final String mesosRole,
+        boolean reserve) {
         final List<String> errors = newArrayList();
-        final ListMultimap<String, Protos.Resource> availableResources = resourcesForRoleAndOffer(mesosRole,offer);
+        final ListMultimap<String, Protos.Resource> availableResources = reserve
+            ? nonReservedResources(offer)
+            : resourcesForRoleAndOffer(mesosRole,offer);
 
         final double availableCpus = maxResourceValueDouble(availableResources.get("cpus")).or(0d);
         final long availableMem = maxResourceValueLong(availableResources.get("mem")).or(0l);
@@ -1147,8 +1149,8 @@ public final class CassandraCluster {
                 offer,
                 allResources,
                 portMappings(config),
-                configRole.getMesosRole()
-            );
+                configRole.getMesosRole(),
+                false);
             if (!executorSizeErrors.isEmpty()) {
                 // there aren't enough resources to even attempt to run the server, skip this host for now.
                 LOGGER.info(
@@ -1249,8 +1251,8 @@ public final class CassandraCluster {
                         offer,
                         configRole.getResources(),
                         portMappings(config),
-                        configRole.getMesosRole()
-                    );
+                        configRole.getMesosRole(),
+                        false);
                     if (!errors.isEmpty()) {
                         LOGGER.info(marker, "Insufficient resources in offer for server: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
                     } else {
@@ -1398,8 +1400,8 @@ public final class CassandraCluster {
                     offer,
                     allResources,
                     portMappings(config),
-                    configRole.getMesosRole()
-                );
+                    configRole.getMesosRole(),
+                    true);
 
                 if (executorSizeErrors.isEmpty()) {
                     LOGGER.info(marker, "Attempting to create Resource Reservation");

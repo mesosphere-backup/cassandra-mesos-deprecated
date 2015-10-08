@@ -16,7 +16,6 @@
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -29,7 +28,6 @@ import io.mesosphere.mesos.util.ProtoUtils;
 import io.mesosphere.mesos.util.SystemClock;
 import org.apache.mesos.Protos;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.util.*;
 
@@ -454,7 +452,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
             .build();
 
         List<String> errs = CassandraCluster.hasResources(offer,
-            resources(0, 0, 0), Collections.<String, Long>emptyMap(), "*");
+            resources(0, 0, 0), Collections.<String, Long>emptyMap(), "*", false);
         assertNotNull(errs);
         assertThat(errs)
             .isEmpty();
@@ -466,7 +464,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 put("port1", 1L);
                 put("port2", 2L);
                 put("port3", 3L);
-            }}, "ROLE");
+            }}, "ROLE", false);
         assertNotNull(errs);
         assertThat(errs)
             .hasSize(6)
@@ -513,7 +511,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 put("port1", 7000L);
                 put("port2", 7002L);
                 put("port3", 10000L);
-            }}, "*");
+            }}, "*", false);
         assertNotNull(errs);
         assertThat(errs)
             .isEmpty();
@@ -552,7 +550,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 put("port1", 7000L);
                 put("port2", 7002L);
                 put("port3", 10000L);
-            }}, "BAZ");
+            }}, "BAZ", false);
         assertNotNull(errs);
         assertThat(errs)
             .isEmpty();
@@ -562,7 +560,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 put("port1", 7000L);
                 put("port2", 7002L);
                 put("port3", 10000L);
-            }}, "FOO_BAR");
+            }}, "FOO_BAR", false);
         assertNotNull(errs);
         assertThat(errs)
             .hasSize(6)
@@ -615,7 +613,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                     put("port1", 7000L);
                     put("port2", 7002L);
                     put("port3", 10000L);
-                }}, "BAZ");
+                }}, "BAZ", false);
         assertNotNull(errs);
         assertThat(errs)
                 .isEmpty();
@@ -675,7 +673,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                     put("port1", 7000L);
                     put("port2", 7002L);
                     put("port3", 10000L);
-                }}, "BAZ");
+                }}, "BAZ", false);
         assertNotNull(errs);
         assertThat(errs)
                 .isEmpty();
@@ -698,7 +696,8 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 500
         );
 
-        assertThat(CassandraCluster.hasResources(offer, resources, Collections.<String, Long>emptyMap(), "*")).contains(
+        assertThat(CassandraCluster.hasResources(offer, resources, Collections.<String, Long>emptyMap(), "*",
+            false)).contains(
             "Not enough cpu resources for role *. Required 0.1 only 0.09999999999999981 available"
         );
     }

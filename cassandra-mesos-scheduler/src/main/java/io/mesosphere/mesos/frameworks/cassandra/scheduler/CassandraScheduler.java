@@ -38,6 +38,8 @@ import org.slf4j.MarkerFactory;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
@@ -51,12 +53,17 @@ public final class CassandraScheduler implements Scheduler {
 
     private static final Joiner JOIN_WITH_SPACE = Joiner.on(" ").skipNulls();
 
+    private static final Pattern mesosVersionPattern = Pattern
+        .compile("^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)");
+
     private static final Function<FileDownload, CommandInfo.URI> uriToCommandInfoUri = new Function<FileDownload, CommandInfo.URI>() {
         @Override
         public CommandInfo.URI apply(final FileDownload input) {
             return commandUri(input.getDownloadUrl(), input.getExtract());
         }
     };
+
+    private boolean reservationSupported;
 
     @NotNull
     private final PersistedCassandraFrameworkConfiguration configuration;
@@ -88,6 +95,8 @@ public final class CassandraScheduler implements Scheduler {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("< registered(driver : {}, frameworkId : {}, masterInfo : {})", driver, protoToString(frameworkId), protoToString(masterInfo));
         }
+
+        detectDynamicReservationsSupport(masterInfo);
     }
 
     @Override
@@ -95,6 +104,8 @@ public final class CassandraScheduler implements Scheduler {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("reregistered(driver : {}, masterInfo : {})", driver, protoToString(masterInfo));
         }
+
+        detectDynamicReservationsSupport(masterInfo);
         driver.reconcileTasks(Collections.<TaskStatus>emptySet());
     }
 
@@ -286,7 +297,7 @@ public final class CassandraScheduler implements Scheduler {
 
         final Optional<TaskResources> reserveResourcesForHost = cassandraCluster.shouldCreateReservation(
             marker, offer);
-        if (reserveResourcesForHost.isPresent()) {
+        if (reservationSupported && reserveResourcesForHost.isPresent()) {
             final TaskResources res = reserveResourcesForHost.get();
             final List<Resource> resources = newArrayList(
                 reserveCpu(res.getCpuCores(), configuration.mesosRole(), principal),
@@ -304,6 +315,8 @@ public final class CassandraScheduler implements Scheduler {
                 .build();
             driver.acceptOffers(Collections.singletonList(offer.getId()),
                 Collections.singletonList(reservation), Filters.getDefaultInstance());
+
+            return true;
         }
 
         final TasksForOffer tasksForOffer = cassandraCluster.getTasksForOffer(offer);
@@ -320,7 +333,7 @@ public final class CassandraScheduler implements Scheduler {
         // process tasks to kill
         for (final TaskID taskID : tasksForOffer.getKillTasks()) {
             //Trying to unreserve resources if dynamic reservations are enabled
-            if (configuration.isReserveRequired()) {
+            if (reservationSupported && configuration.isReserveRequired()) {
                 final Optional<CassandraNode> nodeForTask = cassandraCluster.getNodeForTask(
                     taskID.getValue());
                 if (nodeForTask.isPresent()) {
@@ -426,6 +439,20 @@ public final class CassandraScheduler implements Scheduler {
         driver.launchTasks(Collections.singleton(offer.getId()), taskInfos);
 
         return true;
+    }
+
+    private void detectDynamicReservationsSupport(MasterInfo masterInfo) {
+        final Matcher matcher = mesosVersionPattern.matcher(masterInfo.getVersion());
+        if (matcher.find()) {
+            int majorVersion = Integer.parseInt(matcher.group("major"));
+            int minorVersion = Integer.parseInt(matcher.group("minor"));
+            reservationSupported =
+                majorVersion > 0 || (majorVersion == 0 && minorVersion >= 24);
+        } else {
+            reservationSupported = false;
+        }
+        LOGGER.info(
+            String.format("Dynamic reservations support: %b", this.reservationSupported));
     }
 
     @NotNull

@@ -199,6 +199,12 @@ public final class CassandraFrameworkProtosUtils {
                 .index(resourceToName());
     }
 
+    public static ImmutableListMultimap<String, Resource> nonReservedResources(@NotNull final Protos.Offer offer) {
+        return from(offer.getResourcesList())
+            .filter(resourceHasExpectedRole("*"))
+            .index(resourceToName());
+    }
+
     public static Predicate<Resource> scalarValueAtLeast(final long v) {
         return new ScalarValueAtLeast(v);
     }

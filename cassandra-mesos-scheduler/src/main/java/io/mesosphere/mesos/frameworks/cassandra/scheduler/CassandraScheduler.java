@@ -319,8 +319,48 @@ public final class CassandraScheduler implements Scheduler {
 
         // process tasks to kill
         for (final TaskID taskID : tasksForOffer.getKillTasks()) {
+            //Trying to unreserve resources if dynamic reservations are enabled
+            if (configuration.isReserveRequired()) {
+                final Optional<CassandraNode> nodeForTask = cassandraCluster.getNodeForTask(
+                    taskID.getValue());
+                if (nodeForTask.isPresent()) {
+                    final TaskResources taskResources = nodeForTask.get().getCassandraNodeExecutor()
+                        .getResources();
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug(marker,
+                            "Unreserving resources for task {} on executor {}, slave {}: {}",
+                            protoToString(taskID), protoToString(executorId),
+                            protoToString(offer.getSlaveId()),
+                            protoToString(taskResources)
+                        );
+                    }
+                    final List<Resource> resources = newArrayList(
+                        reserveCpu(taskResources.getCpuCores(), configuration.mesosRole(),
+                            principal),
+                        reserveMem(taskResources.getMemMb(), configuration.mesosRole(), principal),
+                        reserveDisk(taskResources.getDiskMb(), configuration.mesosRole(),
+                            principal),
+                        reservePorts(taskResources.getPortsList(), configuration.mesosRole(),
+                            principal)
+                    );
+                    final Offer.Operation reservation = Offer.Operation.newBuilder()
+                        .setType(Offer.Operation.Type.UNRESERVE)
+                        .setUnreserve(
+                            Offer.Operation.Unreserve.newBuilder()
+                                .addAllResources(resources)
+                                .build()
+                        )
+                        .build();
+                    driver.acceptOffers(Collections.singletonList(offer.getId()),
+                        Collections.singletonList(reservation), Filters.getDefaultInstance());
+                }
+
+            }
+
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug(marker, "killing task {} on executor {}, slave {}", protoToString(taskID), protoToString(executorId), protoToString(offer.getSlaveId()));
+                LOGGER.debug(marker, "killing task {} on executor {}, slave {}",
+                    protoToString(taskID), protoToString(executorId),
+                    protoToString(offer.getSlaveId()));
             }
             driver.killTask(taskID);
         }

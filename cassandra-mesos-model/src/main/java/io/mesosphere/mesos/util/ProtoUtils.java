@@ -63,6 +63,7 @@ public final class ProtoUtils {
         return scalarResource("cpus", value, role, false, null);
     }
 
+    @NotNull
     public static Resource reserveCpu(final double value, @NotNull final String role, @NotNull final String principal) {
         return scalarResource("cpus", value, role, true, principal);
     }
@@ -72,6 +73,7 @@ public final class ProtoUtils {
         return scalarResource("mem", value, role, false, null);
     }
 
+    @NotNull
     public static Resource reserveMem(final double value, @NotNull final String role, @NotNull final String principal) {
         return scalarResource("mem", value, role, true, principal);
     }
@@ -81,6 +83,7 @@ public final class ProtoUtils {
         return scalarResource("disk", value, role, false, null);
     }
 
+    @NotNull
     public static Resource reserveDisk(final double value, @NotNull final String role, @NotNull final String principal) {
         return scalarResource("disk", value, role, true, principal);
     }
@@ -98,6 +101,26 @@ public final class ProtoUtils {
                     .build()
             )
             .build();
+    }
+
+    @NotNull
+    public static Resource reservePorts(@NotNull final Iterable<Long> ports, @NotNull final String role,
+        @NotNull final String principal) {
+        final Resource.Builder resourceBuilder = Resource.newBuilder()
+            .setName("ports")
+            .setType(Value.Type.RANGES)
+            .setRole(role)
+            .setRanges(
+                Value.Ranges.newBuilder().addAllRange(
+                    from(ports).transform(longToRange())
+                ).build()
+            );
+
+        final Resource.ReservationInfo reservationInfo = Resource.ReservationInfo.newBuilder()
+            .setPrincipal(principal).build();
+        resourceBuilder.setReservation(reservationInfo);
+
+        return resourceBuilder.build();
     }
 
     @NotNull

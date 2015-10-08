@@ -15,7 +15,6 @@
  */
 package io.mesosphere.mesos.frameworks.cassandra.scheduler;
 
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import io.mesosphere.mesos.util.Clock;
@@ -23,7 +22,6 @@ import io.mesosphere.mesos.util.ProtoUtils;
 import io.mesosphere.mesos.util.SystemClock;
 import io.mesosphere.mesos.util.Tuple2;
 import org.apache.mesos.Protos;
-import org.mockito.Mockito;
 
 import java.util.*;
 
@@ -1156,8 +1154,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
     protected void cleanState(final String mesosRole) {
         super.cleanState(mesosRole);
 
-        scheduler = new CassandraScheduler(configuration, cluster, clock, Mockito.mock(
-            JacksonJaxbJsonProvider.class), "cassandra-framework");
+        scheduler = new CassandraScheduler(configuration, cluster, clock, "cassandra-framework");
 
         driver = new MockSchedulerDriver(scheduler);
         driver.callRegistered(Protos.FrameworkID.newBuilder().setValue(UUID.randomUUID().toString()).build());

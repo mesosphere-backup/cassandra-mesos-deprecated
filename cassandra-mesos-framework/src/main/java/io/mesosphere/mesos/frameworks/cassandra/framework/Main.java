@@ -261,7 +261,6 @@ public final class Main {
                 configuration,
                 cassandraCluster,
                 clock,
-                provider,
                 credentials.get().getPrincipal()
             ), frameworkBuilder.build(), mesosMasterZkUrl, credentials.get());
         } else {
@@ -270,7 +269,6 @@ public final class Main {
                 configuration,
                 cassandraCluster,
                 clock,
-                provider,
                 "cassandra-framework"
             ), frameworkBuilder.build(), mesosMasterZkUrl);
         }

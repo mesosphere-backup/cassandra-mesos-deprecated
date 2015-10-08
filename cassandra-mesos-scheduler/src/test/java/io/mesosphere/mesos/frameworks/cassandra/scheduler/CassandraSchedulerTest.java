@@ -69,8 +69,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
             new SeedManager(configuration, new ObjectMapper(), new SystemClock())
         );
         clusterState = cluster.getClusterState();
-        scheduler = new CassandraScheduler(configuration, cluster, clock, Mockito.mock(
-            JacksonJaxbJsonProvider.class), "cassandra-framework");
+        scheduler = new CassandraScheduler(configuration, cluster, clock, "cassandra-framework");
         driver = new MockSchedulerDriver(scheduler);
 
         driver.callReRegistered();

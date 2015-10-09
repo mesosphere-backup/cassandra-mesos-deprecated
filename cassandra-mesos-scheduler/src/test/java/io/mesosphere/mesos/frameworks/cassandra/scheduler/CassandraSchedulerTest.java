@@ -731,7 +731,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .setDiskMb(1)
                 .build(),
             "*",
-            Protos.Offer.getDefaultInstance());
+            "cassandra-framework");
 
         assertThat(resources).hasSize(3);
         assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
@@ -748,7 +748,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .setDiskMb(0)
                 .build(),
             "*",
-            Protos.Offer.getDefaultInstance());
+            "cassandra-framework");
 
         assertThat(resources).hasSize(2);
         assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
@@ -765,7 +765,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .setDiskMb(-1)
                 .build(),
             "*",
-            Protos.Offer.getDefaultInstance());
+            "cassandra-framework");
 
         assertThat(resources).hasSize(2);
         assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
@@ -804,7 +804,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                         .setDiskMb(1000)
                         .build(),
                 "someRole",
-                offer);
+                "cassandra-framework");
 
         assertThat(resources).hasSize(3);
         assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
@@ -847,7 +847,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                         .setDiskMb(1000)
                         .build(),
                 "someRole",
-                offer);
+                "cassandra-framework");
 
         assertThat(resources).hasSize(3);
         assertThat(resources).contains(ProtoUtils.cpu(0.5, "*"));
@@ -886,7 +886,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .build();
 
         ImmutableList<Long> ports = of(8080l, 9090l);
-        List<Protos.Resource> resources = CassandraScheduler.ports(ports, "someRole", offer);
+        List<Protos.Resource> resources = CassandraScheduler.ports(ports, "someRole", "cassandra-framework", offer);
 
         Protos.Resource expectedPortsResource = Protos.Resource.newBuilder()
                 .setName("ports")
@@ -936,7 +936,7 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                                 .addRange(Protos.Value.Range.newBuilder().setBegin(9000).setEnd(10000))))
                 .build();
 
-        List<Protos.Resource> resources = CassandraScheduler.ports(of(8080l, 9090l), "someRole", offer);
+        List<Protos.Resource> resources = CassandraScheduler.ports(of(8080l, 9090l), "someRole", "cassandra-framework", offer);
 
         Protos.Resource expectedResourceForPort8080 = Protos.Resource.newBuilder()
                 .setName("ports")

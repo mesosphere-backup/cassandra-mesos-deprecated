@@ -17,7 +17,7 @@
 set -o errexit -o nounset -o pipefail
 
 function maven {(
-    mvn clean package
+    mvn -DskipTests=true clean package
 )}
 
 function download {(
@@ -25,11 +25,11 @@ function download {(
 )}
 
 function execute {(
-    export HOST=localhost
+    export HOST=10.1.13.227
     export PORT0=18080
     export CASSANDRA_CLUSTER_NAME=dev-cluster
-    export MESOS_ZK=zk://localhost:2181/mesos
-    export CASSANDRA_ZK=zk://localhost:2181/cassandra-mesos
+    export MESOS_ZK=zk://10.1.13.227:2181/mesos
+    export CASSANDRA_ZK=zk://10.1.13.227:2181/cassandra-mesos
     export EXECUTOR_FILE_PATH=$(ls $(pwd)/cassandra-mesos-dist/target/tarball/cassandra-mesos-executor.jar)
     export JRE_FILE_PATH=$(pwd)/cassandra-mesos-dist/target/tarball/jre.tar.gz
     export CASSANDRA_FILE_PATH=$(ls $(pwd)/cassandra-mesos-dist/target/tarball/apache-cassandra-*.tar.gz)

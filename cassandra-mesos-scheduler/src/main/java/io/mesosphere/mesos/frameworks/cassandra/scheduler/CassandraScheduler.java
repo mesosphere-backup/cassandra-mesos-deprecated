@@ -45,7 +45,6 @@ import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
 import static io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos.*;
 import static io.mesosphere.mesos.util.CassandraFrameworkProtosUtils.*;
-import static io.mesosphere.mesos.util.Functions.headOption;
 import static io.mesosphere.mesos.util.ProtoUtils.*;
 
 public final class CassandraScheduler implements Scheduler {
@@ -124,14 +123,16 @@ public final class CassandraScheduler implements Scheduler {
             }
         }
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("< resourceOffers(driver : {}, offers : {})", driver, protoToString(offers));
+            LOGGER.debug("< resourceOffers(driver : {}, offers : {})", driver,
+                protoToString(offers));
         }
     }
 
     @Override
     public void offerRescinded(final SchedulerDriver driver, final OfferID offerId) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("offerRescinded(driver : {}, offerId : {})", driver, protoToString(offerId));
+            LOGGER.debug("offerRescinded(driver : {}, offerId : {})", driver,
+                protoToString(offerId));
         }
     }
 
@@ -299,6 +300,7 @@ public final class CassandraScheduler implements Scheduler {
             marker, offer);
         if (reservationSupported && reserveResourcesForHost.isPresent()) {
             final TaskResources res = reserveResourcesForHost.get();
+            LOGGER.debug("{}", res.getPortsList());
             final List<Resource> resources = newArrayList(
                 reserveCpu(res.getCpuCores(), configuration.mesosRole(), principal),
                 reserveMem(res.getMemMb(), configuration.mesosRole(), principal),
@@ -313,8 +315,12 @@ public final class CassandraScheduler implements Scheduler {
                         .build()
                 )
                 .build();
+            LOGGER.debug("Reservation: {}", protoToString(reservation));
             driver.acceptOffers(Collections.singletonList(offer.getId()),
                 Collections.singletonList(reservation), Filters.getDefaultInstance());
+
+            final long reservedNodesCount = cassandraCluster.getClusterState().reservedNodesCount();
+            cassandraCluster.getClusterState().updateReservedNodesCount(reservedNodesCount + 1);
 
             return true;
         }
@@ -366,6 +372,9 @@ public final class CassandraScheduler implements Scheduler {
                         .build();
                     driver.acceptOffers(Collections.singletonList(offer.getId()),
                         Collections.singletonList(reservation), Filters.getDefaultInstance());
+
+                    final long reservedNodesCount = cassandraCluster.getClusterState().reservedNodesCount();
+                    cassandraCluster.getClusterState().updateReservedNodesCount(reservedNodesCount - 1);
                 }
 
             }
@@ -408,14 +417,11 @@ public final class CassandraScheduler implements Scheduler {
                     environmentFromTaskEnv(executor.getTaskEnv()),
                     newArrayList(FluentIterable.from(executor.getDownloadList()).transform(uriToCommandInfoUri))
                 ),
-                resourceList(executor.getResources(), configuration.mesosRole(), offer)
+                resourceList(executor.getResources(), configuration.mesosRole(), principal)
             );
 
             final TaskID taskId = taskId(cassandraNodeTask.getTaskId());
-            final List<Resource> resources = resourceList(cassandraNodeTask.getResources(), configuration.mesosRole(), offer);
-            if (!cassandraNodeTask.getResources().getPortsList().isEmpty()) {
-                resources.addAll(ports(cassandraNodeTask.getResources().getPortsList(), configuration.mesosRole(), offer));
-            }
+            final List<Resource> resources = resourceList(cassandraNodeTask.getResources(), configuration.mesosRole(), principal);
 
             final TaskInfo task = TaskInfo.newBuilder()
                 .setName(getTaskName(cassandraNodeTask.getTaskName(), taskId.getValue()))
@@ -466,29 +472,20 @@ public final class CassandraScheduler implements Scheduler {
 
     @NotNull
     @VisibleForTesting
-    static List<Resource> resourceList(@NotNull final TaskResources taskResources, @NotNull final String role, Offer offer) {
-        final ListMultimap<String, Resource> index = resourcesForRoleAndOffer(role, offer);
-
-        final String cpuRole = resourceValueRole(headOption(index.get("cpus"))).or("*");
-        Optional<Resource> memResource = from(index.get("mem"))
-                .filter(scalarValueAtLeast(taskResources.getMemMb()))
-                .first();
-        final String memRole = resourceValueRole(memResource).or("*");
-        final String diskRole = resourceValueRole(headOption(index.get("disk"))).or("*");
-
+    static List<Resource> resourceList(@NotNull final TaskResources taskResources, @NotNull final String role, String principal) {
         final List<Resource> retVal = newArrayList(
-            cpu(taskResources.getCpuCores(), cpuRole),
-            mem(taskResources.getMemMb(), memRole)
+            reserveCpu(taskResources.getCpuCores(), role, principal),
+            reserveMem(taskResources.getMemMb(), role, principal)
         );
         if (taskResources.hasDiskMb() && taskResources.getDiskMb() > 0) {
-            retVal.add(disk(taskResources.getDiskMb(), diskRole));
+            retVal.add(reserveDisk(taskResources.getDiskMb(), role, principal));
         }
         return retVal;
     }
 
     @NotNull
     @VisibleForTesting
-    static List<Resource> ports(@NotNull final Iterable<Long> ports, @NotNull final String mesosRole, Offer offer) {
+    static List<Resource> ports(@NotNull final Iterable<Long> ports, @NotNull final String mesosRole, String principal, Offer offer) {
         final ListMultimap<String, Resource> resourcesForRoleAndOffer = resourcesForRoleAndOffer(mesosRole, offer);
 
         ImmutableMap<String, Collection<Long>> portsByRole = from(ports)
@@ -496,7 +493,7 @@ public final class CassandraScheduler implements Scheduler {
                 .asMap();
 
         return from(portsByRole.entrySet())
-                .transform(roleAndPortsToResource()).toList();
+                .transform(roleAndPortsToResource(principal)).toList();
 
     }
 

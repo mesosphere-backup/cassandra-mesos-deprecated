@@ -220,6 +220,11 @@ message CassandraClusterState {
      * List of IP addresses of nodes that need to be replaced.
      */
     repeated string replaceNodeIps = 4;
+
+    /**
+     * Amount of reserved nodes
+     */
+    optional int64 reservedNodes = 5;
 }
 
 /**

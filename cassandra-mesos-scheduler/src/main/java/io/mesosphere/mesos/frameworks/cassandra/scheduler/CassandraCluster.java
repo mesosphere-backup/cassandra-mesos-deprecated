@@ -88,7 +88,7 @@ public final class CassandraCluster {
     public static final String DC_ATTRIBUTE = "CASSANDRA_DC";
 
     // see: http://www.datastax.com/documentation/cassandra/2.1/cassandra/security/secureFireWall_r.html
-    private static final Map<String, Long> defaultPortMappings = unmodifiableHashMap(
+    static final Map<String, Long> defaultPortMappings = unmodifiableHashMap(
         tuple2(PORT_STORAGE, 7000L),
         tuple2(PORT_STORAGE_SSL, 7001L),
         tuple2(PORT_JMX, 7199L),
@@ -1336,10 +1336,14 @@ public final class CassandraCluster {
     }
 
     private static TaskResources add(@NotNull final TaskResources r1, @NotNull final TaskResources r2) {
+        final Set<Long> ports = new HashSet<>(r1.getPortsList());
+        ports.addAll(r2.getPortsList());
+
         return TaskResources.newBuilder()
             .setCpuCores(r1.getCpuCores() + r2.getCpuCores())
             .setMemMb(r1.getMemMb() + r2.getMemMb())
             .setDiskMb(r1.getDiskMb() + r2.getDiskMb())
+            .addAllPorts(ports)
             .build();
     }
 
@@ -1376,12 +1380,11 @@ public final class CassandraCluster {
             LOGGER.info(marker, "Cassandra node already allocated for host.");
             return Optional.absent();
         } else {
-            final NodeCounts nodeCounts = clusterState.nodeCounts();
             final long now = clock.now().getMillis();
             final long nextPossibleServerLaunchTimestamp = nextPossibleServerLaunchTimestamp();
             final boolean serverLaunchTimeoutActive = !canLaunchServerTask(now, nextPossibleServerLaunchTimestamp);
 
-            if (nodeCounts.getNodeCount() >= configuration.targetNumberOfNodes()) {
+            if (clusterState.reservedNodesCount() >= configuration.targetNumberOfNodes()) {
                 LOGGER.debug(marker, "Number of desired Cassandra Nodes Acquired, no need to create Resource Reservation.");
                 return Optional.absent();
             } else if (serverLaunchTimeoutActive) {

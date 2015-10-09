@@ -261,8 +261,8 @@ public final class CassandraFrameworkProtosUtils {
         return null;
     }
 
-    public static Function<Map.Entry<String, Collection<Long>>, Resource> roleAndPortsToResource() {
-        return RoleAndPortsToResource.INSTANCE;
+    public static Function<Map.Entry<String, Collection<Long>>, Resource> roleAndPortsToResource(@NotNull String principal) {
+        return new RoleAndPortsToResource(principal);
     }
 
     public static Function<Long, String> byRole(@NotNull final ListMultimap<String, Resource> resourcesForRoleAndOffer) {
@@ -397,7 +397,7 @@ public final class CassandraFrameworkProtosUtils {
         @Override
         public boolean apply(final Resource item) {
             String givenRole = item.getRole();
-            return givenRole.equals(role) || givenRole.equals("*");
+            return givenRole.equals(role);
         }
     }
 
@@ -467,11 +467,15 @@ public final class CassandraFrameworkProtosUtils {
     }
 
     private static class RoleAndPortsToResource implements Function<Map.Entry<String,Collection<Long>>, Resource> {
-        public static final RoleAndPortsToResource INSTANCE = new RoleAndPortsToResource();
+        private String principal;
+
+        public RoleAndPortsToResource(String principal) {
+            this.principal = principal;
+        }
 
         @Override
         public Resource apply(@NotNull final Map.Entry<String, Collection<Long>> roleAndPorts) {
-            return ports(from(roleAndPorts.getValue()), roleAndPorts.getKey());
+            return  reservePorts(from(roleAndPorts.getValue()), roleAndPorts.getKey(), principal);
         }
     }
 

@@ -397,7 +397,7 @@ public final class CassandraFrameworkProtosUtils {
         @Override
         public boolean apply(final Resource item) {
             String givenRole = item.getRole();
-            return givenRole.equals(role);
+            return givenRole.equals(role) || givenRole.equals("*");
         }
     }
 

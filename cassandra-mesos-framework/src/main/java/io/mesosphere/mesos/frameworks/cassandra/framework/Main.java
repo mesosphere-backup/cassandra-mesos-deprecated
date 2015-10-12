@@ -151,6 +151,7 @@ public final class Main {
         final String    defaultRack                 =                       Env.option("CASSANDRA_DEFAULT_RACK").or("RAC1");
         final String    defaultDc                   =                       Env.option("CASSANDRA_DEFAULT_DC").or("DC1");
         final boolean   reserve                     = Boolean.parseBoolean( Env.option("CASSANDRA_RESERVE").or("false"));
+        final String    principal                   =                       Env.option("CASSANDRA_PRINCIPAL").or("cassandra-framework");
 
         final List<ExternalDc> externalDcs = getExternalDcs(Env.filterStartsWith("CASSANDRA_EXTERNAL_DC_", true));
         final Matcher matcher = validateZkUrl(zkUrl);
@@ -269,7 +270,7 @@ public final class Main {
                 configuration,
                 cassandraCluster,
                 clock,
-                "cassandra-framework"
+                principal
             ), frameworkBuilder.build(), mesosMasterZkUrl);
         }
 

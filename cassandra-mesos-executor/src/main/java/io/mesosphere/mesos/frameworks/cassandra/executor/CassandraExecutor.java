@@ -160,12 +160,14 @@ public final class CassandraExecutor implements Executor {
                         serverTask = task;
                         jmxConnect = objectFactory.newJmxConnect(cassandraServerRunTask.getJmx());
                         startCheckingHealth(driver, jmxConnect, cassandraServerRunTask.getHealthCheckIntervalSeconds());
-                        driver.sendStatusUpdate(taskStatus(serverTask, TaskState.TASK_RUNNING,
-                            SlaveStatusDetails.newBuilder()
-                                .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.CASSANDRA_SERVER_RUN)
-                                .setCassandraServerRunMetadata(CassandraServerRunMetadata.newBuilder()
-                                    .setPid(process.getPid()))
-                                .build()));
+                        if (process != null) {
+                            driver.sendStatusUpdate(taskStatus(serverTask, TaskState.TASK_RUNNING,
+                                SlaveStatusDetails.newBuilder()
+                                    .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.CASSANDRA_SERVER_RUN)
+                                    .setCassandraServerRunMetadata(CassandraServerRunMetadata.newBuilder()
+                                        .setPid(process.getPid()))
+                                    .build()));
+                        }
                     } catch (final LaunchNodeException e) {
                         LOGGER.error(taskIdMarker, "Failed to start Cassandra daemon", e);
                         driver.sendStatusUpdate(ExecutorUtils.slaveErrorDetails(task, "Failed to start Cassandra daemon", e.toString(), SlaveErrorDetails.ErrorType.PROCESS_NOT_RUNNING));

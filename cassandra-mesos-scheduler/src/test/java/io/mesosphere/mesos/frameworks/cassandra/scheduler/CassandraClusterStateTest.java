@@ -94,6 +94,8 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         noopOnOffer(cluster, slaves[2], 3);
 
         launchServer(cluster, slaves[0]);
+        cluster.recordHealthCheck(executorMetadata1.getExecutorId(), healthCheckDetailsSuccess("NORMAL", true));
+
         launchServer(cluster, slaves[1]);
         // still - not able to start node #3
         noopOnOffer(cluster, slaves[2], 3);
@@ -138,6 +140,7 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         assertThat(lastHealthCheckDetails(executorMetadata2))
             .isNot(healthy());
         // node#3 can start now
+        cluster.recordHealthCheck(executorMetadata2.getExecutorId(), healthCheckDetailsSuccess("NORMAL", true));
         launchServer(cluster, slaves[2]);
 
     }
@@ -157,11 +160,12 @@ public class CassandraClusterStateTest extends AbstractSchedulerTest {
         cluster.addExecutorMetadata(executorMetadata3);
 
         // launch servers
-
         launchServer(cluster, slaves[0]);
-        launchServer(cluster, slaves[1]);
 
         cluster.recordHealthCheck(executorMetadata1.getExecutorId(), healthCheckDetailsSuccess("NORMAL", true));
+
+        launchServer(cluster, slaves[1]);
+
         cluster.recordHealthCheck(executorMetadata2.getExecutorId(), healthCheckDetailsSuccess("NORMAL", true));
 
         launchServer(cluster, slaves[2]);

@@ -389,14 +389,6 @@ public final class CassandraCluster {
         return executorTaskId(node) + ".server";
     }
 
-    public long nextPossibleServerLaunchTimestamp() {
-        return nextPossibleServerLaunchTimestamp(
-            getClusterState().get().getLastServerLaunchTimestamp(),
-            getConfiguration().get().getBootstrapGraceTimeSeconds(),
-            getConfiguration().get().getHealthCheckIntervalSeconds()
-        );
-    }
-
     @NotNull
     public Optional<CassandraNode> cassandraNodeForHostname(@NotNull final String hostname) {
         return headOption(
@@ -1385,17 +1377,4 @@ public final class CassandraCluster {
         return true;
     }
 
-    @VisibleForTesting
-    static boolean canLaunchServerTask(final long now, final long nextPossibleServerLaunchTimestamp) {
-        return now >= nextPossibleServerLaunchTimestamp;
-    }
-
-    @VisibleForTesting
-    static long secondsUntilNextPossibleServerLaunch(final long now, final long nextPossibleServerLaunchTimestamp) {
-        final long millisUntilNext = nextPossibleServerLaunchTimestamp - now;
-        if (millisUntilNext <= 0) {
-            return 0L;
-        }
-        return millisUntilNext / 1000;
-    }
 }

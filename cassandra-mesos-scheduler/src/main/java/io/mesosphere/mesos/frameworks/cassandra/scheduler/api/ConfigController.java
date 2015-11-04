@@ -70,8 +70,7 @@ public final class ConfigController {
      * "bootstrapGraceTimeSeconds" : 0,
      * "currentClusterTask" : null,
      * "lastRepair" : null,
-     * "lastCleanup" : null,
-     * "nextPossibleServerLaunchTimestamp" : 1426685858805
+     * "lastCleanup" : null
      * }}</pre>
      */
     @GET
@@ -118,8 +117,6 @@ public final class ConfigController {
 
                 final CassandraFrameworkProtos.ClusterJobStatus lastCleanup = cluster.getLastClusterJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
                 JaxRsUtils.writeClusterJob(cluster, json, "lastCleanup", lastCleanup);
-
-                json.writeNumberField("nextPossibleServerLaunchTimestamp", cluster.nextPossibleServerLaunchTimestamp());
 
             }
         });

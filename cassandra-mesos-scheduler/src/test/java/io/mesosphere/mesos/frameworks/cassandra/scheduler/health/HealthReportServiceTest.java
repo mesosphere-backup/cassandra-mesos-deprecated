@@ -182,7 +182,6 @@ public class HealthReportServiceTest {
             CassandraFrameworkConfiguration.newBuilder()
                 .setFrameworkName("cassandra.testing")
                 .setHealthCheckIntervalSeconds(60)
-                .setBootstrapGraceTimeSeconds(120)
                 .setTargetNumberOfNodes(numberOfNodes)
                 .setTargetNumberOfSeeds(numberOfSeeds);
 
@@ -659,7 +658,6 @@ public class HealthReportServiceTest {
             CassandraFrameworkConfiguration.newBuilder()
                 .setFrameworkName("cassandra.testing")
                 .setHealthCheckIntervalSeconds(60)
-                .setBootstrapGraceTimeSeconds(120)
                 .setTargetNumberOfNodes(numberOfNodes)
                 .setTargetNumberOfSeeds(numberOfSeeds);
 
@@ -806,7 +804,6 @@ public class HealthReportServiceTest {
             CassandraFrameworkConfiguration.newBuilder()
                 .setFrameworkName("cassandra.testing")
                 .setHealthCheckIntervalSeconds(60)
-                .setBootstrapGraceTimeSeconds(120)
                 .setTargetNumberOfNodes(numberOfNodes)
                 .setTargetNumberOfSeeds(numberOfSeeds);
 
@@ -992,7 +989,6 @@ public class HealthReportServiceTest {
             CassandraFrameworkConfiguration.newBuilder()
                 .setFrameworkName("cassandra.testing")
                 .setHealthCheckIntervalSeconds(60)
-                .setBootstrapGraceTimeSeconds(120)
                 .setTargetNumberOfNodes(numberOfNodes)
                 .setTargetNumberOfSeeds(numberOfSeeds);
 

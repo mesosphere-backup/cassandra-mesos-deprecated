@@ -1331,16 +1331,6 @@ public final class CassandraCluster {
     }
 
     @VisibleForTesting
-    static long nextPossibleServerLaunchTimestamp(
-        final long lastServerLaunchTimestamp,
-        final long bootstrapGraceTimeSeconds,
-        final long healthCheckIntervalSeconds
-    ) {
-        final long seconds = Math.max(bootstrapGraceTimeSeconds, healthCheckIntervalSeconds);
-        return lastServerLaunchTimestamp + seconds * 1000L;
-    }
-
-    @VisibleForTesting
     boolean ableToLaunchServerTask(@NotNull final Marker marker, final long now) {
         final long healthCheckEndThreshold = now - 5L * configuration.healthCheckInterval().getMillis();
         for (final CassandraNode cassandraNode : clusterState.nodes()) {

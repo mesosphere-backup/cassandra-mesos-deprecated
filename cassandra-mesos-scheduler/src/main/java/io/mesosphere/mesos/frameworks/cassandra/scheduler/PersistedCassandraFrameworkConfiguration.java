@@ -35,7 +35,6 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         @NotNull final State state,
         @NotNull final String frameworkName,
         final long healthCheckIntervalSeconds,
-        final long bootstrapGraceTimeSec,
         @NotNull final String cassandraVersion,
         final double cpuCores,
         final long diskMb,
@@ -83,7 +82,6 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setFrameworkName(frameworkName)
                         .setDefaultConfigRole(fillConfigRoleGaps(configRole))
                         .setHealthCheckIntervalSeconds(healthCheckIntervalSeconds)
-                        .setBootstrapGraceTimeSeconds(bootstrapGraceTimeSec)
                         .setTargetNumberOfNodes(executorCount)
                         .setTargetNumberOfSeeds(seedCount)
                         .addAllExternalDcs(externalDcs)
@@ -181,19 +179,6 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         setValue(
                 CassandraFrameworkConfiguration.newBuilder(get())
                         .setHealthCheckIntervalSeconds(interval.getStandardSeconds())
-                        .build()
-        );
-    }
-
-    @NotNull
-    public Duration bootstrapGraceTimeSeconds() {
-        return Duration.standardSeconds(get().getBootstrapGraceTimeSeconds());
-    }
-
-    public void bootstrapGraceTimeSeconds(@NotNull final Duration interval) {
-        setValue(
-                CassandraFrameworkConfiguration.newBuilder(get())
-                    .setBootstrapGraceTimeSeconds(interval.getStandardSeconds())
                         .build()
         );
     }

@@ -41,10 +41,6 @@ message CassandraFrameworkConfiguration {
      */
     optional int64 healthCheckIntervalSeconds = 3;
     /**
-     * Minimum interval in seconds between two starts of a Cassandra server task (= Cassandra process).
-     */
-    optional int64 bootstrapGraceTimeSeconds = 4;
-    /**
      * Globally shared mapping of ports required by Cassandra.
      * Currently there are port mappings for these kinds of ports and respective default values:
      * storage_port=7000, ssl_storage_port=7001, native_transport_port=9042, rpc_port=9160, jmx_port=7199

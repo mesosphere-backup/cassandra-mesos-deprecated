@@ -44,9 +44,9 @@
         </repository>
     </distributionManagement>
     <scm>
-        <connection>scm:git:https://github.com/mesosphere/cassandra-mesos.git</connection>
-        <developerConnection>scm:git:https://github.com/mesosphere/cassandra-mesos.git</developerConnection>
-        <url>https://github.com/mesosphere/cassandra-mesos</url>
+        <connection>scm:git:${scm.url}</connection>
+        <developerConnection>scm:git:${scm.url}</developerConnection>
+        <url>${scm.url}</url>
     </scm>
     <issueManagement>
         <system>Github</system>
@@ -75,6 +75,7 @@
 
         <version.grizzly>2.16</version.grizzly>
         <version.jackson>2.3.2</version.jackson> <!-- jackson is also transitively provided by grizzly! -->
+        <scm.url>https://github.com/mesosphere/cassandra-mesos.git</scm.url>
     </properties>
 
     <modules>

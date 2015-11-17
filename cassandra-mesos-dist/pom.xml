@@ -51,9 +51,9 @@
         </repository>
     </distributionManagement>
     <scm>
-        <connection>scm:git:https://github.com/mesosphere/cassandra-mesos.git</connection>
-        <developerConnection>scm:git:https://github.com/mesosphere/cassandra-mesos.git</developerConnection>
-        <url>https://github.com/mesosphere/cassandra-mesos</url>
+        <connection>scm:git:${scm.url}</connection>
+        <developerConnection>scm:git:${scm.url}</developerConnection>
+        <url>${scm.url}</url>
     </scm>
     <issueManagement>
         <system>Github</system>

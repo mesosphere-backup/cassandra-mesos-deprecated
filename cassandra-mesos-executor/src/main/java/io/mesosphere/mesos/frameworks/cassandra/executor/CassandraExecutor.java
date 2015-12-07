@@ -160,7 +160,9 @@ public final class CassandraExecutor implements Executor {
                         serverTask = task;
                         jmxConnect = objectFactory.newJmxConnect(cassandraServerRunTask.getJmx());
                         startCheckingHealth(driver, jmxConnect, cassandraServerRunTask.getHealthCheckIntervalSeconds());
-                        if (process != null) {
+                        if (process == null) { 
+                            ExecutorUtils.serverProcessNotRunning(driver, task);
+                        } else {
                             driver.sendStatusUpdate(taskStatus(serverTask, TaskState.TASK_RUNNING,
                                 SlaveStatusDetails.newBuilder()
                                     .setStatusDetailsType(SlaveStatusDetails.StatusDetailsType.CASSANDRA_SERVER_RUN)

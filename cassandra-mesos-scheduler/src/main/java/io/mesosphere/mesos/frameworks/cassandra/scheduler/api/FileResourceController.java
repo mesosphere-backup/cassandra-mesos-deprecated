@@ -38,7 +38,7 @@ public final class FileResourceController {
     public FileResourceController(final String cassandraVersion) {
         File f;
 
-        final String javaVersion = Env.option("JAVA_VERSION").or("7u76");
+        final String javaVersion = Env.option("JAVA_VERSION").or("8u65");
         final String osName = Env.osFromSystemProperty();
         final String providedJreTar = Env.option("JRE_FILE_PATH").or(workingDir("/jre-" + javaVersion + '-' + osName + "-x64.tar.gz"));
         //if (providedJreTar != null)

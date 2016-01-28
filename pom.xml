@@ -71,7 +71,7 @@
         <version.slf4j>1.7.10</version.slf4j>
         <version.joda>2.7</version.joda>
         <version.grizzly>2.16</version.grizzly>
-        <version.cassandra>2.1.4</version.cassandra>
+        <version.cassandra>2.2.4</version.cassandra>
 
         <version.grizzly>2.16</version.grizzly>
         <version.jackson>2.3.2</version.jackson> <!-- jackson is also transitively provided by grizzly! -->

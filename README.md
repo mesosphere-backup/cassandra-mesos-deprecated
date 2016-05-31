@@ -1,3 +1,7 @@
+**DEPRECATED**
+This project has been replaced by DC/OS Cassandra Service https://github.com/mesosphere/dcos-cassandra-service.
+
+
 Cassandra Mesos Framework
 =========================
 <a href="https://teamcity.mesosphere.io/viewType.html?buildTypeId=Oss_Mesos_Cassandra_CassandraFramework&guest=1">

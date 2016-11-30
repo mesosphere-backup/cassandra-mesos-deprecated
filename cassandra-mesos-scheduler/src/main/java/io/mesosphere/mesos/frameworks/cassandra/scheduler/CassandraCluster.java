@@ -389,14 +389,6 @@ public final class CassandraCluster {
         return executorTaskId(node) + ".server";
     }
 
-    public long nextPossibleServerLaunchTimestamp() {
-        return nextPossibleServerLaunchTimestamp(
-            getClusterState().get().getLastServerLaunchTimestamp(),
-            getConfiguration().get().getBootstrapGraceTimeSeconds(),
-            getConfiguration().get().getHealthCheckIntervalSeconds()
-        );
-    }
-
     @NotNull
     public Optional<CassandraNode> cassandraNodeForHostname(@NotNull final String hostname) {
         return headOption(
@@ -1122,8 +1114,7 @@ public final class CassandraCluster {
         final boolean allSeedsAcquired = nodeCounts.getSeedCount() >= configuration.targetNumberOfSeeds();
 
         final long now = clock.now().getMillis();
-        final long nextPossibleServerLaunchTimestamp = nextPossibleServerLaunchTimestamp();
-        final boolean canLaunchServerTask = canLaunchServerTask(now, nextPossibleServerLaunchTimestamp);
+        final boolean canLaunchServerTask = ableToLaunchServerTask(marker, now);
 
         final CassandraNode.Builder node;
         if (!nodeOption.isPresent()) {
@@ -1134,8 +1125,7 @@ public final class CassandraCluster {
             }
 
             if (allSeedsAcquired && !canLaunchServerTask) {
-                final long nextPossibleServerLaunchSeconds = secondsUntilNextPossibleServerLaunch(now, nextPossibleServerLaunchTimestamp);
-                LOGGER.info(marker, "Preventing creation of new node because server launch timeout active. Next server launch possible in {}s", nextPossibleServerLaunchSeconds);
+                LOGGER.info(marker, "All seeds acquired but preventing creation of new node because some nodes aren't healthy");
                 return null;
             }
 
@@ -1230,8 +1220,7 @@ public final class CassandraCluster {
                     }
 
                     if (!canLaunchServerTask) {
-                        final long nextPossibleServerLaunchSeconds = secondsUntilNextPossibleServerLaunch(now, nextPossibleServerLaunchTimestamp);
-                        LOGGER.info(marker, "Server launch timeout active. Next server launch possible in {}s", nextPossibleServerLaunchSeconds);
+                        LOGGER.info(marker, "Can't launch server, waiting until all nodes join into cluster and operation normally");
                         return null;
                     }
 
@@ -1342,26 +1331,40 @@ public final class CassandraCluster {
     }
 
     @VisibleForTesting
-    static long nextPossibleServerLaunchTimestamp(
-        final long lastServerLaunchTimestamp,
-        final long bootstrapGraceTimeSeconds,
-        final long healthCheckIntervalSeconds
-    ) {
-        final long seconds = Math.max(bootstrapGraceTimeSeconds, healthCheckIntervalSeconds);
-        return lastServerLaunchTimestamp + seconds * 1000L;
-    }
+    boolean ableToLaunchServerTask(@NotNull final Marker marker, final long now) {
+        final long healthCheckEndThreshold = now - 5L * configuration.healthCheckInterval().getMillis();
+        for (final CassandraNode cassandraNode : clusterState.nodes()) {
+            final CassandraNodeTask serverTask = CassandraFrameworkProtosUtils.getTaskForNode(cassandraNode, CassandraNodeTask.NodeTaskType.SERVER);
+            // only where server is running
+            if (serverTask != null) {
+                // only interested in nodes with target state run
+                switch (cassandraNode.getTargetRunState()) {
+                    case RUN:
+                        final HealthCheckHistoryEntry lastHC = lastHealthCheck(cassandraNode.getCassandraNodeExecutor().getExecutorId());
 
-    @VisibleForTesting
-    static boolean canLaunchServerTask(final long now, final long nextPossibleServerLaunchTimestamp) {
-        return now >= nextPossibleServerLaunchTimestamp;
-    }
+                        if (lastHC == null) {
+                            LOGGER.debug(marker, "No health check for node {}", protoToString(cassandraNode));
+                            return false;
+                        }
 
-    @VisibleForTesting
-    static long secondsUntilNextPossibleServerLaunch(final long now, final long nextPossibleServerLaunchTimestamp) {
-        final long millisUntilNext = nextPossibleServerLaunchTimestamp - now;
-        if (millisUntilNext <= 0) {
-            return 0L;
+                        if (lastHC.getTimestampEnd() < healthCheckEndThreshold) {
+                            LOGGER.debug(marker, "Last health check {} under health check threshold {} for node {}", lastHC.getTimestampEnd(), healthCheckEndThreshold, protoToString(cassandraNode));
+                            return false;
+                        }
+
+                        if (!isNodeHealthyJoinedAndOperatingNormally(lastHC)) {
+                            LOGGER.debug(marker, "Not healthy {} node {}", protoToString(lastHC), protoToString(cassandraNode));
+                            return false;
+                        }
+                        break;
+                }
+            } else {
+                LOGGER.info(marker, "No server task for node {}", protoToString(cassandraNode));
+            }
         }
-        return millisUntilNext / 1000;
+
+        LOGGER.info(marker, "Able to launch server task");
+        return true;
     }
+
 }

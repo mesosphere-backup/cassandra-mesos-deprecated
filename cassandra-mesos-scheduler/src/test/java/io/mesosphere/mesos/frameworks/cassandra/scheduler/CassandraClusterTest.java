@@ -23,62 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class CassandraClusterTest {
 
     @Test
-    public void nextPossibleServerLaunchTimestamp() throws Exception {
-        assertThat(CassandraCluster.nextPossibleServerLaunchTimestamp(0, 60, 60)).isEqualTo(60_000L);
-        assertThat(CassandraCluster.nextPossibleServerLaunchTimestamp(9, 60, 60)).isEqualTo(60_009L);
-    }
-
-    @Test
-    public void nextPossibleServerLaunchTimestamp_healthCheckTimeoutIsUsedWhenGracePeriodIsSmaller() throws Exception {
-        assertThat(CassandraCluster.nextPossibleServerLaunchTimestamp(0, 15, 60)).isEqualTo(60_000L);
-    }
-
-    @Test
-    public void canLaunchServerTask_1() throws Exception {
-        assertThat(CassandraCluster.canLaunchServerTask(0, 10)).isFalse();
-    }
-
-    @Test
-    public void canLaunchServerTask_2() throws Exception {
-        assertThat(CassandraCluster.canLaunchServerTask(9, 10)).isFalse();
-    }
-
-    @Test
-    public void canLaunchServerTask_3() throws Exception {
-        assertThat(CassandraCluster.canLaunchServerTask(10, 10)).isTrue();
-    }
-
-    @Test
-    public void canLaunchServerTask_4() throws Exception {
-        assertThat(CassandraCluster.canLaunchServerTask(11, 10)).isTrue();
-    }
-
-    @Test
-    public void secondsUntilNextPossibleServerLaunch_1() throws Exception {
-        assertThat(CassandraCluster.secondsUntilNextPossibleServerLaunch(0, 10)).isEqualTo(0);
-    }
-
-    @Test
-    public void secondsUntilNextPossibleServerLaunch_2() throws Exception {
-        assertThat(CassandraCluster.secondsUntilNextPossibleServerLaunch(0, 10_000)).isEqualTo(10);
-    }
-
-    @Test
-    public void secondsUntilNextPossibleServerLaunch_3() throws Exception {
-        assertThat(CassandraCluster.secondsUntilNextPossibleServerLaunch(10_000, 10_000)).isEqualTo(0);
-    }
-
-    @Test
-    public void secondsUntilNextPossibleServerLaunch_4() throws Exception {
-        assertThat(CassandraCluster.secondsUntilNextPossibleServerLaunch(9_000, 10_000)).isEqualTo(1);
-    }
-
-    @Test
-    public void secondsUntilNextPossibleServerLaunch_5() throws Exception {
-        assertThat(CassandraCluster.secondsUntilNextPossibleServerLaunch(11_000, 10_000)).isEqualTo(0);
-    }
-
-    @Test
     public void removeExecutor_cleansAllTasksAndExecutorInfo() throws Exception {
         final InMemoryState state = new InMemoryState();
         final Clock clock = new SystemClock();
@@ -87,7 +31,7 @@ public class CassandraClusterTest {
         final PersistedCassandraClusterHealthCheckHistory healthCheckHistory = new PersistedCassandraClusterHealthCheckHistory(state);
         final PersistedCassandraClusterJobs jobsState = new PersistedCassandraClusterJobs(state);
         final PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
-            state, "cassandra.unit-test", 15, 15, "2.1.4", 1.0, 64, 64, 32, 1, 1, "*", "./backup", ".", true, false,
+            state, "cassandra.unit-test", 15, "2.1.4", 1.0, 64, 64, 32, 1, 1, "*", "./backup", ".", true, false,
             "rack0", "dc0", Collections.<CassandraFrameworkProtos.ExternalDc>emptyList(), "cassandra.unit-test"
         );
         final CassandraCluster cluster1 = new CassandraCluster(

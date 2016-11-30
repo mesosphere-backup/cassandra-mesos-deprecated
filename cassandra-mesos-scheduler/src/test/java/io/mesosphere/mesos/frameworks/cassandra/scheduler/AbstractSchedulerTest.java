@@ -54,8 +54,7 @@ public abstract class AbstractSchedulerTest {
         configuration = new PersistedCassandraFrameworkConfiguration(
                 state,
                 "test-cluster",
-                0, // health-check
-                0, // bootstrap-grace-time
+                15, // health-check
                 "2.1.4",
             2, 4096, 4096, 0,
             3, 2,

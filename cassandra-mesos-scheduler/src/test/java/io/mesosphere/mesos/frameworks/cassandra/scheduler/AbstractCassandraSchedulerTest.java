@@ -955,13 +955,13 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
         executorServer = new Tuple2[slaves.length];
 
         executorServer[0] = launchTask(slaves[0], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
+        sendHealthCheckResult(executorMetadata[0], healthCheckDetailsSuccess("NORMAL", true));
         executorServer[1] = launchTask(slaves[1], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
+        sendHealthCheckResult(executorMetadata[1], healthCheckDetailsSuccess("NORMAL", true));
 
         executorTaskRunning(executorServer[0]._1);
         executorTaskRunning(executorServer[1]._1);
 
-        sendHealthCheckResult(executorMetadata[0], healthCheckDetailsSuccess("NORMAL", true));
-        sendHealthCheckResult(executorMetadata[1], healthCheckDetailsSuccess("NORMAL", true));
 
         executorServer[2] = launchTask(slaves[2], CassandraFrameworkProtos.TaskDetails.TaskDetailsType.CASSANDRA_SERVER_RUN);
 

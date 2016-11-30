@@ -67,11 +67,9 @@ public final class ConfigController {
      * "sslStoragePort" : 7001,
      * "seeds" : [ "127.0.0.1" ],
      * "healthCheckIntervalSeconds" : 10,
-     * "bootstrapGraceTimeSeconds" : 0,
      * "currentClusterTask" : null,
      * "lastRepair" : null,
-     * "lastCleanup" : null,
-     * "nextPossibleServerLaunchTimestamp" : 1426685858805
+     * "lastCleanup" : null
      * }}</pre>
      */
     @GET
@@ -108,7 +106,6 @@ public final class ConfigController {
                 JaxRsUtils.writeSeedIps(cluster, json);
 
                 json.writeNumberField("healthCheckIntervalSeconds", config.getHealthCheckIntervalSeconds());
-                json.writeNumberField("bootstrapGraceTimeSeconds", config.getBootstrapGraceTimeSeconds());
 
                 final CassandraFrameworkProtos.ClusterJobStatus currentTask = cluster.getCurrentClusterJob();
                 JaxRsUtils.writeClusterJob(cluster, json, "currentClusterTask", currentTask);
@@ -118,8 +115,6 @@ public final class ConfigController {
 
                 final CassandraFrameworkProtos.ClusterJobStatus lastCleanup = cluster.getLastClusterJob(CassandraFrameworkProtos.ClusterJobType.CLEANUP);
                 JaxRsUtils.writeClusterJob(cluster, json, "lastCleanup", lastCleanup);
-
-                json.writeNumberField("nextPossibleServerLaunchTimestamp", cluster.nextPossibleServerLaunchTimestamp());
 
             }
         });

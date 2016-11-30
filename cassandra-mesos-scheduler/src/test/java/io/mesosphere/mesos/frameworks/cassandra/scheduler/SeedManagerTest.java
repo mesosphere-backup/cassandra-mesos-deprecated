@@ -32,7 +32,6 @@ public class SeedManagerTest {
                 state,
                 "name",
                 60,
-                30,
                 "2.1",
                 0.5,
                 1024,

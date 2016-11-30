@@ -29,7 +29,6 @@ public class PersistedCassandraFrameworkConfigurationTest {
                 state,
                 "name",
                 60,
-                30,
                 "2.1",
                 0.5,
                 1024,
@@ -70,7 +69,6 @@ public class PersistedCassandraFrameworkConfigurationTest {
             state,
             "frameworkName should be cassandra.cluster not this value",
             15,
-            15,
             "2.1.4",
             1.0,
             2048,
@@ -100,7 +98,6 @@ public class PersistedCassandraFrameworkConfigurationTest {
         final PersistedCassandraFrameworkConfiguration configuration = new PersistedCassandraFrameworkConfiguration(
             state,
             "cassandra.frameworkName",
-            15,
             15,
             "2.1.4",
             1.0,

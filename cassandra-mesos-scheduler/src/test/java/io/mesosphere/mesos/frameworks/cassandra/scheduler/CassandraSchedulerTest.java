@@ -152,7 +152,6 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .setResources(resources(1, 2048, 2048)))
             .setFrameworkName("a name")
             .setHealthCheckIntervalSeconds(10)
-            .setBootstrapGraceTimeSeconds(10)
             .build();
 
         try {
@@ -173,7 +172,6 @@ public class CassandraSchedulerTest extends AbstractCassandraSchedulerTest {
                 .setResources(resources(1, 2048, 2048)))
             .setFrameworkName("a name")
             .setHealthCheckIntervalSeconds(10)
-            .setBootstrapGraceTimeSeconds(10)
             .addPortMapping(CassandraFrameworkProtos.PortMapping.newBuilder()
                 .setName(CassandraCluster.PORT_JMX)
                 .setPort(1))

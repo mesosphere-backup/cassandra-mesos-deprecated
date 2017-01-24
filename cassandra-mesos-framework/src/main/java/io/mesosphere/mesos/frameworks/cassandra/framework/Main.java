@@ -43,10 +43,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
+import java.io.InputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -127,6 +130,8 @@ public final class Main {
 
         final Optional<String> clusterNameOpt = Env.option("CASSANDRA_CLUSTER_NAME");
 
+        final Properties projectProperties = getProjectProperties();
+
         final int       executorCount               = Integer.parseInt(     Env.option("CASSANDRA_NODE_COUNT").or("3"));
         final int       seedCount                   = Integer.parseInt(     Env.option("CASSANDRA_SEED_COUNT").or("2"));
         final double    resourceCpuCores            = Double.parseDouble(   Env.option("CASSANDRA_RESOURCE_CPU_CORES").or("2.0"));
@@ -135,7 +140,7 @@ public final class Main {
         final long      javaHeapMb                  = Long.parseLong(       Env.option("CASSANDRA_RESOURCE_HEAP_MB").or("0"));
         final long      healthCheckIntervalSec      = Long.parseLong(       Env.option("CASSANDRA_HEALTH_CHECK_INTERVAL_SECONDS").or("60"));
         final long      bootstrapGraceTimeSec       = Long.parseLong(       Env.option("CASSANDRA_BOOTSTRAP_GRACE_TIME_SECONDS").or("120"));
-        final String    cassandraVersion            =                       "2.1.4";
+        final String    cassandraVersion            =                       Optional.fromNullable(projectProperties.getProperty("version.cassandra")).or("2.1.4");
         final String    clusterName                 =                       clusterNameOpt.or("cassandra");
         final String    frameworkName               =                       frameworkName(clusterNameOpt);
         final String    zkUrl                       =                       Env.option("CASSANDRA_ZK").or("zk://localhost:2181/cassandra-mesos");
@@ -335,11 +340,26 @@ public final class Main {
         }
     }
 
+    static Properties getProjectProperties() {
+        Properties projectProperties = new Properties();
+        try {
+            InputStream iStream = Main.class.getResourceAsStream("/cassandra-mesos.properties");
+            projectProperties.load(iStream);
+        } catch (IOException e) {
+            throw new SystemExitException("Could not load compile-time project properties", e, 11);
+        }
+        return projectProperties;
+    }
+
     static class SystemExitException extends RuntimeException {
         private final int status;
 
         public SystemExitException(final String message, final int status) {
-            super(message);
+            this(message, null, status);
+        }
+
+        public SystemExitException(final String message, final Throwable cause, final int status) {
+            super(message, cause);
             this.status = status;
         }
     }

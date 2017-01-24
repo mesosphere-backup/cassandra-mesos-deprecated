@@ -17,6 +17,8 @@ package io.mesosphere.mesos.frameworks.cassandra.executor.jmx;
 
 import io.mesosphere.mesos.frameworks.cassandra.CassandraFrameworkProtos;
 import org.apache.cassandra.service.ActiveRepairService;
+import org.apache.cassandra.utils.progress.ProgressEvent;
+import org.apache.cassandra.utils.progress.jmx.JMXNotificationProgressListener;
 import org.apache.mesos.Protos;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -30,10 +32,13 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class NodeRepairJob extends AbstractNodeJob implements NotificationListener {
+public class NodeRepairJob extends AbstractNodeJob {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(NodeRepairJob.class);
 
     private final Map<Integer, String> commandToKeyspace = new HashMap<>();
+
+    private final NodeRepairJobNotificationListener notificationListener = new NodeRepairJobNotificationListener();
 
     public NodeRepairJob(final Protos.TaskID taskId) {
         super(taskId);
@@ -50,7 +55,7 @@ public class NodeRepairJob extends AbstractNodeJob implements NotificationListen
             return false;
         }
 
-        jmxConnect.getStorageServiceProxy().addNotificationListener(this, null, null);
+        jmxConnect.getStorageServiceProxy().addNotificationListener(notificationListener, null, null);
 
         LOGGER.info("Initiated repair job for keyspaces {}", getRemainingKeyspaces());
 
@@ -83,73 +88,55 @@ public class NodeRepairJob extends AbstractNodeJob implements NotificationListen
     protected void cleanupAfterJobFinished() {
         try {
             super.cleanupAfterJobFinished();
-            checkNotNull(jmxConnect).getStorageServiceProxy().removeNotificationListener(this);
+            checkNotNull(jmxConnect).getStorageServiceProxy().removeNotificationListener(notificationListener);
             close();
         } catch (final ListenerNotFoundException ignored) {
             // ignore this
         }
     }
 
-    @Override
-    public void handleNotification(final Notification notification, final Object handback) {
-        if (!"repair".equals(notification.getType())) {
-            return;
+    /**
+     * Inner class for listening to progress notifications.
+     */
+    protected class NodeRepairJobNotificationListener extends JMXNotificationProgressListener {
+
+        @Override
+        public boolean isInterestedIn(@NotNull final String tag) {
+            try {
+                return commandToKeyspace.containsKey(tagToCommand(tag));
+            } catch (ArrayIndexOutOfBoundsException e) {
+                return false;
+            } catch (NumberFormatException e) {
+                return false;
+            }
         }
 
-        final int[] result = (int[]) notification.getUserData();
-        final int repairCommandNo = result[0];
-        final ActiveRepairService.Status status = ActiveRepairService.Status.values()[result[1]];
-
-        final String keyspace = commandToKeyspace.get(repairCommandNo);
-
-        switch (status) {
-            case STARTED:
-                LOGGER.info("Received STARTED notification about repair for keyspace {} with cmd#{}, timetamp={}, message={}",
-                        keyspace, repairCommandNo, notification.getTimeStamp(), notification.getMessage());
-                keyspaceStarted();
-                break;
-            case SESSION_SUCCESS:
-                LOGGER.debug("Received SESSION_SUCCESS notification about repair for keyspace {} with cmd#{}, timetamp={}, message={}",
-                        keyspace, repairCommandNo, notification.getTimeStamp(), notification.getMessage());
-                break;
-            case SESSION_FAILED:
-                LOGGER.warn("Received SESSION_FAILED notification about repair for keyspace {} with cmd#{}, timetamp={}, message={}",
-                        keyspace, repairCommandNo, notification.getTimeStamp(), notification.getMessage());
-                break;
-            case FINISHED:
-                LOGGER.info("Received FINISHED notification about repair for keyspace {} with cmd#{}, timetamp={}, message={}",
-                        keyspace, repairCommandNo, notification.getTimeStamp(), notification.getMessage());
-
-                keyspaceFinished(status.name(), keyspace);
-
-                startNextKeyspace();
-
-                break;
-        }
-
-        // TODO also allow StorageServiceMBean.forceTerminateAllRepairSessions
-
-        /*
-        TODO handle these, too !!!
-
-        else if (JMXConnectionNotification.NOTIFS_LOST.equals(notification.getType()))
-        {
-            String message = String.format("[%s] Lost notification. You should check server log for repair status of keyspace %s",
-                                           format.format(notification.getTimeStamp()),
-                                           keyspace);
-            out.println(message);
-        }
-        else if (JMXConnectionNotification.FAILED.equals(notification.getType())
-                 || JMXConnectionNotification.CLOSED.equals(notification.getType()))
-        {
-            String message = String.format("JMX connection closed. You should check server log for repair status of keyspace %s"
-                                           + "(Subsequent keyspaces are not going to be repaired).",
-                                           keyspace);
-            error = new IOException(message);
-            condition.signalAll();
-        }
-
+        /**
+         * Converts a tag of the form "repair:<cmd>" to a the command
          */
-    }
+        protected int tagToCommand(@NotNull final String tag) throws ArrayIndexOutOfBoundsException, NumberFormatException {
+            return Integer.parseInt(tag.split(":")[1]);
+        }
 
+        @Override
+        public void progress(@NotNull final String tag, @NotNull final ProgressEvent event) {
+            final int cmd = tagToCommand(tag);
+            final String keyspace = commandToKeyspace.get(cmd);
+
+            switch (event.getType()) {
+                case COMPLETE:
+                    LOGGER.info("Received COMPLETE notification about repair for keyspace {}", keyspace);
+                    keyspaceFinished("FINISHED", keyspace);
+                    startNextKeyspace();
+                    break;
+                case START:
+                    LOGGER.info("Received START notification about repair for keyspace {}", keyspace);
+                    keyspaceStarted();
+                    break;
+                case PROGRESS:
+                    LOGGER.info("Received PROGRESS notification about repair for keyspace {}: {}/{}", keyspace, event.getProgressCount(), event.getTotal());
+                    break;
+            }
+        }
+    }
 }

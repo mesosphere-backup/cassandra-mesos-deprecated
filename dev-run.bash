@@ -21,7 +21,7 @@ function maven {(
 )}
 
 function download {(
-    wget --progress=dot -e dotbytes=1M -O "$(pwd)/cassandra-mesos-dist/target/tarball/jre.tar.gz" https://downloads.mesosphere.io/java/jre-7u75-linux-x64.tar.gz
+    wget --progress=dot -e dotbytes=1M -O "$(pwd)/cassandra-mesos-dist/target/tarball/jre.tar.gz" https://downloads.mesosphere.io/java/jre-8u65-linux-x64.tar.gz
 )}
 
 function execute {(

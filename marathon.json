@@ -6,7 +6,7 @@
   "ports": [0],
   "uris": [
     "$url",
-    "https://downloads.mesosphere.io/java/jre-7u76-linux-x64.tar.gz"
+    "https://downloads.mesosphere.io/java/jre-8u65-linux-x64.tar.gz"
   ],
   "env": {
     "MESOS_ZK": "zk://localhost:2181/mesos",

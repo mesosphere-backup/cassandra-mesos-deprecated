@@ -62,6 +62,11 @@ public class MockSchedulerDriver implements SchedulerDriver {
         return Protos.Status.DRIVER_RUNNING;
     }
 
+    @Override public Protos.Status acceptOffers(Collection<Protos.OfferID> offerIds,
+        Collection<Protos.Offer.Operation> operations, Protos.Filters filters) {
+        return null;
+    }
+
     @Override
     public Protos.Status declineOffer(final Protos.OfferID offerId, final Protos.Filters filters) {
         declinedOffers.add(offerId);

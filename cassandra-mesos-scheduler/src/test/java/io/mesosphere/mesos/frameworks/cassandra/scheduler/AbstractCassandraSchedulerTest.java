@@ -1154,7 +1154,7 @@ public abstract class AbstractCassandraSchedulerTest extends AbstractSchedulerTe
     protected void cleanState(final String mesosRole) {
         super.cleanState(mesosRole);
 
-        scheduler = new CassandraScheduler(configuration, cluster, clock);
+        scheduler = new CassandraScheduler(configuration, cluster, clock, "cassandra-framework");
 
         driver = new MockSchedulerDriver(scheduler);
         driver.callRegistered(Protos.FrameworkID.newBuilder().setValue(UUID.randomUUID().toString()).build());

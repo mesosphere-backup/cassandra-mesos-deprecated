@@ -45,7 +45,8 @@ public class PersistedCassandraFrameworkConfigurationTest {
                 "RACK5",
                 "DC5",
                 Lists.<ExternalDc>newArrayList(),
-                "clusterName"
+                "clusterName",
+                false
         );
 
         CassandraFrameworkProtos.RackDc rackDc = config.getDefaultRackDc();
@@ -86,7 +87,8 @@ public class PersistedCassandraFrameworkConfigurationTest {
             "rack1",
             "dc1",
             Collections.<ExternalDc>emptyList(),
-            "clusterName should be cassandra.cluster not this value"
+            "clusterName should be cassandra.cluster not this value",
+            false
         );
 
         assertThat(configuration.frameworkName()).isEqualTo("cassandra.cluster");
@@ -117,7 +119,8 @@ public class PersistedCassandraFrameworkConfigurationTest {
             "rack1",
             "dc1",
             Collections.<ExternalDc>emptyList(),
-            "clusterName"
+            "clusterName",
+            false
         );
 
         assertThat(configuration.frameworkName()).isEqualTo("cassandra.frameworkName");

@@ -51,7 +51,8 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
         @NotNull final String defaultRack,
         @NotNull final String defaultDc,
         @NotNull final List<ExternalDc> externalDcs,
-        @NotNull final String clusterName
+        @NotNull final String clusterName,
+        final boolean reserve
     ) {
         super(
             "CassandraFrameworkConfiguration",
@@ -64,7 +65,9 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setResources(CassandraFrameworkProtos.TaskResources.newBuilder()
                             .setCpuCores(cpuCores)
                             .setDiskMb(diskMb)
-                            .setMemMb(memMb))
+                            .setMemMb(memMb)
+                            .addAllPorts(CassandraCluster.defaultPortMappings.values())
+                        )
                         .setMesosRole(mesosRole)
                         .setBackupDirectory(backupDirectory)
                         .setPreDefinedDataDirectory(dataDirectory)
@@ -87,6 +90,7 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
                         .setTargetNumberOfNodes(executorCount)
                         .setTargetNumberOfSeeds(seedCount)
                         .addAllExternalDcs(externalDcs)
+                        .setReserve(reserve)
                         .setClusterName(clusterName)
                         .build();
                 }
@@ -227,6 +231,10 @@ public final class PersistedCassandraFrameworkConfiguration extends StatePersist
 
     public int targetNumberOfSeeds() {
         return get().getTargetNumberOfSeeds();
+    }
+
+    public boolean isReserveRequired() {
+        return get().getReserve();
     }
 
     public void targetNumberOfSeeds(final int newSeedCount) {

@@ -74,7 +74,7 @@ import static io.mesosphere.mesos.util.Tuple2.tuple2;
 public final class CassandraCluster {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraCluster.class);
 
-    private static final Joiner JOINER = Joiner.on("','");
+    static final Joiner JOINER = Joiner.on("','");
     private static final Joiner SEEDS_FORMAT_JOINER = Joiner.on(',');
     private static final Pattern URL_FOR_RESOURCE_REPLACE = Pattern.compile("(?<!:)/+");
 
@@ -88,7 +88,7 @@ public final class CassandraCluster {
     public static final String DC_ATTRIBUTE = "CASSANDRA_DC";
 
     // see: http://www.datastax.com/documentation/cassandra/2.1/cassandra/security/secureFireWall_r.html
-    private static final Map<String, Long> defaultPortMappings = unmodifiableHashMap(
+    static final Map<String, Long> defaultPortMappings = unmodifiableHashMap(
         tuple2(PORT_STORAGE, 7000L),
         tuple2(PORT_STORAGE_SSL, 7001L),
         tuple2(PORT_JMX, 7199L),
@@ -471,7 +471,7 @@ public final class CassandraCluster {
     }
 
     @NotNull
-    private static Map<String, Long> portMappings(@NotNull final CassandraFrameworkConfiguration config) {
+    static Map<String, Long> portMappings(@NotNull final CassandraFrameworkConfiguration config) {
         final Map<String, Long> r = new HashMap<>();
         for (final String name : defaultPortMappings.keySet()) {
             r.put(name, (long) getPortMapping(config, name));
@@ -674,10 +674,12 @@ public final class CassandraCluster {
         @NotNull final Protos.Offer offer,
         @NotNull final TaskResources taskResources,
         @NotNull final Map<String, Long> portMapping,
-        @NotNull final String mesosRole
-    ) {
+        @NotNull final String mesosRole,
+        boolean reserve) {
         final List<String> errors = newArrayList();
-        final ListMultimap<String, Protos.Resource> availableResources = resourcesForRoleAndOffer(mesosRole,offer);
+        final ListMultimap<String, Protos.Resource> availableResources = reserve
+            ? nonReservedResources(offer)
+            : resourcesForRoleAndOffer(mesosRole,offer);
 
         final double availableCpus = maxResourceValueDouble(availableResources.get("cpus")).or(0d);
         final long availableMem = maxResourceValueLong(availableResources.get("mem")).or(0l);
@@ -1147,8 +1149,8 @@ public final class CassandraCluster {
                 offer,
                 allResources,
                 portMappings(config),
-                configRole.getMesosRole()
-            );
+                configRole.getMesosRole(),
+                false);
             if (!executorSizeErrors.isEmpty()) {
                 // there aren't enough resources to even attempt to run the server, skip this host for now.
                 LOGGER.info(
@@ -1249,8 +1251,8 @@ public final class CassandraCluster {
                         offer,
                         configRole.getResources(),
                         portMappings(config),
-                        configRole.getMesosRole()
-                    );
+                        configRole.getMesosRole(),
+                        false);
                     if (!errors.isEmpty()) {
                         LOGGER.info(marker, "Insufficient resources in offer for server: {}. Details: ['{}']", offer.getId().getValue(), JOINER.join(errors));
                     } else {
@@ -1334,10 +1336,14 @@ public final class CassandraCluster {
     }
 
     private static TaskResources add(@NotNull final TaskResources r1, @NotNull final TaskResources r2) {
+        final Set<Long> ports = new HashSet<>(r1.getPortsList());
+        ports.addAll(r2.getPortsList());
+
         return TaskResources.newBuilder()
             .setCpuCores(r1.getCpuCores() + r2.getCpuCores())
             .setMemMb(r1.getMemMb() + r2.getMemMb())
             .setDiskMb(r1.getDiskMb() + r2.getDiskMb())
+            .addAllPorts(ports)
             .build();
     }
 
@@ -1363,5 +1369,55 @@ public final class CassandraCluster {
             return 0L;
         }
         return millisUntilNext / 1000;
+    }
+
+    @NotNull
+    public Optional<TaskResources> shouldCreateReservation(@NotNull final Marker marker, @NotNull final Protos.Offer offer) {
+        if (!configuration.isReserveRequired()) {
+            LOGGER.info(marker, "Resources Reservation is not enabled");
+            return Optional.absent();
+        } else if (cassandraNodeForHostname(offer.getHostname()).isPresent()) {
+            LOGGER.info(marker, "Cassandra node already allocated for host.");
+            return Optional.absent();
+        } else {
+            final long now = clock.now().getMillis();
+            final long nextPossibleServerLaunchTimestamp = nextPossibleServerLaunchTimestamp();
+            final boolean serverLaunchTimeoutActive = !canLaunchServerTask(now, nextPossibleServerLaunchTimestamp);
+
+            if (clusterState.reservedNodesCount() >= configuration.targetNumberOfNodes()) {
+                LOGGER.debug(marker, "Number of desired Cassandra Nodes Acquired, no need to create Resource Reservation.");
+                return Optional.absent();
+            } else if (serverLaunchTimeoutActive) {
+                final long nextPossibleServerLaunchSeconds = secondsUntilNextPossibleServerLaunch(now, nextPossibleServerLaunchTimestamp);
+                LOGGER.info(marker, "Preventing creation of new node because server launch timeout active. Next server launch possible in {}s", nextPossibleServerLaunchSeconds);
+                return Optional.absent();
+            } else {
+                final CassandraConfigRole configRole = configuration.getDefaultConfigRole();
+                final CassandraFrameworkConfiguration config = configuration.get();
+
+                final TaskResources allResources = add(
+                    add(EXECUTOR_RESOURCES, METADATA_TASK_RESOURCES),
+                    configRole.getResources()
+                );
+                final List<String> executorSizeErrors = hasResources(
+                    offer,
+                    allResources,
+                    portMappings(config),
+                    configRole.getMesosRole(),
+                    true);
+
+                if (executorSizeErrors.isEmpty()) {
+                    LOGGER.info(marker, "Attempting to create Resource Reservation");
+                    return Optional.of(allResources);
+                } else {
+                    LOGGER.info(
+                        marker,
+                        "Insufficient resources in offer for executor, not attempting to launch new node. Details for offer {}: ['{}']",
+                        offer.getId().getValue(), JOINER.join(executorSizeErrors)
+                    );
+                    return Optional.absent();
+                }
+            }
+        }
     }
 }

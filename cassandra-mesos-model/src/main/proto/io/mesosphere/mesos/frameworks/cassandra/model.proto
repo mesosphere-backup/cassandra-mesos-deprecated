@@ -75,6 +75,9 @@ message CassandraFrameworkConfiguration {
      * The name of the cassandra cluster. Corresponds to cluster_name in cassandra.yaml
      */
     optional string clusterName = 11;
+
+    /* Whether or not to use dynamic reservation */
+    optional bool reserve = 12;
 }
 
 /**
@@ -217,6 +220,11 @@ message CassandraClusterState {
      * List of IP addresses of nodes that need to be replaced.
      */
     repeated string replaceNodeIps = 4;
+
+    /**
+     * Amount of reserved nodes
+     */
+    optional int64 reservedNodes = 5;
 }
 
 /**

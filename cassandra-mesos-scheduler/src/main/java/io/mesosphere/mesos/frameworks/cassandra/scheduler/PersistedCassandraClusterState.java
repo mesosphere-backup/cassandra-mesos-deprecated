@@ -76,6 +76,18 @@ public final class PersistedCassandraClusterState extends StatePersistedObject<C
         );
     }
 
+    public long reservedNodesCount() {
+        return get().getReservedNodes();
+    }
+
+    public void updateReservedNodesCount(long reservedNodesCount) {
+        setValue(
+            CassandraFrameworkProtos.CassandraClusterState.newBuilder(get())
+                .setReservedNodes(reservedNodesCount)
+                .build()
+        );
+    }
+
     @NotNull
     public List<CassandraFrameworkProtos.ExecutorMetadata> executorMetadata() {
         return get().getExecutorMetadataList();

@@ -51,7 +51,8 @@ public class SeedManagerTest {
                         .setName("dc")
                         .setUrl("http://dc")
                         .build()),
-                "name"
+                "name",
+                false
         );
 
         seedManager = new SeedManager(config, new ObjectMapper(), new SystemClock()) {

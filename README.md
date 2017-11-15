@@ -1,5 +1,5 @@
 **DEPRECATED**
-This project has been replaced by DC/OS Cassandra Service https://github.com/mesosphere/dcos-cassandra-service.
+This project has been replaced by DC/OS Cassandra Service https://github.com/mesosphere/mesosphere/dcos-commons/frameworks/cassandra.
 
 
 Cassandra Mesos Framework
